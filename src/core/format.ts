@@ -145,6 +145,10 @@ export const imageUrlSchema = z
   .regex(/^(https?:\/\/|data:image\/)/i, 'Expected an http(s) or data:image URL')
   .describe('http(s) URL or data:image/... URI');
 
+export const toneSchema = z
+  .enum(['neutral', 'accent', 'info', 'success', 'warning', 'critical'])
+  .describe('Color intent: neutral, accent (brand), info, success, warning or critical');
+
 export const titleFields = {
   title: z.string().max(200).optional().describe('Heading shown above the content'),
   subtitle: z.string().max(400).optional().describe('One line of context under the title'),

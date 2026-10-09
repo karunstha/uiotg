@@ -41,6 +41,7 @@ export const pieChart = defineTemplate({
     center_label: 'Total spend',
   },
   width: 680,
+  richWhen: (d) => d.slices.length >= 4,
   css: /* css */ `
 .pie{display:flex;align-items:center;gap:clamp(16px, 5%, 36px)}
 .pie.narrow{flex-direction:column;align-items:stretch;gap:20px}
@@ -54,6 +55,8 @@ export const pieChart = defineTemplate({
 .pie-row{display:grid;grid-template-columns:10px 1fr auto 52px;align-items:center;column-gap:10px;padding:9px 0;font-size:14px}
 .pie-row + .pie-row{border-top:1px solid var(--grid)}
 .pie-name{color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pie-note{margin-top:12px;font-size:13px;color:var(--text-2)}
+.pie-note b{color:var(--text);font-weight:620}
 .pie-val{color:var(--text);font-weight:550;font-variant-numeric:tabular-nums;text-align:right}
 .pie-pct{color:var(--text-2);font-variant-numeric:tabular-nums;text-align:right}
 `,
@@ -61,8 +64,10 @@ export const pieChart = defineTemplate({
     const { theme } = ctx;
     const fmt = makeFormatter(d.format);
     let slices = d.slices.map((s, i) => ({ ...s, index: i }));
-    if (d.sort) slices = [...slices].sort((a, b) => b.value - a.value);
-    let colored = slices.map((s, i) => ({ label: s.label, value: s.value, color: seriesColor(theme, i, s.color) }));
+    // Largest first, but a slice the data calls "Other" always goes last.
+    const isOther = (l: string) => /^other\b/i.test(l.trim());
+    if (d.sort) slices = [...slices].sort((a, b) => Number(isOther(a.label)) - Number(isOther(b.label)) || b.value - a.value);
+    let colored = slices.map((s, i) => ({ label: s.label, value: s.value, color: isOther(s.label) ? (s.color ?? theme.other) : seriesColor(theme, i, s.color) }));
     if (colored.length > d.max_slices) {
       const keep = colored.slice(0, d.max_slices - 1);
       const rest = colored.slice(d.max_slices - 1);
@@ -97,7 +102,16 @@ export const pieChart = defineTemplate({
 
     const percentFormat =
       d.format === 'percent' || (typeof d.format === 'object' && (d.format.style === 'percent' || d.format.suffix?.trim() === '%'));
+    const minimal = ctx.detail === 'minimal';
     const showShare = d.show_share ?? !percentFormat;
+    // Minimal keeps one number per slice: the share (or the value when values already are shares).
+    const showValue = !(minimal && showShare);
+    let insight = null;
+    if (ctx.detail === 'rich' && total > 0 && colored.length >= 4) {
+      const topN = colored[0]!.value / total >= 0.5 ? 1 : 2;
+      const share = colored.slice(0, topN).reduce((s, c) => s + c.value, 0) / total;
+      insight = html`<div class="pie-note">${topN === 1 ? colored[0]!.label : `${colored[0]!.label} and ${colored[1]!.label}`} ${topN === 1 ? 'makes' : 'make'} up <b>${Math.round(share * 100)}%</b> of the total.</div>`;
+    }
     const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(v / total < 0.1 ? 1 : 0)}%` : '–');
     return html`${header(d)}<div class="${`pie${narrow ? ' narrow' : ''}`}">
       <div class="pie-chart" style="${style({ width: size, height: size })}">
@@ -106,14 +120,14 @@ export const pieChart = defineTemplate({
           ? html`<div class="pie-center"><div class="pie-cv">${d.center_value ?? fmt(total)}</div><div class="pie-cl">${d.center_label ?? 'Total'}</div></div>`
           : null}
       </div>
-      <div class="${`pie-legend${showShare ? '' : ' no-share'}`}">${colored.map(
+      <div class="${`pie-legend${showShare && showValue ? '' : ' no-share'}`}">${colored.map(
         (c) => html`<div class="pie-row">
           <span class="key" style="${style({ background: c.color })}"></span>
           <span class="pie-name">${c.label}</span>
-          <span class="pie-val">${fmt(c.value)}</span>
+          ${showValue ? html`<span class="pie-val">${fmt(c.value)}</span>` : null}
           ${showShare ? html`<span class="pie-pct">${pct(c.value)}</span>` : null}
         </div>`,
-      )}</div>
+      )}${insight}</div>
     </div>`;
   },
 });

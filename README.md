@@ -20,10 +20,11 @@ An MCP server that turns structured data into polished UI images. A model calls 
 
 ## Templates
 
-29 templates across five categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
+43 templates across six categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
 
 | Category | Templates |
 |---|---|
+| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` |
 | **Text & content** | `text_card` · `quote` · `markdown` · `code` (Shiki, 18 themes) · `list` (bullets, numbers, checklists with status) |
 | **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` |
 | **Charts** | `bar_chart` · `line_chart` · `pie_chart` · `scatter_chart` · `heatmap` · `radar_chart` · `treemap` · `sankey` · `funnel` · `gauge` · `candlestick` · `calendar_heatmap` · `echarts` (raw ECharts option escape hatch) |
@@ -82,12 +83,33 @@ docker compose up -d --build
 
 | Tool | Purpose |
 |---|---|
+| `visualize` | `{ data, title?, intent? }` → image. Send raw data (a number, text, a list, an object, or rows); uiotg picks the template and says which one and why. |
 | `render` | `{ template, data, options? }` → image. Its description carries the full template catalog. |
 | `list_templates` | Templates with descriptions, optionally filtered by `category`. |
 | `get_template` | One template's JSON Schema, default size and a complete example. |
 | `render_<template>` | Only with `--tools per-template` (or `UIOTG_TOOLS=per-template`): one tool per template with its exact input schema. This trades a longer tool list for zero schema lookups. |
 
 Invalid data never fails silently. The tool returns an error that lists each problem by path (e.g. `series[0].values: Series "iOS" has 5 values but there are 6 categories`), followed by a valid example, so the model can correct itself and retry.
+
+### Smart defaults
+
+- **`visualize` picks the template.** The rules are deterministic and run on the server, with no extra model calls:
+  - time column plus measures → line chart (long-format rows are pivoted into one line per group);
+  - measures on very different scales → separate charts, never a shared axis;
+  - categories with one measure → ranked bars (top 20 for long lists);
+  - values that add up to 100% → donut;
+  - a few numbers → stat tiles; two numbers → a value and its change;
+  - two measures → scatter;
+  - a single record → key–value list;
+  - anything else → table.
+
+  Number formats ($, %, K/M) are inferred from column names and values. Data that already matches a template's shape is used as-is.
+- **`detail` adapts each template** (`options.detail`, default `auto`):
+  - **minimal** applies to small images (under ~420 px of content). It drops the subtitle, gridlines and extras, and labels values directly.
+  - **rich** applies when there's room and enough data. It adds a summary strip computed from the data: latest value and change, high/low/average, totals and leader share, correlation. Single-series lines also get their high and low points labeled.
+  - **standard** applies in between.
+
+  You can always force a level.
 
 ### Render options
 
@@ -101,6 +123,7 @@ Invalid data never fails silently. The tool returns an error that lists each pro
 | `transparent` | `false` | Transparent background (png) |
 | `padding` | per template | Outer padding in px |
 | `accent` | palette blue | UI accent color (progress, links, highlights) |
+| `detail` | `auto` | `minimal`, `standard` or `rich` |
 
 ### Environment
 

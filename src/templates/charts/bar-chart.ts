@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { renderChart } from '../../core/echarts.ts';
-import { formatSchema, makeAxisFormatter, makeFormatter, titleFields } from '../../core/format.ts';
+import { formatSchema, makeAxisFormatter, makeFormatter, titleFields, type Formatter } from '../../core/format.ts';
+import type { Html } from '../../core/html.ts';
+import { summaryStrip, SUMMARY_HEIGHT, type SummaryItem } from '../../core/ui.ts';
 import { seriesColor } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import {
@@ -57,6 +59,7 @@ export const barChart = defineTemplate({
     format: 'number',
   },
   width: 800,
+  richWhen: (d) => d.categories.length >= 4,
   render(d, ctx) {
     const { theme } = ctx;
     const cats = d.categories.map(String);
@@ -75,7 +78,9 @@ export const barChart = defineTemplate({
     const fmt = makeFormatter(d.format);
     const axisFmt = makeAxisFormatter(d.format, d.stacked ? maxAbs(totals) : maxAbs(series.flatMap((s) => s.values)));
     const single = series.length === 1;
-    const showValues = d.show_values ?? (single && categories.length <= 16);
+    const minimal = ctx.detail === 'minimal';
+    // Minimal drops the value axis, so values move onto the bars whenever that stays readable.
+    const showValues = d.show_values ?? (single && categories.length <= (minimal ? 24 : 16));
     const highlighted = new Set((d.highlight ?? []).map(String));
 
     // The outermost segment of each bar gets the rounded data-end.
@@ -97,7 +102,8 @@ export const barChart = defineTemplate({
     const groupSize = d.stacked ? 1 : series.length;
     const band = Math.min(24, 120 / groupSize) * groupSize + 18;
     const defaultHeight = horizontal ? Math.min(1400, Math.max(140, categories.length * band + 28)) : undefined;
-    const size = plotSize(ctx, { ...d, height: d.height ?? defaultHeight }, legendItems, 0.52, titles.reserve);
+    const summary = ctx.detail === 'rich' ? barSummary(categories, series, totals, fmt) : null;
+    const size = plotSize(ctx, { ...d, height: d.height ?? defaultHeight }, legendItems, 0.52, titles.reserve + (summary ? SUMMARY_HEIGHT : 0));
 
     const valueLabelWidth = Math.max(...(d.stacked ? totals : series.flatMap((s) => s.values.map((v) => v ?? 0))).map((v) => textWidth(fmt(v), 11)));
     const totalWidth = categories.reduce((w, c) => w + textWidth(c, 11) + 14, 0);
@@ -111,7 +117,12 @@ export const barChart = defineTemplate({
         ? { color: theme.text2, fontSize: 12, width: Math.min(180, size.width * 0.32), overflow: 'truncate', interval: 0 }
         : { rotate, hideOverlap: true, width: rotate ? 120 : undefined, overflow: rotate ? 'truncate' : undefined },
     };
-    const valueAxis = { type: 'value', splitNumber: 4, axisLabel: { formatter: axisFmt } };
+    const valueAxis = {
+      type: 'value',
+      splitNumber: 4,
+      axisLabel: { formatter: axisFmt, show: !(minimal && showValues) },
+      splitLine: { show: !(minimal && showValues) },
+    };
 
     const bars = series.map((s, si) => ({
       type: 'bar',
@@ -177,6 +188,25 @@ export const barChart = defineTemplate({
       size,
       theme,
     );
-    return chartLayout(d, legendItems, svg, titles);
+    return chartLayout(d, legendItems, svg, { ...titles, summary, detail: ctx.detail });
   },
 });
+
+/** Rich summary: grand total, the leading category and its share, and the per-category average. */
+function barSummary(categories: string[], series: Array<{ name: string; values: Array<number | null> }>, totals: number[], fmt: Formatter): Html | null {
+  const grand = totals.reduce((a, b) => a + b, 0);
+  if (!Number.isFinite(grand) || totals.length === 0) return null;
+  let top = 0;
+  totals.forEach((t, i) => {
+    if (t > totals[top]!) top = i;
+  });
+  const items: SummaryItem[] = [{ label: 'Total', value: fmt(grand) }];
+  if (grand > 0 && totals.every((t) => t >= 0)) {
+    items.push({ label: 'Leader', value: categories[top]!, note: `${Math.round((totals[top]! / grand) * 100)}% of total` });
+  }
+  items.push({ label: 'Average', value: fmt(grand / totals.length), note: 'per category' });
+  if (series.length >= 2 && series.length <= 3) {
+    for (const s of series) items.push({ label: s.name, value: fmt(s.values.reduce<number>((a, v) => a + (v ?? 0), 0)) });
+  }
+  return summaryStrip(items);
+}

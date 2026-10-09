@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { renderChart } from '../../core/echarts.ts';
-import { formatSchema, makeAxisFormatter, makeFormatter, titleFields } from '../../core/format.ts';
+import { formatSchema, makeAxisFormatter, makeFormatter, titleFields, type Formatter } from '../../core/format.ts';
+import type { Html } from '../../core/html.ts';
+import { neutralChange, seriesStats, summaryStrip, SUMMARY_HEIGHT } from '../../core/ui.ts';
 import { seriesColor } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import {
@@ -17,6 +19,7 @@ import {
   seriesLegend,
   seriesSchema,
   textWidth,
+  type Series,
 } from './common.ts';
 
 function lastValue(values: Array<number | null>): number | null {
@@ -88,6 +91,7 @@ export const lineChart = defineTemplate({
     format: { suffix: ' ms' },
   },
   width: 800,
+  richWhen: (d) => d.x.length >= 8 && d.series.length <= 4,
   render(d, ctx) {
     const { theme } = ctx;
     const x = d.x.map(String);
@@ -99,10 +103,15 @@ export const lineChart = defineTemplate({
     const area = d.area || d.stacked;
     const legendItems = seriesLegend(d.series.map((s) => s.name), colors, 'line');
     const titles = axisTitles(d);
-    const size = plotSize(ctx, d, legendItems, 0.48, titles.reserve);
+    const rich = ctx.detail === 'rich';
+    const minimal = ctx.detail === 'minimal';
+    const summary = rich ? lineSummary(d, x, fmt) : null;
+    const size = plotSize(ctx, d, legendItems, 0.48, titles.reserve + (summary ? SUMMARY_HEIGHT : 0));
+    // Rich, single series: call out the high and low points (selective direct labels).
+    const extremes = rich && n === 1 ? seriesStats(d.series[0]!.values) : null;
     // End labels only when they won't collide; converging lines fall back to the legend.
     const endLabels = d.end_labels ?? (n >= 2 && n <= 4 && !endLabelsCollide(d.series, d.stacked, size.height, d.y_min, d.y_max));
-    const markers = d.markers && x.length <= 80;
+    const markers = d.markers && !minimal && x.length <= 80;
     const endLabelWidth = endLabels ? Math.max(...d.series.map((s) => textWidth(s.name, 12))) + 16 : 0;
 
     const lines = d.series.map((s, si) => {
@@ -136,6 +145,19 @@ export const lineChart = defineTemplate({
                 data: d.reference_lines.map((r) => ({ yAxis: r.value, name: r.label ?? fmt(r.value) })),
               }
             : undefined,
+        markPoint:
+          extremes && extremes.max !== extremes.min
+            ? {
+                symbol: 'circle',
+                symbolSize: 8,
+                itemStyle: { color: colors[si], borderColor: theme.surface, borderWidth: 2 },
+                label: { show: true, color: theme.text2, fontSize: 11, fontWeight: 500, formatter: (p: { value: number }) => fmt(p.value) },
+                data: [
+                  { coord: [extremes.maxIndex, extremes.max], value: extremes.max, label: { position: 'top', distance: 6 } },
+                  { coord: [extremes.minIndex, extremes.min], value: extremes.min, label: { position: 'bottom', distance: 6 } },
+                ],
+              }
+            : undefined,
         data: s.values,
       };
     });
@@ -144,12 +166,45 @@ export const lineChart = defineTemplate({
       {
         grid: grid({ top: 14, right: Math.max(12, endLabelWidth) }),
         xAxis: { type: 'category', data: x, boundaryGap: false, axisLabel: { hideOverlap: true } },
-        yAxis: { type: 'value', splitNumber: 4, min: d.y_min, max: d.y_max, axisLabel: { formatter: axisFmt } },
+        yAxis: {
+          type: 'value',
+          splitNumber: minimal ? 2 : 4,
+          min: d.y_min,
+          max: d.y_max,
+          axisLabel: { formatter: axisFmt },
+          splitLine: { show: !minimal },
+        },
         series: lines,
       },
       size,
       theme,
     );
-    return chartLayout(d, legendItems, svg, titles);
+    return chartLayout(d, legendItems, svg, { ...titles, summary, detail: ctx.detail });
   },
 });
+
+/** Rich summary: latest/change/high/low/average for one series, latest + change per series for 2–4. */
+function lineSummary(d: { series: Series[]; stacked: boolean }, x: string[], fmt: Formatter): Html | null {
+  if (d.stacked) {
+    const totals = x.map((_, i) => d.series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0));
+    const st = seriesStats(totals);
+    return st ? summaryStrip([{ label: `Total · ${x[x.length - 1]}`, value: fmt(st.last), note: st.change != null ? neutralChange(st.change) : null }]) : null;
+  }
+  if (d.series.length === 1) {
+    const st = seriesStats(d.series[0]!.values);
+    if (!st) return null;
+    return summaryStrip([
+      { label: `Latest · ${x[x.length - 1]}`, value: fmt(st.last), note: st.change != null ? neutralChange(st.change) : null },
+      { label: 'High', value: fmt(st.max), note: x[st.maxIndex] },
+      { label: 'Low', value: fmt(st.min), note: x[st.minIndex] },
+      { label: 'Average', value: fmt(st.avg) },
+    ]);
+  }
+  if (d.series.length > 4) return null;
+  return summaryStrip(
+    d.series.flatMap((s) => {
+      const st = seriesStats(s.values);
+      return st ? [{ label: `${s.name} · ${x[x.length - 1]}`, value: fmt(st.last), note: st.change != null ? neutralChange(st.change) : null }] : [];
+    }),
+  );
+}

@@ -3,7 +3,7 @@ import { colorSchema } from '../core/format.ts';
 import { fontFaceCss } from '../core/fonts.ts';
 import { html, raw, style, type Html } from '../core/html.ts';
 import { getTheme, themeVars, type Mode, type Theme } from '../core/theme.ts';
-import type { RenderContext, Size, Template } from '../core/types.ts';
+import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
 import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
 import { BrowserPool, type BrowserOptions } from './browser.ts';
@@ -18,6 +18,10 @@ export const renderOptionsSchema = z.object({
   transparent: z.boolean().optional().describe('Transparent background instead of the theme surface (png only)'),
   padding: z.number().int().min(0).max(160).optional().describe('Outer padding in CSS px'),
   accent: colorSchema.optional().describe('Override the UI accent color (progress, highlights, links)'),
+  detail: z
+    .enum(['auto', 'minimal', 'standard', 'rich'])
+    .optional()
+    .describe('Level of detail. "auto" (default) picks from the data and image size: minimal when small, rich (summary stats, extremes) when there is room and enough data'),
 });
 
 export type RenderOptions = z.input<typeof renderOptionsSchema>;
@@ -30,10 +34,13 @@ export interface RenderResult {
   width: number;
   height: number;
   scale: number;
+  /** The detail level the template rendered at. */
+  detail: Detail;
 }
 
 export interface HtmlResult {
   html: string;
+  detail: Detail;
   width: number;
   height?: number;
   theme: Mode;
@@ -80,6 +87,16 @@ function coerceData(data: unknown): unknown {
   return data ?? {};
 }
 
+type RequestedDetail = Detail | 'auto';
+
+/** One rule for every template: small → minimal; roomy with enough data → rich; else standard. */
+function resolveDetail(requested: RequestedDetail, t: Template, data: unknown, width: number): Detail {
+  if (requested !== 'auto') return requested;
+  if (width < 420) return 'minimal';
+  if (width >= 600 && t.richWhen?.(data as never)) return 'rich';
+  return 'standard';
+}
+
 const DEFAULT_PADDING = 32;
 const BLOCK_PADDING = 20;
 const MAX_PIXELS = 7900;
@@ -124,10 +141,11 @@ export class Renderer {
     );
   }
 
-  #context(theme: Theme, used: Set<Template>, size: Size, depth: number): RenderContext {
+  #context(theme: Theme, used: Set<Template>, size: Size, depth: number, detail: Detail, requested: RequestedDetail): RenderContext {
     return {
       ...size,
       theme,
+      detail,
       renderBlock: async (id, data, box, path) => {
         if (depth >= 2) throw new Error(`Blocks can't nest more than two levels (at ${path})`);
         const child = this.#template(id);
@@ -137,7 +155,8 @@ export class Renderer {
         const bare = child.embed === 'bare';
         const pad = bare || child.padding === 0 ? 0 : BLOCK_PADDING;
         const inner: Size = { width: box.width - pad * 2, height: box.height ? box.height - pad * 2 : undefined };
-        const body = await child.render(parsed, this.#context(theme, used, inner, depth + 1));
+        const childDetail = resolveDetail(requested, child, parsed, inner.width);
+        const body = await child.render(parsed, this.#context(theme, used, inner, depth + 1, childDetail, requested));
         return html`<div class="${`block tpl-${child.id}${bare ? ' bare' : ''}`}" style="${style({ padding: pad, height: box.height })}">${body}</div>`;
       },
     };
@@ -154,7 +173,9 @@ export class Renderer {
     const height = opts.height ?? t.height;
     const padding = opts.padding ?? t.padding ?? DEFAULT_PADDING;
     const used = new Set<Template>([t]);
-    const ctx = this.#context(theme, used, { width: width - padding * 2, height: height ? height - padding * 2 : undefined }, 0);
+    const requested = opts.detail ?? 'auto';
+    const detail = resolveDetail(requested, t, parsed, width - padding * 2);
+    const ctx = this.#context(theme, used, { width: width - padding * 2, height: height ? height - padding * 2 : undefined }, 0, detail, requested);
     const body = await t.render(parsed, ctx);
     const css = [...used].map((u) => u.css ?? '').join('\n');
     const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}`;
@@ -167,7 +188,7 @@ export class Renderer {
 </head>
 <body><div id="root" class="${rootClass}" style="${style({ width, height, padding })}">${body}</div></body>
 </html>`;
-    return { html: doc.value, width, height, theme: mode };
+    return { html: doc.value, detail, width, height, theme: mode };
   }
 
   /** Renders a template to an image. */
@@ -211,6 +232,7 @@ export class Renderer {
           width: doc.width,
           height,
           scale: fits ? scale : 1,
+          detail: doc.detail,
         };
       },
     );

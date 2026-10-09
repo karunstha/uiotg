@@ -2,9 +2,10 @@ import type { z } from 'zod';
 import type { Html } from './html.ts';
 import type { Theme } from './theme.ts';
 
-export type Category = 'text' | 'data' | 'chart' | 'media' | 'layout';
+export type Category = 'basic' | 'text' | 'data' | 'chart' | 'media' | 'layout';
 
 export const CATEGORIES: Record<Category, string> = {
+  basic: 'Basic elements',
   text: 'Text & content',
   data: 'Data & status',
   chart: 'Charts',
@@ -19,8 +20,13 @@ export interface Size {
   height?: number;
 }
 
+/** How much a template shows: just the essentials, the default, or extra context derived from the data. */
+export type Detail = 'minimal' | 'standard' | 'rich';
+
 export interface RenderContext extends Size {
   theme: Theme;
+  /** Resolved level of detail (see Template.richWhen). Templates may ignore it. */
+  detail: Detail;
   /**
    * Renders another template as a fragment inside this one (used by layout
    * templates). `path` prefixes validation errors, e.g. "blocks[2].data".
@@ -50,6 +56,12 @@ export interface Template<S extends z.ZodType = z.ZodType> {
   embed?: 'card' | 'bare';
   /** Frame background: the card surface (default) or the darker page plane. */
   background?: 'surface' | 'plane';
+  /**
+   * Opt in to the "rich" detail level: with detail "auto", rich is used when
+   * there's room and this returns true for the data (e.g. enough points for a
+   * summary to say something).
+   */
+  richWhen?: (data: z.output<S>) => boolean;
   /** Stylesheet included once per document when the template is used. */
   css?: string;
   render(data: z.output<S>, ctx: RenderContext): Html | Promise<Html>;

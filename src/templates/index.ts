@@ -1,4 +1,18 @@
 import type { Template } from '../core/types.ts';
+import { alert } from './basic/alert.ts';
+import { avatar } from './basic/avatar.ts';
+import { badge } from './basic/badge.ts';
+import { button } from './basic/button.ts';
+import { calendarDate } from './basic/calendar-date.ts';
+import { chat } from './basic/chat.ts';
+import { countdown } from './basic/countdown.ts';
+import { imageCard } from './basic/image-card.ts';
+import { keyValue } from './basic/key-value.ts';
+import { linkCard } from './basic/link-card.ts';
+import { notification } from './basic/notification.ts';
+import { rating } from './basic/rating.ts';
+import { sparkline } from './basic/sparkline.ts';
+import { tags } from './basic/tags.ts';
 import { barChart } from './charts/bar-chart.ts';
 import { calendarHeatmap } from './charts/calendar-heatmap.ts';
 import { candlestick } from './charts/candlestick.ts';
@@ -31,6 +45,21 @@ import { textCard } from './text/text-card.ts';
 
 /** Every built-in template, in catalog order. */
 export const builtinTemplates: Template[] = [
+  // basic elements
+  badge,
+  alert,
+  keyValue,
+  button,
+  linkCard,
+  avatar,
+  notification,
+  chat,
+  imageCard,
+  rating,
+  sparkline,
+  tags,
+  countdown,
+  calendarDate,
   // text
   textCard,
   quote,

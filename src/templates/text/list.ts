@@ -60,7 +60,7 @@ export const list = defineTemplate({
 .ls-text{font-size:15px;line-height:22px;color:var(--text)}
 .ls-text code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:4px}
 .ls-text strong{font-weight:620}
-.ls-item.done .ls-text,.ls-item.skipped .ls-text{color:var(--text-2)}
+.ls-item.ls-done .ls-text,.ls-item.ls-skipped .ls-text{color:var(--text-2)}
 .ls-desc{margin-top:2px;font-size:13px;line-height:19px;color:var(--text-2)}
 .ls-right{display:flex;align-items:center;gap:8px;height:22px}
 .ls-meta{font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -76,7 +76,7 @@ export const list = defineTemplate({
       else if (st) mark = html`<span style="${`color:${st.color}`}">${icon(st.icon, { size: 18 })}</span>`;
       else if (d.style === 'numbered') mark = html`<span class="ls-num">${i + 1}</span>`;
       else if (d.style === 'bullet') mark = html`<span class="ls-bullet"></span>`;
-      return html`<div class="${`ls-item ${item.status ?? ''}`}">
+      return html`<div class="${`ls-item${item.status ? ` ls-${item.status}` : ''}`}">
         <div class="ls-mark">${mark}</div>
         <div class="ls-main">
           <div class="ls-text">${renderInline(item.text)}</div>

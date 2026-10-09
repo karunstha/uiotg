@@ -3,6 +3,7 @@ import { after, describe, test } from 'node:test';
 import { createRenderer, html, raw } from '../src/index.ts';
 import { makeAxisFormatter, makeFormatter } from '../src/core/format.ts';
 import { TemplateDataError, TemplateNotFoundError } from '../src/render/renderer.ts';
+import { BASE_CSS } from '../src/render/base-css.ts';
 
 const renderer = createRenderer();
 after(() => renderer.close());
@@ -21,6 +22,21 @@ describe('every template', () => {
         assert.doesNotMatch(doc.html, /undefined|\[object Object\]|NaN/, `${t.id} leaked a raw JS value into markup`);
       }
     });
+  }
+});
+
+test('no two templates define the same CSS class', () => {
+  // Classes from the shared base stylesheet (.icon, .tag, …) are vocabulary every template may target.
+  const shared = new Set(BASE_CSS.match(/\.[a-z][a-z0-9-]*/g) ?? []);
+  const owner = new Map<string, string>();
+  for (const t of renderer.registry.list()) {
+    const classes = new Set((t.css ?? '').match(/\.[a-z][a-z0-9-]*/g) ?? []);
+    for (const c of classes) {
+      if (shared.has(c)) continue;
+      const prev = owner.get(c);
+      assert.ok(!prev || prev === t.id, `${c} is defined by both ${prev} and ${t.id}`);
+      owner.set(c, t.id);
+    }
   }
 });
 

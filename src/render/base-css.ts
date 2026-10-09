@@ -43,6 +43,11 @@ img{display:block;max-width:100%}
 .delta.pos{color:var(--positive)}
 .delta.neg{color:var(--negative)}
 .delta.flat{color:var(--muted)}
+.delta.neu{color:var(--text-2);font-weight:550}
+.sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--grid)}
+.sum-l{font-size:11.5px;font-weight:550;color:var(--muted);letter-spacing:.02em}
+.sum-v{font-size:16px;font-weight:620;color:var(--text);margin-top:2px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum-n{font-size:12.5px;font-weight:500;color:var(--text-2)}
 .delta-label{font-size:12px;color:var(--muted)}
 
 .plot{position:relative}

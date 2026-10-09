@@ -27,12 +27,27 @@ describe('MCP server', () => {
 
   test('exposes the core tools with instructions', async () => {
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name).sort(), ['get_template', 'list_templates', 'render']);
+    assert.deepEqual(tools.map((t) => t.name).sort(), ['get_template', 'list_templates', 'render', 'visualize']);
     const render = tools.find((t) => t.name === 'render')!;
     assert.match(render.description ?? '', /bar_chart/);
     const props = render.inputSchema.properties as Record<string, { enum?: string[] }>;
     assert.ok(props.template?.enum?.includes('album_card'));
     assert.match(client.getInstructions() ?? '', /get_template/);
+  });
+
+  test('visualize picks a template for raw rows and explains it', async () => {
+    const res = (await client.callTool({
+      name: 'visualize',
+      arguments: {
+        data: [{ day: 'Mon', orders: 120 }, { day: 'Tue', orders: 135 }, { day: 'Wed', orders: 128 }, { day: 'Thu', orders: 160 }],
+        title: 'Orders this week',
+        options: { scale: 1 },
+      },
+    })) as CallToolResult;
+    assert.ok(!res.isError, JSON.stringify(res.content));
+    const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+    assert.match(text, /Chose line_chart/);
+    assert.ok(res.content.some((c) => c.type === 'image'));
   });
 
   test('list_templates filters by category', async () => {

@@ -97,8 +97,8 @@ export const table = defineTemplate({
 .tb th:last-child,.tb td:last-child{padding-right:0}
 .tb.zebra tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--subtle) 70%, transparent)}
 .tb.zebra td:first-child{padding-left:8px}.tb.zebra th:first-child{padding-left:8px}
-.tb tr.hl td{background:color-mix(in srgb, var(--accent) 9%, transparent);font-weight:550}
-.tb tr.hl td:first-child{box-shadow:inset 3px 0 0 var(--accent);padding-left:12px}
+.tb tr.tb-hl td{background:color-mix(in srgb, var(--accent) 9%, transparent);font-weight:550}
+.tb tr.tb-hl td:first-child{box-shadow:inset 3px 0 0 var(--accent);padding-left:12px}
 .tb tfoot td{border-top:1px solid var(--axis);border-bottom:0;font-weight:600}
 .tb .r{text-align:right}.tb .c{text-align:center}
 .tb .n{font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -110,7 +110,7 @@ export const table = defineTemplate({
 .tb-bar-fill{height:8px;border-radius:0 4px 4px 0;background:var(--accent)}
 .tb-caption{margin-top:12px;font-size:12px;color:var(--muted)}
 `,
-  render(d) {
+  render(d, ctx) {
     const first = d.rows[0];
     const specs = (d.columns ?? (Array.isArray(first) ? first.map((_, i) => `Column ${i + 1}`) : Object.keys(first ?? {}))).map((c) =>
       typeof c === 'string' ? { key: c } : c,
@@ -151,15 +151,16 @@ export const table = defineTemplate({
       return html`<td class="${cls}">${content}</td>`;
     };
 
-    return html`${header(d)}<table class="${`tb${d.zebra ? ' zebra' : ''}${d.dense ? ' dense' : ''}`}">
+    const minimal = ctx.detail === 'minimal';
+    return html`${header(minimal ? { title: d.title } : d)}<table class="${`tb${d.zebra ? ' zebra' : ''}${d.dense || minimal ? ' dense' : ''}`}">
       <thead><tr>${cols.map(
         (c) => html`<th class="${c.align === 'right' ? 'r' : c.align === 'center' ? 'c' : ''}" style="${style({ width: c.width })}">${c.label}</th>`,
       )}</tr></thead>
       <tbody>${d.rows.map(
-        (r, i) => html`<tr class="${highlighted.has(i) ? 'hl' : ''}">${cols.map((c) => renderCell(c, valueAt(r, c)))}</tr>`,
+        (r, i) => html`<tr class="${highlighted.has(i) ? 'tb-hl' : ''}">${cols.map((c) => renderCell(c, valueAt(r, c)))}</tr>`,
       )}</tbody>
       ${d.footer ? html`<tfoot><tr>${cols.map((c) => renderCell(c, valueAt(d.footer!, c), true))}</tr></tfoot>` : null}
     </table>
-    ${d.caption ? html`<div class="tb-caption">${d.caption}</div>` : null}`;
+    ${d.caption && !minimal ? html`<div class="tb-caption">${d.caption}</div>` : null}`;
   },
 });

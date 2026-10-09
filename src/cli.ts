@@ -8,6 +8,7 @@ import { CATEGORIES } from './core/types.ts';
 import { TemplateDataError, type RenderOptions } from './render/renderer.ts';
 import { startHttpServer } from './http.ts';
 import { createServer, VERSION } from './server.ts';
+import { chooseVisual, type Intent } from './auto.ts';
 
 const HELP = `uiotg ${VERSION} — User Interface On The Go
 
@@ -18,6 +19,7 @@ Usage:
   uiotg schema <template>                        Print a template's JSON schema and example
   uiotg render <template> [options]              Render to an image file
   uiotg html <template> [options]                Write the intermediate HTML document
+  uiotg visualize --data <raw> [--title] [--intent]   Let uiotg pick the template for raw data
   uiotg gallery [--out dir] [--theme both]       Render every template's example
 
 Render options:
@@ -56,6 +58,9 @@ const { values: flags, positionals } = parseArgs({
     port: { type: 'string' },
     host: { type: 'string' },
     only: { type: 'string' },
+    title: { type: 'string' },
+    intent: { type: 'string' },
+    detail: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
     version: { type: 'boolean', short: 'v' },
   },
@@ -74,6 +79,7 @@ function renderOptions(): RenderOptions {
     format: flags.format as RenderOptions['format'],
     accent: flags.accent,
     transparent: flags.transparent,
+    detail: flags.detail as RenderOptions['detail'],
   };
 }
 
@@ -167,6 +173,17 @@ async function main(): Promise<void> {
           await writeFile(out, result.data);
           console.log(`Wrote ${resolve(out)} (${result.width}×${result.height} @${result.scale}x)`);
         }
+        break;
+      }
+      case 'visualize': {
+        if (flags.data == null) throw new Error('Usage: uiotg visualize --data <json | @file.json | -> [--title …] [--intent trend|compare|share|relationship|summary]');
+        // Plain text that isn't JSON is visualized as text.
+        const raw = await readData(flags.data, undefined).catch(() => flags.data);
+        const choice = chooseVisual({ data: raw, title: flags.title, intent: flags.intent as Intent | undefined }, registry);
+        const result = await renderer.render(choice.template, choice.data, renderOptions());
+        const out = flags.out ?? 'visualize.png';
+        await writeFile(out, result.data);
+        console.log(`Chose ${choice.template} (${result.detail}): ${choice.reason}\nWrote ${resolve(out)}`);
         break;
       }
       case 'gallery':

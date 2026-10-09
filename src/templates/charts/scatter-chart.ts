@@ -4,6 +4,8 @@ import { colorSchema, formatSchema, makeAxisFormatter, titleFields } from '../..
 import { seriesColor } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { axisLabelFields, axisTitles, chartLayout, grid, maxAbs, plotHeightSchema, plotSize, seriesLegend } from './common.ts';
+import type { Html } from '../../core/html.ts';
+import { summaryStrip, SUMMARY_HEIGHT } from '../../core/ui.ts';
 
 const point = z.union([
   z.tuple([z.number(), z.number()]),
@@ -65,7 +67,7 @@ export const scatterChart = defineTemplate({
       .max(8),
     x_format: formatSchema.optional(),
     y_format: formatSchema.optional(),
-    trendline: z.boolean().default(false).describe('Fit and draw a least-squares line per series'),
+    trendline: z.boolean().optional().describe('Fit and draw a least-squares line per series (default: on at the rich detail level)'),
     ...axisLabelFields,
     height: plotHeightSchema,
   }),
@@ -103,6 +105,7 @@ export const scatterChart = defineTemplate({
     ],
   },
   width: 800,
+  richWhen: (d) => d.series.reduce((n, s) => n + s.points.length, 0) >= 10,
   render(d, ctx) {
     const { theme } = ctx;
     const colors = d.series.map((s, i) => seriesColor(theme, i, s.color));
@@ -114,7 +117,11 @@ export const scatterChart = defineTemplate({
     const diameter = (s?: number) => (s == null || maxSize === 0 ? 9 : 8 + 36 * Math.sqrt(s / maxSize));
     const legendItems = seriesLegend(d.series.map((s) => s.name), colors, 'dot');
     const titles = axisTitles(d);
-    const size = plotSize(ctx, d, legendItems, 0.56, titles.reserve);
+    const rich = ctx.detail === 'rich';
+    const minimal = ctx.detail === 'minimal';
+    const trend = d.trendline ?? rich;
+    const summary = rich ? correlationSummary(d.series.map((s) => s.name), data) : null;
+    const size = plotSize(ctx, d, legendItems, 0.56, titles.reserve + (summary ? SUMMARY_HEIGHT : 0));
     const xs = all.map((p) => p.x);
 
     const series: unknown[] = d.series.map((s, si) => ({
@@ -123,13 +130,13 @@ export const scatterChart = defineTemplate({
       data: data[si]!.map((p) => ({
         value: [p.x, p.y],
         symbolSize: diameter(p.size),
-        label: p.label ? { show: true, formatter: p.label } : undefined,
+        label: p.label && !minimal ? { show: true, formatter: p.label } : undefined,
       })),
       itemStyle: { color: colors[si], opacity: sizes.length ? 0.78 : 0.9, borderColor: theme.surface, borderWidth: 2 },
       label: { show: false, position: 'right', distance: 6, color: theme.text, fontSize: 11, fontWeight: 500 },
     }));
 
-    if (d.trendline) {
+    if (trend && !minimal) {
       d.series.forEach((_, si) => {
         const fit = regression(data[si]!);
         if (!fit) return;
@@ -159,19 +166,52 @@ export const scatterChart = defineTemplate({
           splitNumber: 5,
           axisLine: { show: true },
           axisLabel: { formatter: makeAxisFormatter(d.x_format, maxAbs(xs)) },
-          splitLine: { show: true },
+          splitLine: { show: !minimal },
         },
         yAxis: {
           type: 'value',
           scale: true,
           splitNumber: 5,
           axisLabel: { formatter: makeAxisFormatter(d.y_format, maxAbs(all.map((p) => p.y))) },
+          splitLine: { show: !minimal },
         },
         series,
       },
       size,
       theme,
     );
-    return chartLayout(d, legendItems, svg, titles);
+    return chartLayout(d, legendItems, svg, { ...titles, summary, detail: ctx.detail });
   },
 });
+
+/** Pearson correlation coefficient, or null without spread. */
+function pearson(points: Point[]): number | null {
+  const n = points.length;
+  if (n < 3) return null;
+  const mx = points.reduce((s, p) => s + p.x, 0) / n;
+  const my = points.reduce((s, p) => s + p.y, 0) / n;
+  let sxy = 0;
+  let sxx = 0;
+  let syy = 0;
+  for (const p of points) {
+    sxy += (p.x - mx) * (p.y - my);
+    sxx += (p.x - mx) ** 2;
+    syy += (p.y - my) ** 2;
+  }
+  return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
+}
+
+function describeR(r: number): string {
+  const a = Math.abs(r);
+  const strength = a >= 0.7 ? 'strong' : a >= 0.4 ? 'moderate' : a >= 0.2 ? 'weak' : 'no clear';
+  return a < 0.2 ? 'no clear relationship' : `${strength} ${r > 0 ? 'positive' : 'negative'}`;
+}
+
+/** Rich summary: correlation per series (r and a plain-language reading). */
+function correlationSummary(names: string[], data: Point[][]): Html | null {
+  const items = data.flatMap((pts, i) => {
+    const r = pearson(pts);
+    return r == null ? [] : [{ label: names.length > 1 ? `${names[i]} · r` : 'Correlation · r', value: r.toFixed(2), note: describeR(r) }];
+  });
+  return items.length ? summaryStrip([...items.slice(0, 3), { label: 'Points', value: String(data.flat().length) }]) : null;
+}

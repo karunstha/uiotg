@@ -7,6 +7,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { CATEGORIES, type Category, type Template } from './core/types.ts';
 import { renderOptionsSchema, TemplateDataError, type RenderOptions, type Renderer } from './render/renderer.ts';
+import { chooseVisual, intentSchema } from './auto.ts';
 
 export const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
@@ -25,7 +26,9 @@ export interface ServerOptions {
 
 const INSTRUCTIONS = `uiotg (User Interface On The Go) turns structured data into polished UI images: charts, tables, stat tiles, cards, album art, dashboards and more.
 
-Workflow: choose a template from the catalog in the \`render\` tool description (or call \`list_templates\`), call \`get_template\` for its exact data schema and an example when unsure, then call \`render\` with { template, data }. Invalid data returns the problems plus an example so you can fix it and retry.
+Fastest path: call \`visualize\` with the raw data you have (a number, text, a list, an object or rows) plus an optional title and intent. uiotg picks the template and the level of detail and tells you what it chose.
+
+Full control: choose a template from the \`render\` tool description (or \`list_templates\`), call \`get_template\` for its schema and an example, then call \`render\` with { template, data }. Invalid data returns the problems plus an example so you can fix it and retry.
 
 Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; pass options.theme "dark" for dark mode.`;
 
@@ -65,12 +68,13 @@ export function createServer(opts: ServerOptions): McpServer {
     example: t.example,
   });
 
-  async function run(templateId: string, data: unknown, options: RenderOptions | undefined): Promise<CallToolResult> {
+  async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string): Promise<CallToolResult> {
     try {
       const result = await renderer.render(templateId, data, options ?? {});
       const kb = (result.data.length / 1024).toFixed(0);
       const lines = [
-        `Rendered ${templateId}: ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
+        ...(note ? [note] : []),
+        `Rendered ${templateId} (${result.detail} detail): ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
       ];
       if (outputDir) {
         const dir = resolve(outputDir);
@@ -100,6 +104,39 @@ export function createServer(opts: ServerOptions): McpServer {
       return errorResult((err as Error).message);
     }
   }
+
+  server.registerTool(
+    'visualize',
+    {
+      title: 'Visualize data',
+      description:
+        'Turn raw data into the right UI image automatically. Send what you have: a number, text, a list, an object, or rows ' +
+        '(array of objects, e.g. query results). uiotg infers the shape (time series → line chart, ranked categories → bars, ' +
+        'parts of a whole → donut, a few numbers → stat tiles, a record → key/value list, mixed rows → table, two measures → scatter) ' +
+        'and the level of detail, renders it, and reports which template it used. Use render instead to pick a template yourself.',
+      inputSchema: {
+        data: z.unknown().describe('Raw data: number, string, array, object or array of row objects'),
+        title: z.string().max(200).optional(),
+        subtitle: z.string().max(400).optional(),
+        intent: intentSchema.optional(),
+        options: renderOptionsSchema.optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ data, title, subtitle, intent, options }) => {
+      let choice;
+      try {
+        choice = chooseVisual({ data, title, subtitle, intent }, registry);
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
+      const json = JSON.stringify(choice.data);
+      const note =
+        `Chose ${choice.template}: ${choice.reason}.` +
+        (json.length <= 1500 ? `\nTo adjust, call render with template "${choice.template}" and this data: ${json}` : `\nTo adjust, call render with template "${choice.template}".`);
+      return run(choice.template, choice.data, options, note);
+    },
+  );
 
   server.registerTool(
     'list_templates',

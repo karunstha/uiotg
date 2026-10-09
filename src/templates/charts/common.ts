@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { colorSchema } from '../../core/format.ts';
 import { measureText } from '../../core/measure.ts';
 import { html, type Html } from '../../core/html.ts';
-import type { RenderContext } from '../../core/types.ts';
+import type { Detail, RenderContext } from '../../core/types.ts';
 import { header, headerHeight, legend, legendHeight, type LegendItem } from '../../core/ui.ts';
 
 export const seriesSchema = z.object({
@@ -63,14 +63,17 @@ export function chartLayout(
   d: { title?: string; subtitle?: string },
   legendItems: LegendItem[] | null,
   plot: Html,
-  extra?: { aside?: Html | null; above?: Html | null; below?: Html | null },
+  extra?: { aside?: Html | null; above?: Html | null; below?: Html | null; summary?: Html | null; detail?: Detail },
 ): Html {
+  // Minimal drops the subtitle and axis titles; the title and legend (identity) always stay.
+  const minimal = extra?.detail === 'minimal';
   return html`<div class="chart">
-    ${header(d, extra?.aside)}
+    ${header(minimal ? { title: d.title } : d, extra?.aside)}
+    ${extra?.summary ?? null}
     ${legendItems && legendItems.length ? legend(legendItems) : null}
-    ${extra?.above ?? null}
+    ${minimal ? null : (extra?.above ?? null)}
     <div class="plot">${plot}</div>
-    ${extra?.below ?? null}
+    ${minimal ? null : (extra?.below ?? null)}
   </div>`;
 }
 

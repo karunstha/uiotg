@@ -73,22 +73,23 @@ export const stats = defineTemplate({
 `,
   render(d, ctx) {
     const hero = d.items.length === 1;
+    const minimal = ctx.detail === 'minimal';
     const cols = columnsFor(d.items.length, d.columns);
     const tileWidth = hero ? ctx.width : (ctx.width - (cols - 1) * 16) / cols - 36;
     return html`${header(d)}<div class="st-grid" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.items.map((it) => {
       const fmt = makeFormatter(it.format);
       let change = null;
       if (typeof it.delta === 'number') {
-        change = delta(it.delta, makeFormatter(it.delta_format ?? { suffix: '%', decimals: Math.abs(it.delta) < 10 ? 1 : 0 }), it.good_when, it.delta_label);
+        change = delta(it.delta, makeFormatter(it.delta_format ?? { suffix: '%', decimals: Math.abs(it.delta) < 10 ? 1 : 0 }), it.good_when, minimal ? undefined : it.delta_label);
       } else if (typeof it.delta === 'string') {
-        change = textDelta(it.delta, it.good_when, it.delta_label);
+        change = textDelta(it.delta, it.good_when, minimal ? undefined : it.delta_label);
       }
       return html`<div class="${`st${hero ? ' hero' : ''}`}">
         <div class="st-label">${icon(it.icon, { size: 15 })}${it.label}</div>
         <div class="st-value">${display(it.value, fmt)}</div>
         ${change || it.status ? html`<div class="st-foot">${change}${it.status ? statusBadge(it.status) : null}</div>` : null}
-        ${it.caption ? html`<div class="st-caption">${it.caption}</div>` : null}
-        ${it.trend
+        ${it.caption && !minimal ? html`<div class="st-caption">${it.caption}</div>` : null}
+        ${it.trend && !minimal
           ? html`<div class="st-spark" style="${style({ height: hero ? 64 : 40 })}">${sparkline(it.trend, { width: Math.max(60, Math.floor(tileWidth)), height: hero ? 64 : 40, theme: ctx.theme })}</div>`
           : null}
       </div>`;

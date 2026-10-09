@@ -47,7 +47,7 @@ describe('render', () => {
     for (const [id, r] of results) {
       const size = pngSize(r.data);
       assert.equal(size.width, r.width, id);
-      assert.ok(size.height > 60, `${id} rendered suspiciously short (${size.height}px)`);
+      assert.ok(size.height > 30, `${id} rendered suspiciously short (${size.height}px)`);
     }
   });
 });

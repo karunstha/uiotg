@@ -3,6 +3,23 @@ import { icon } from './icons.ts';
 import { signed, type Formatter } from './format.ts';
 import { placeholderGradient, type Status, type Theme } from './theme.ts';
 
+/** Resolves a tone to a concrete color for the current theme. */
+export function toneColor(theme: Theme, tone: 'neutral' | 'accent' | 'info' | 'success' | 'warning' | 'critical'): string {
+  switch (tone) {
+    case 'accent':
+    case 'info':
+      return theme.accent;
+    case 'success':
+      return theme.status.good;
+    case 'warning':
+      return theme.status.warning;
+    case 'critical':
+      return theme.status.critical;
+    default:
+      return theme.mode === 'dark' ? '#6b6a64' : '#52514e';
+  }
+}
+
 export function header(d: { title?: string; subtitle?: string }, aside?: Html | null): Html | null {
   if (!d.title && !d.subtitle && !aside) return null;
   return html`<header class="hdr">
@@ -116,7 +133,10 @@ export function initials(name: string): string {
  * A 2px sparkline in the de-emphasis ink with the latest point marked in the
  * accent color.
  */
-export function sparkline(values: number[], opts: { width: number; height: number; theme: Theme; color?: string }): Html {
+export function sparkline(
+  values: number[],
+  opts: { width: number; height: number; theme: Theme; color?: string; emphasis?: boolean; area?: boolean },
+): Html {
   const pts = values.filter((v) => Number.isFinite(v));
   if (pts.length < 2) return raw('');
   const { width: w, height: h } = opts;
@@ -131,9 +151,69 @@ export function sparkline(values: number[], opts: { width: number; height: numbe
   const accent = opts.color ?? opts.theme.accent;
   return raw(
     `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">` +
-      `<path d="${area}" fill="${accent}" opacity="0.10"/>` +
-      `<path d="${d}" fill="none" stroke="${opts.theme.muted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` +
+      (opts.area === false ? '' : `<path d="${area}" fill="${accent}" opacity="0.10"/>`) +
+      `<path d="${d}" fill="none" stroke="${opts.emphasis ? accent : opts.theme.muted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` +
       `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4" fill="${accent}" stroke="${opts.theme.surface}" stroke-width="2"/>` +
       `</svg>`,
   );
 }
+
+export interface SeriesStats {
+  first: number;
+  last: number;
+  min: number;
+  max: number;
+  avg: number;
+  minIndex: number;
+  maxIndex: number;
+  /** Relative change first → last (null when the first value is 0). */
+  change: number | null;
+}
+
+/** Summary statistics over the non-null values of a series, or null when there are none. */
+export function seriesStats(values: Array<number | null | undefined>): SeriesStats | null {
+  let first: number | null = null;
+  let last = 0;
+  let min = Infinity;
+  let max = -Infinity;
+  let sum = 0;
+  let n = 0;
+  let minIndex = 0;
+  let maxIndex = 0;
+  values.forEach((v, i) => {
+    if (v == null || !Number.isFinite(v)) return;
+    if (first == null) first = v;
+    last = v;
+    sum += v;
+    n++;
+    if (v < min) [min, minIndex] = [v, i];
+    if (v > max) [max, maxIndex] = [v, i];
+  });
+  if (first == null) return null;
+  return { first, last, min, max, avg: sum / n, minIndex, maxIndex, change: first === 0 ? null : (last - first) / Math.abs(first) };
+}
+
+/** Signed relative change in neutral ink: direction without judging good or bad. */
+export function neutralChange(change: number): Html {
+  const arrow = change > 0 ? 'arrow-up-right' : change < 0 ? 'arrow-down-right' : 'arrow-right';
+  const pct = Math.abs(change * 100);
+  const text = `${change > 0 ? '+' : change < 0 ? '−' : ''}${pct.toFixed(pct < 10 ? 1 : 0)}%`;
+  return html`<span class="delta neu">${icon(arrow, { size: 13, strokeWidth: 2.5 })}${text}</span>`;
+}
+
+export interface SummaryItem {
+  label: string;
+  value: string | Html;
+  note?: Html | string | null;
+}
+
+/** A compact row of label/value pairs shown above a plot at the "rich" detail level. */
+export function summaryStrip(items: SummaryItem[]): Html | null {
+  if (!items.length) return null;
+  return html`<div class="sum">${items.map(
+    (it) => html`<div class="sum-i"><div class="sum-l">${it.label}</div><div class="sum-v">${it.value}${it.note ? html` <span class="sum-n">${it.note}</span>` : null}</div></div>`,
+  )}</div>`;
+}
+
+/** Height reserved for a summary strip when the output has a fixed height. */
+export const SUMMARY_HEIGHT = 58;
