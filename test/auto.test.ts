@@ -42,6 +42,9 @@ describe('visualize: choosing a template', () => {
       'table',
     ],
     ['data already shaped for a chart', { data: { categories: ['a', 'b'], series: [{ name: 's', values: [1, 2] }] } }, 'bar_chart'],
+    ['rows with coordinates', { data: [{ name: 'HQ', lat: 51.52, lon: -0.08 }, { name: 'Store', lat: 51.51, lon: -0.12 }] }, 'map'],
+    ['before and after', { data: { before: 'a\nb\nc', after: 'a\nB\nc' } }, 'diff'],
+    ['a git patch', { data: { patch: '--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n export {};' } }, 'diff'],
   ];
   for (const [name, input, expected] of cases) {
     test(name, async () => {

@@ -1,5 +1,7 @@
 import { chromium, type Browser, type LaunchOptions, type Page, type Route } from 'playwright';
 import { ASSET_ORIGIN, fontAsset } from '../core/fonts.ts';
+import { katexAsset } from '../core/katex.ts';
+import { fetchTile } from '../core/tiles.ts';
 
 export interface BrowserOptions {
   /** Explicit Chromium/Chrome binary. Defaults to $UIOTG_CHROMIUM_PATH. */
@@ -93,8 +95,13 @@ export class BrowserPool {
   async #route(route: Route): Promise<void> {
     const request = route.request();
     const url = new URL(request.url());
+    if (url.origin === ASSET_ORIGIN && url.pathname.startsWith('/tiles/')) {
+      const tile = this.#opts.allowNetwork ? await fetchTile(url.pathname) : undefined;
+      if (tile) return route.fulfill({ status: 200, body: tile, contentType: 'image/png' });
+      return route.abort();
+    }
     if (url.origin === ASSET_ORIGIN) {
-      const body = url.pathname.startsWith('/fonts/') ? fontAsset(url.pathname) : undefined;
+      const body = url.pathname.startsWith('/fonts/') ? fontAsset(url.pathname) : url.pathname.startsWith('/katex/') ? katexAsset(url.pathname) : undefined;
       if (body) return route.fulfill({ status: 200, body, contentType: 'font/woff2' });
       return route.abort();
     }

@@ -106,6 +106,8 @@ claude mcp add --transport http uiotg https://uiotg.example.com/mcp --header "Au
 | `UIOTG_TOOLS` | `single` | `per-template` adds one typed tool per template |
 | `UIOTG_THEME`, `UIOTG_SCALE`, `UIOTG_FORMAT` | `light`, `2`, `png` | Render defaults |
 | `UIOTG_OFFLINE` | `0` | `1` blocks remote images, which then fall back to placeholders |
+| `UIOTG_TILE_URL` / `UIOTG_TILE_ATTRIBUTION` | OpenStreetMap | Map tiles. OSM's tile server is fine for light use; for production traffic use a keyed provider, e.g. `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}{r}.png?key=…` |
+| `UIOTG_TILE_CONTACT` | unset | Email/URL in the tile User-Agent, as OSM's tile policy asks |
 
 ## Security notes
 

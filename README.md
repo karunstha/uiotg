@@ -20,15 +20,15 @@ An MCP server that turns structured data into polished UI images. A model calls 
 
 ## Templates
 
-43 templates across six categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
+51 templates across six categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
 
 | Category | Templates |
 |---|---|
-| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` |
-| **Text & content** | `text_card` · `quote` · `markdown` · `code` (Shiki, 18 themes) · `list` (bullets, numbers, checklists with status) |
-| **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` |
+| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` |
+| **Text & content** | `text_card` · `quote` · `markdown` (with $math$) · `code` (Shiki, 18 themes) · `list` · `steps` (how-to with code and tips) · `diff` (line or word diff, or a git patch) · `math` (KaTeX, worked solutions) |
+| **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` · `status_page` · `task_board` · `month_calendar` |
 | **Charts** | `bar_chart` · `line_chart` · `pie_chart` · `scatter_chart` · `heatmap` · `radar_chart` · `treemap` · `sankey` · `funnel` · `gauge` · `candlestick` · `calendar_heatmap` · `echarts` (raw ECharts option escape hatch) |
-| **Media & cards** | `album_card` (now playing, track, album with track list) · `album_grid` (cover collage) · `profile_card` · `weather` |
+| **Media & cards** | `album_card` (now playing, track, album with track list) · `album_grid` (cover collage) · `profile_card` · `weather` · `map` (pins and routes, auto-framed) |
 | **Layout** | `dashboard`: a grid of cards, each rendering any other template |
 
 Each template has a zod schema (exposed to models as JSON Schema), a complete example, and a description of when to use it.
@@ -135,6 +135,9 @@ Invalid data never fails silently. The tool returns an error that lists each pro
 | `UIOTG_CHROMIUM_PATH` | Explicit browser binary |
 | `UIOTG_OFFLINE=1` | Block all network access (remote images fall back to generated placeholders) |
 | `UIOTG_LOCALE` | Number formatting locale (default `en-US`) |
+| `UIOTG_TILE_URL` | Map tile server, `{z}/{x}/{y}` with optional `{s}` and `{r}` (retina). Default: OpenStreetMap |
+| `UIOTG_TILE_ATTRIBUTION` | Attribution shown on maps for a custom tile server |
+| `UIOTG_TILE_CONTACT` | Email or URL added to the tile User-Agent (OpenStreetMap asks operators to be reachable) |
 
 ## CLI
 
@@ -217,4 +220,4 @@ The tests pick up every registered template automatically. They check that its e
 ## Roadmap
 
 - Return interactive HTML (MCP Apps / `ui://` resources) alongside the image. Templates already produce self-contained HTML, which `uiotg html` writes out today.
-- Diagram templates (Mermaid), maps, and image annotation.
+- Diagram templates (Mermaid) and image annotation.

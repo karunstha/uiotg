@@ -12,6 +12,9 @@ services:
       # Public base URL; when set, each render is also served at <url>/images/<file>.
       UIOTG_PUBLIC_URL: ${UIOTG_PUBLIC_URL:-}
       UIOTG_THEME: ${UIOTG_THEME:-light}
+      UIOTG_TILE_URL: ${UIOTG_TILE_URL:-}
+      UIOTG_TILE_ATTRIBUTION: ${UIOTG_TILE_ATTRIBUTION:-}
+      UIOTG_TILE_CONTACT: ${UIOTG_TILE_CONTACT:-}
     # Chromium uses shared memory for rendering.
     shm_size: "1gb"
     mem_limit: 1536m

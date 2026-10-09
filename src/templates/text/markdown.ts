@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { html } from '../../core/html.ts';
+import { katexCss } from '../../core/katex.ts';
 import { renderMarkdown } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
 
@@ -36,7 +37,8 @@ export const markdown = defineTemplate({
   },
   width: 800,
   padding: 40,
-  css: /* css */ `
+  css: /* css */ `${katexCss()}
+.md-math{overflow:hidden}
 .md-doc .md-code pre{border:0}
 .md-doc .md-code{border-radius:10px;overflow:hidden;border:1px solid var(--border)}
 `,

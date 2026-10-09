@@ -4,6 +4,7 @@ import { createRenderer, html, raw } from '../src/index.ts';
 import { makeAxisFormatter, makeFormatter } from '../src/core/format.ts';
 import { TemplateDataError, TemplateNotFoundError } from '../src/render/renderer.ts';
 import { BASE_CSS } from '../src/render/base-css.ts';
+import { katexCss } from '../src/core/katex.ts';
 
 const renderer = createRenderer();
 after(() => renderer.close());
@@ -27,7 +28,7 @@ describe('every template', () => {
 
 test('no two templates define the same CSS class', () => {
   // Classes from the shared base stylesheet (.icon, .tag, …) are vocabulary every template may target.
-  const shared = new Set(BASE_CSS.match(/\.[a-z][a-z0-9-]*/g) ?? []);
+  const shared = new Set((BASE_CSS + katexCss()).match(/\.[a-z][a-z0-9-]*/g) ?? []);
   const owner = new Map<string, string>();
   for (const t of renderer.registry.list()) {
     const classes = new Set((t.css ?? '').match(/\.[a-z][a-z0-9-]*/g) ?? []);

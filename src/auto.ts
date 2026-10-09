@@ -177,6 +177,22 @@ function fromRows(rows: Row[], intent: Intent | undefined, title?: string): Choi
   const time = cols.find((c) => c.kind === 'time');
   const cats = cols.filter((c) => c.kind === 'category');
 
+  // Coordinates → map, labelled by the first text column.
+  const latCol = cols.find((c) => c.kind === 'number' && /^(lat|latitude)$/i.test(c.key));
+  const lonCol = cols.find((c) => c.kind === 'number' && /^(lon|lng|long|longitude)$/i.test(c.key));
+  if (latCol && lonCol && rows.length <= 300) {
+    const name = cats[0];
+    return {
+      template: 'map',
+      data: {
+        markers: rows
+          .map((r, i) => ({ lat: latCol.nums[i]!, lon: lonCol.nums[i]!, ...(name ? { label: String(r[name.key] ?? '').slice(0, 60) } : {}) }))
+          .filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lon)),
+      },
+      reason: `${rows.length} location${rows.length === 1 ? '' : 's'} with coordinates`,
+    };
+  }
+
   if (rows.length === 1) {
     return {
       template: 'key_value',
@@ -434,6 +450,14 @@ function fromArray(arr: unknown[], intent: Intent | undefined, title?: string): 
 
 /** Data that already matches a template's shape is used as-is. */
 const SIGNATURES: Array<[string, string[]]> = [
+  ['diff', ['before', 'after']],
+  ['diff', ['patch']],
+  ['steps', ['steps']],
+  ['math', ['expressions']],
+  ['status_page', ['services']],
+  ['month_calendar', ['month', 'events']],
+  ['map', ['markers']],
+  ['task_board', ['columns']],
   ['bar_chart', ['categories', 'series']],
   ['line_chart', ['x', 'series']],
   ['pie_chart', ['slices']],

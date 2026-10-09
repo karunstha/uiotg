@@ -1,4 +1,12 @@
 import type { Template } from '../core/types.ts';
+import { qrCode } from './basic/qr-code.ts';
+import { monthCalendar } from './data/month-calendar.ts';
+import { statusPage } from './data/status-page.ts';
+import { taskBoard } from './data/task-board.ts';
+import { map } from './media/map.ts';
+import { diff } from './text/diff.ts';
+import { math } from './text/math.ts';
+import { steps } from './text/steps.ts';
 import { alert } from './basic/alert.ts';
 import { avatar } from './basic/avatar.ts';
 import { badge } from './basic/badge.ts';
@@ -60,12 +68,16 @@ export const builtinTemplates: Template[] = [
   tags,
   countdown,
   calendarDate,
+  qrCode,
   // text
   textCard,
   quote,
   markdown,
   code,
   list,
+  steps,
+  diff,
+  math,
   // data
   table,
   stats,
@@ -73,6 +85,9 @@ export const builtinTemplates: Template[] = [
   timeline,
   comparison,
   agenda,
+  statusPage,
+  taskBoard,
+  monthCalendar,
   // charts
   barChart,
   lineChart,
@@ -92,6 +107,7 @@ export const builtinTemplates: Template[] = [
   albumGrid,
   profileCard,
   weather,
+  map,
   // layout
   dashboard,
 ] as Template[];
