@@ -1,0 +1,21 @@
+services:
+  uiotg:
+    build: .
+    image: uiotg:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Required when exposed beyond localhost: clients send "Authorization: Bearer <token>".
+      UIOTG_AUTH_TOKEN: ${UIOTG_AUTH_TOKEN:?set UIOTG_AUTH_TOKEN in .env}
+      # Public base URL; when set, each render is also served at <url>/images/<file>.
+      UIOTG_PUBLIC_URL: ${UIOTG_PUBLIC_URL:-}
+      UIOTG_THEME: ${UIOTG_THEME:-light}
+    # Chromium uses shared memory for rendering.
+    shm_size: "1gb"
+    mem_limit: 1536m
+    volumes:
+      - uiotg-images:/tmp/uiotg-images
+
+volumes:
+  uiotg-images:

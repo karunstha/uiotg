@@ -1,0 +1,177 @@
+import { z } from 'zod';
+import { renderChart } from '../../core/echarts.ts';
+import { colorSchema, formatSchema, makeAxisFormatter, titleFields } from '../../core/format.ts';
+import { seriesColor } from '../../core/theme.ts';
+import { defineTemplate } from '../../core/types.ts';
+import { axisLabelFields, axisTitles, chartLayout, grid, maxAbs, plotHeightSchema, plotSize, seriesLegend } from './common.ts';
+
+const point = z.union([
+  z.tuple([z.number(), z.number()]),
+  z.tuple([z.number(), z.number(), z.number()]),
+  z.object({
+    x: z.number(),
+    y: z.number(),
+    size: z.number().nonnegative().optional().describe('Bubble size (area-proportional)'),
+    label: z.string().max(40).optional().describe('Direct label; use only for the few points worth calling out'),
+  }),
+]);
+
+interface Point {
+  x: number;
+  y: number;
+  size?: number;
+  label?: string;
+}
+
+function toPoint(p: z.infer<typeof point>): Point {
+  if (Array.isArray(p)) return { x: p[0], y: p[1], size: p[2] };
+  return p;
+}
+
+/** Least-squares fit; null when x has no spread. */
+function regression(points: Point[]): { slope: number; intercept: number } | null {
+  const n = points.length;
+  if (n < 2) return null;
+  const mx = points.reduce((s, p) => s + p.x, 0) / n;
+  const my = points.reduce((s, p) => s + p.y, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (const p of points) {
+    num += (p.x - mx) * (p.y - my);
+    den += (p.x - mx) ** 2;
+  }
+  if (den === 0) return null;
+  const slope = num / den;
+  return { slope, intercept: my - slope * mx };
+}
+
+export const scatterChart = defineTemplate({
+  id: 'scatter_chart',
+  title: 'Scatter / bubble chart',
+  category: 'chart',
+  description:
+    'Relationship between two numeric variables, with optional bubble size, a few labeled points and per-series trend lines. Keep to ≤ 3 series so colors stay distinguishable.',
+  schema: z.object({
+    ...titleFields,
+    series: z
+      .array(
+        z.object({
+          name: z.string().min(1).max(80),
+          points: z.array(point).min(1).max(5000).describe('[x, y], [x, y, size] or {x, y, size?, label?}'),
+          color: colorSchema.optional(),
+        }),
+      )
+      .min(1)
+      .max(8),
+    x_format: formatSchema.optional(),
+    y_format: formatSchema.optional(),
+    trendline: z.boolean().default(false).describe('Fit and draw a least-squares line per series'),
+    ...axisLabelFields,
+    height: plotHeightSchema,
+  }),
+  example: {
+    title: 'Price vs. rating',
+    subtitle: 'Wireless headphones, bubble size = monthly reviews',
+    x_label: 'Price (USD)',
+    y_label: 'Average rating',
+    x_format: 'currency_compact',
+    trendline: true,
+    series: [
+      {
+        name: 'Over-ear',
+        points: [
+          { x: 349, y: 4.6, size: 1200, label: 'Studio Pro' },
+          { x: 299, y: 4.4, size: 860 },
+          { x: 249, y: 4.3, size: 640 },
+          { x: 179, y: 4.1, size: 900 },
+          { x: 129, y: 3.9, size: 520 },
+          { x: 399, y: 4.5, size: 410 },
+          { x: 89, y: 3.7, size: 300 },
+        ],
+      },
+      {
+        name: 'In-ear',
+        points: [
+          { x: 249, y: 4.5, size: 1500, label: 'Buds Max' },
+          { x: 199, y: 4.3, size: 1100 },
+          { x: 149, y: 4.2, size: 700 },
+          { x: 99, y: 4.0, size: 1300 },
+          { x: 59, y: 3.6, size: 950, label: 'Budget pick' },
+          { x: 39, y: 3.4, size: 400 },
+        ],
+      },
+    ],
+  },
+  width: 800,
+  render(d, ctx) {
+    const { theme } = ctx;
+    const colors = d.series.map((s, i) => seriesColor(theme, i, s.color));
+    const data = d.series.map((s) => s.points.map(toPoint));
+    const all = data.flat();
+    const sizes = all.map((p) => p.size).filter((s): s is number => s != null);
+    const maxSize = Math.max(0, ...sizes);
+    // Area-proportional bubbles between 8px and 44px in diameter.
+    const diameter = (s?: number) => (s == null || maxSize === 0 ? 9 : 8 + 36 * Math.sqrt(s / maxSize));
+    const legendItems = seriesLegend(d.series.map((s) => s.name), colors, 'dot');
+    const titles = axisTitles(d);
+    const size = plotSize(ctx, d, legendItems, 0.56, titles.reserve);
+    const xs = all.map((p) => p.x);
+
+    const series: unknown[] = d.series.map((s, si) => ({
+      type: 'scatter',
+      name: s.name,
+      data: data[si]!.map((p) => ({
+        value: [p.x, p.y],
+        symbolSize: diameter(p.size),
+        label: p.label ? { show: true, formatter: p.label } : undefined,
+      })),
+      itemStyle: { color: colors[si], opacity: sizes.length ? 0.78 : 0.9, borderColor: theme.surface, borderWidth: 2 },
+      label: { show: false, position: 'right', distance: 6, color: theme.text, fontSize: 11, fontWeight: 500 },
+    }));
+
+    if (d.trendline) {
+      d.series.forEach((_, si) => {
+        const fit = regression(data[si]!);
+        if (!fit) return;
+        const px = data[si]!.map((p) => p.x);
+        const lo = Math.min(...px);
+        const hi = Math.max(...px);
+        series.push({
+          type: 'line',
+          name: `${d.series[si]!.name} trend`,
+          data: [
+            [lo, fit.intercept + fit.slope * lo],
+            [hi, fit.intercept + fit.slope * hi],
+          ],
+          showSymbol: false,
+          lineStyle: { color: colors[si], width: 1.5, type: [5, 4], opacity: 0.9 },
+          z: 1,
+        });
+      });
+    }
+
+    const svg = renderChart(
+      {
+        grid: grid({ top: 16, right: 20 }),
+        xAxis: {
+          type: 'value',
+          scale: true,
+          splitNumber: 5,
+          axisLine: { show: true },
+          axisLabel: { formatter: makeAxisFormatter(d.x_format, maxAbs(xs)) },
+          splitLine: { show: true },
+        },
+        yAxis: {
+          type: 'value',
+          scale: true,
+          splitNumber: 5,
+          axisLabel: { formatter: makeAxisFormatter(d.y_format, maxAbs(all.map((p) => p.y))) },
+        },
+        series,
+      },
+      size,
+      theme,
+    );
+    return chartLayout(d, legendItems, svg, titles);
+  },
+});

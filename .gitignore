@@ -1,0 +1,7 @@
+node_modules/
+dist/
+gallery/
+.scratch/
+*.log
+.DS_Store
+.env
