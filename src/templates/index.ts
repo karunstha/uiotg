@@ -1,4 +1,9 @@
 import type { Template } from '../core/types.ts';
+import { alarm } from './basic/alarm.ts';
+import { activity } from './data/activity.ts';
+import { sportsScore } from './data/sports-score.ts';
+import { mediaCard } from './media/media-card.ts';
+import { occasion } from './media/occasion.ts';
 import { clock } from './basic/clock.ts';
 import { volume } from './basic/volume.ts';
 import { worldClock } from './basic/world-clock.ts';
@@ -77,6 +82,7 @@ export const builtinTemplates: Template[] = [
   volume,
   clock,
   worldClock,
+  alarm,
   // text
   textCard,
   quote,
@@ -98,6 +104,8 @@ export const builtinTemplates: Template[] = [
   monthCalendar,
   stockQuote,
   watchlist,
+  sportsScore,
+  activity,
   // charts
   barChart,
   lineChart,
@@ -119,6 +127,8 @@ export const builtinTemplates: Template[] = [
   weather,
   map,
   smartHome,
+  mediaCard,
+  occasion,
   // layout
   dashboard,
 ] as Template[];

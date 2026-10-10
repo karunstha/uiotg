@@ -10,7 +10,7 @@ type DeviceType = (typeof TYPES)[number];
 
 const ICONS: Record<DeviceType, [on: string, off: string]> = {
   light: ['lightbulb', 'lightbulb-off'],
-  switch: ['toggle-right', 'toggle-left'],
+  switch: ['power', 'power-off'],
   plug: ['plug-zap', 'plug'],
   fan: ['fan', 'fan'],
   thermostat: ['thermometer', 'thermometer'],

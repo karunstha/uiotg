@@ -16,7 +16,7 @@ export const volume = defineTemplate({
   title: 'Volume / level slider',
   category: 'basic',
   description:
-    'A slider showing a level: volume (with mute), brightness, temperature or any 0–max value, with the device or source it applies to. Use to show or confirm a setting the agent just changed.',
+    'A level meter showing a setting: volume (with mute), brightness, temperature or any 0–max value, with the device or source it applies to. Use to show or confirm a setting the agent just changed.',
   schema: z.object({
     value: z.number().min(0),
     max: z.number().positive().default(100),
@@ -40,8 +40,6 @@ export const volume = defineTemplate({
 .vo-row{display:flex;align-items:center;gap:12px;margin-top:18px;color:var(--muted)}
 .vo-track{position:relative;flex:1;height:8px;border-radius:999px}
 .vo-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
-.vo-knob{position:absolute;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#fff;
-  box-shadow:0 1px 4px rgba(0,0,0,.3),0 0 0 1px rgba(0,0,0,.06)}
 `,
   render(d, ctx) {
     const k = KINDS[d.kind];
@@ -60,7 +58,6 @@ export const volume = defineTemplate({
         ${icon(k.low, { size: 16 })}
         <div class="vo-track" style="${style({ background: off ? ctx.theme.subtle : `color-mix(in srgb, ${color} 22%, var(--subtle))` })}">
           <div class="vo-fill" style="${style({ width: pct, background: color })}"></div>
-          <div class="vo-knob" style="${style({ left: pct })}"></div>
         </div>
         ${icon(k.high, { size: 18 })}
       </div>`;

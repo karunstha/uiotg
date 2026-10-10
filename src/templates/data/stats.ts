@@ -66,10 +66,10 @@ export const stats = defineTemplate({
 .st-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:20px}
 .st-caption{font-size:12px;color:var(--muted)}
 .st-spark{margin-top:8px}
-.st.hero{border:0;padding:0;gap:10px}
-.st.hero .st-label{font-size:15px}
-.st.hero .st-value{line-height:1.05;letter-spacing:-0.035em}
-.st.hero .delta{font-size:15px}
+.st.st-hero{border:0;padding:0;gap:10px}
+.st.st-hero .st-label{font-size:15px}
+.st.st-hero .st-value{line-height:1.05;letter-spacing:-0.035em}
+.st.st-hero .delta{font-size:15px}
 `,
   render(d, ctx) {
     const hero = d.items.length === 1;
@@ -87,7 +87,7 @@ export const stats = defineTemplate({
       } else if (typeof it.delta === 'string') {
         change = textDelta(it.delta, it.good_when, minimal ? undefined : it.delta_label);
       }
-      return html`<div class="${`st${hero ? ' hero' : ''}`}">
+      return html`<div class="${`st${hero ? ' st-hero' : ''}`}">
         <div class="st-label">${icon(it.icon, { size: 15 })}${it.label}</div>
         <div class="st-value" style="${`font-size:${valueSize(display(it.value, fmt))}px`}">${display(it.value, fmt)}</div>
         ${change || it.status ? html`<div class="st-foot">${change}${it.status ? statusBadge(it.status) : null}</div>` : null}

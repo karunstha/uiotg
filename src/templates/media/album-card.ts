@@ -23,7 +23,7 @@ export const albumCard = defineTemplate({
   title: 'Album / now playing',
   category: 'media',
   description:
-    'Album art card with an ambient backdrop blurred from the cover. Three layouts: "now_playing" (progress bar and controls), "track" (single track info) and "album" (cover, metadata and track list). Covers fall back to a generated gradient.',
+    'Album art card with an ambient backdrop blurred from the cover. Three layouts: "now_playing" (playback position), "track" (single track info) and "album" (cover, metadata and track list). Covers fall back to a generated gradient.',
   schema: z.object({
     title: z.string().min(1).max(160).describe('Track title (now_playing/track) or album title (album)'),
     artist: z.string().min(1).max(160),
@@ -87,12 +87,7 @@ export const albumCard = defineTemplate({
 .al-progress{margin-top:26px}
 .al-track{position:relative;height:5px;border-radius:999px;background:color-mix(in srgb, var(--text) 16%, transparent)}
 .al-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--text)}
-.al-knob{position:absolute;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:var(--text);
-  box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .al-times{display:flex;justify-content:space-between;margin-top:9px;font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums}
-.al-controls{display:flex;align-items:center;justify-content:center;gap:28px;margin-top:14px;color:var(--text)}
-.al-controls .dim{opacity:.55}
-.al-play{width:52px;height:52px;border-radius:50%;background:var(--text);color:var(--surface);display:flex;align-items:center;justify-content:center}
 .al-list{margin-top:30px;border-top:1px solid color-mix(in srgb, var(--text) 12%, transparent)}
 .al-row{display:grid;grid-template-columns:28px 1fr auto;gap:14px;align-items:center;padding:11px 8px;border-radius:8px}
 .al-row + .al-row{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent)}
@@ -130,15 +125,8 @@ export const albumCard = defineTemplate({
       const p = d.progress ?? (el != null && du ? el / du : 0);
       const pct = `${(Math.max(0, Math.min(1, p)) * 100).toFixed(2)}%`;
       progress = html`<div class="al-progress">
-        <div class="al-track"><div class="al-fill" style="${`width:${pct}`}"></div><div class="al-knob" style="${`left:${pct}`}"></div></div>
-        ${d.elapsed || d.duration ? html`<div class="al-times"><span>${d.elapsed ?? ''}</span><span>${d.duration ? `−${remaining(d.elapsed, d.duration)}` : ''}</span></div>` : null}
-        <div class="al-controls">
-          <span class="dim">${icon('shuffle', { size: 20 })}</span>
-          ${icon('skip-back', { size: 26 })}
-          <span class="al-play">${icon('pause', { size: 24 })}</span>
-          ${icon('skip-forward', { size: 26 })}
-          <span class="dim">${icon('repeat', { size: 20 })}</span>
-        </div>
+        <div class="al-track"><div class="al-fill" style="${`width:${pct}`}"></div></div>
+        ${d.elapsed || d.duration ? html`<div class="al-times"><span>${d.elapsed ?? ''}</span><span>${d.duration ?? ''}</span></div>` : null}
       </div>`;
     }
 
@@ -172,10 +160,3 @@ export const albumCard = defineTemplate({
   },
 });
 
-function remaining(elapsed: string | undefined, duration: string): string {
-  const el = seconds(elapsed) ?? 0;
-  const du = seconds(duration);
-  if (du == null) return duration;
-  const left = Math.max(0, du - el);
-  return `${Math.floor(left / 60)}:${String(Math.round(left % 60)).padStart(2, '0')}`;
-}

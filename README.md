@@ -20,18 +20,24 @@ An MCP server that turns structured data into polished UI images. A model calls 
 
 ## Templates
 
-57 templates across six categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
+62 templates across six categories. They are representative: they show state and results, never controls (no play buttons, toggles or slider knobs). Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
 
 | Category | Templates |
 |---|---|
-| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` · `volume` (volume/brightness/level slider) · `clock` (analog/digital, any time zone) · `world_clock` |
+| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` · `volume` (volume/brightness/level slider) · `clock` (analog/digital, any time zone) · `world_clock` · `alarm` |
 | **Text & content** | `text_card` · `quote` · `markdown` (with $math$) · `code` (Shiki, 18 themes) · `list` · `steps` (how-to with code and tips) · `diff` (line or word diff, or a git patch) · `math` (KaTeX, worked solutions) |
-| **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` · `status_page` · `task_board` · `month_calendar` · `stock_quote` · `watchlist` |
+| **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` · `status_page` · `task_board` · `month_calendar` · `stock_quote` · `watchlist` · `sports_score` (scoreboard, box score, key events) · `activity` (goal rings and health metrics) |
 | **Charts** | `bar_chart` · `line_chart` · `pie_chart` · `scatter_chart` · `heatmap` · `radar_chart` · `treemap` · `sankey` · `funnel` · `gauge` · `candlestick` · `calendar_heatmap` · `echarts` (raw ECharts option escape hatch) |
-| **Media & cards** | `album_card` (now playing, track, album with track list) · `album_grid` (cover collage) · `profile_card` · `weather` · `map` (pins and routes, auto-framed) · `smart_home` (Home Assistant–style device tiles) |
+| **Media & cards** | `album_card` (now playing, track, album with track list) · `album_grid` (cover collage) · `profile_card` · `weather` · `map` (pins and routes, auto-framed) · `smart_home` (Home Assistant–style device tiles) · `media_card` (movie, show, book, game or podcast) · `occasion` (birthday, holiday or any celebration) |
 | **Layout** | `dashboard`: a grid of cards, each rendering any other template |
 
 Each template has a zod schema (exposed to models as JSON Schema), a complete example, and a description of when to use it.
+
+### Backgrounds
+
+`weather`, `world_clock`, `sports_score` and `occasion` draw themed backgrounds: a sky that matches the conditions and time of day, the local hour's sky behind each city, or the two team colors. An `occasion` takes any occasion by name (`"birthday"`, `"Christmas"`, `"Diwali"`, `"retirement"`). With a photo key that name is the photo search, so nothing is hardcoded per holiday. Without one, birthdays, anniversaries and weddings get their own art, and everything else gets a festive design in the `color` you pass (or one picked from the name).
+
+These are generated SVG art by default, so they work offline and cost nothing. To use real photos, set a free `UIOTG_UNSPLASH_ACCESS_KEY` or `UIOTG_PEXELS_API_KEY`. Templates then search for a fitting photo ("Lisbon city", "christmas lights", "soccer stadium") and cache results for six hours. If the search fails, the generated art is used instead. Each of these templates accepts `background`: `auto` (photo when a key is set, otherwise art), `art`, `photo` or `none`, plus `background_url` to supply your own image.
 
 ## Setup
 
@@ -150,6 +156,7 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 | `UIOTG_TILE_URL` | Map tile server, `{z}/{x}/{y}` with optional `{s}` and `{r}` (retina). Default: OpenStreetMap |
 | `UIOTG_TILE_ATTRIBUTION` | Attribution shown on maps for a custom tile server |
 | `UIOTG_TILE_CONTACT` | Email or URL added to the tile User-Agent (OpenStreetMap asks operators to be reachable) |
+| `UIOTG_UNSPLASH_ACCESS_KEY` / `UIOTG_PEXELS_API_KEY` | Optional photo backgrounds (free keys). Without one, backgrounds are generated art |
 
 ## CLI
 

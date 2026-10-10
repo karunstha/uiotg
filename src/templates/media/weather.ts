@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { skyArt, type Sky } from '../../core/art.ts';
+import { backdrop, backgroundFields } from '../../core/backdrop.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { fitFontSize } from '../../core/measure.ts';
@@ -35,6 +37,22 @@ const LABEL: Record<Condition, string> = {
   sleet: 'Sleet',
   hail: 'Hail',
   windy: 'Windy',
+};
+
+const SKY: Record<Condition, Sky> = {
+  clear: 'clear',
+  partly_cloudy: 'cloudy',
+  cloudy: 'cloudy',
+  overcast: 'cloudy',
+  fog: 'fog',
+  drizzle: 'rain',
+  rain: 'rain',
+  showers: 'rain',
+  thunderstorm: 'storm',
+  snow: 'snow',
+  sleet: 'snow',
+  hail: 'snow',
+  windy: 'wind',
 };
 
 function conditionIcon(c: Condition, night = false): { name: string; color: string } {
@@ -78,6 +96,7 @@ export const weather = defineTemplate({
   description:
     'Weather card: current conditions with a large temperature, feels-like/humidity/wind/precipitation, an hourly strip and a daily forecast with temperature range bars.',
   schema: z.object({
+    ...backgroundFields,
     location: z.string().min(1).max(80),
     date: z.string().max(60).optional().describe('e.g. "Thursday, 2:30 PM"'),
     units: z.enum(['metric', 'imperial']).default('metric'),
@@ -138,6 +157,9 @@ export const weather = defineTemplate({
   },
   width: 560,
   css: /* css */ `
+.wx-head.on-bk{border-radius:16px;padding:20px 22px 24px;color:#fff}
+.wx-head.on-art .wx-loc,.wx-head.on-art .wx-temp,.wx-head.on-art .wx-cond{color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.25)}
+.wx-head.on-art .wx-loc .icon,.wx-head.on-art .wx-date,.wx-head.on-art .wx-hl{color:rgba(255,255,255,.85)}
 .wx-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .wx-loc{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:650;letter-spacing:-0.012em;color:var(--text)}
 .wx-loc .icon{color:var(--text-2)}
@@ -165,7 +187,7 @@ export const weather = defineTemplate({
 .wx-range{position:relative;height:6px;border-radius:999px;background:var(--subtle)}
 .wx-bar{position:absolute;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg, #5598e7, #eda100)}
 `,
-  render(d, ctx) {
+  async render(d, ctx) {
     const c = d.current;
     const deg = (v: number) => `${Math.round(v)}°`;
     const windUnit = d.units === 'imperial' ? 'mph' : 'km/h';
@@ -185,19 +207,29 @@ export const weather = defineTemplate({
     const hi = Math.max(...days.map((x) => x.high));
     const span = hi - lo || 1;
 
+    // The current conditions sit on a sky that matches them (or a photo of the place).
+    const bg = await backdrop({
+      mode: d.background,
+      url: d.background_url,
+      query: `${d.location} city`,
+      art: () => skyArt(SKY[c.condition], c.is_night, Math.round(ctx.width), 240, d.location),
+    });
     return html`<div class="wx">
-      <div class="wx-top">
-        <div>
-          <div class="wx-loc">${icon('map-pin', { size: 18 })}${d.location}</div>
-          ${d.date ? html`<div class="wx-date">${d.date}</div>` : null}
+      <div class="${`wx-head${bg ? ' on-bk on-art' : ''}`}">
+        ${bg?.layer ?? null}
+        <div class="wx-top">
+          <div>
+            <div class="wx-loc">${icon('map-pin', { size: 18 })}${d.location}</div>
+            ${d.date ? html`<div class="wx-date">${d.date}</div>` : null}
+          </div>
         </div>
-      </div>
-      <div class="wx-now">
-        <span style="${`color:${ci.color}`}">${icon(ci.name, { size: 68, strokeWidth: 1.5 })}</span>
-        <div class="wx-temp" style="${`font-size:${fitFontSize(deg(c.temperature), ctx.width * 0.4, 76, 28)}px`}">${deg(c.temperature)}</div>
-        <div>
-          <div class="wx-cond">${c.description ?? LABEL[c.condition]}</div>
-          ${c.high != null && c.low != null ? html`<div class="wx-hl">H ${deg(c.high)} · L ${deg(c.low)}</div>` : null}
+        <div class="wx-now">
+          <span style="${`color:${bg ? '#ffffff' : ci.color}`}">${icon(ci.name, { size: 68, strokeWidth: 1.5 })}</span>
+          <div class="wx-temp" style="${`font-size:${fitFontSize(deg(c.temperature), ctx.width * 0.4, 76, 28)}px`}">${deg(c.temperature)}</div>
+          <div>
+            <div class="wx-cond">${c.description ?? LABEL[c.condition]}</div>
+            ${c.high != null && c.low != null ? html`<div class="wx-hl">H ${deg(c.high)} · L ${deg(c.low)}</div>` : null}
+          </div>
         </div>
       </div>
       ${facts.length

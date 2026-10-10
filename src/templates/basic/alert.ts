@@ -26,7 +26,7 @@ export const alert = defineTemplate({
     message: z.string().min(1).max(600).describe('Inline Markdown supported'),
     tone: toneSchema.default('info'),
     icon: iconSchema.optional().describe('Overrides the tone’s default icon'),
-    action: z.string().max(40).optional().describe('Action text shown on the right, e.g. "View logs"'),
+    action: z.string().max(40).optional().describe('Suggested next step, shown as text (not a button), e.g. "Renew the certificate"'),
   }),
   example: {
     tone: 'warning',
@@ -48,7 +48,7 @@ export const alert = defineTemplate({
 .alr-title + .alr-msg{margin-top:2px}
 .alr-msg code{font-family:var(--font-mono);font-size:.88em;background:color-mix(in srgb, var(--tone) 10%, var(--subtle));padding:.1em .35em;border-radius:4px}
 .alr-msg strong{color:var(--text);font-weight:620}
-.alr-act{flex:none;font-size:14px;font-weight:600;color:var(--text);line-height:21px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.alr-act{flex:0 1 auto;max-width:40%;text-align:right;font-size:13px;font-weight:550;color:var(--text-2);line-height:21px}
 `,
   render(d, ctx) {
     const color = toneColor(ctx.theme, d.tone);
@@ -58,7 +58,7 @@ export const alert = defineTemplate({
         ${d.title ? html`<div class="alr-title">${d.title}</div>` : null}
         <div class="alr-msg">${renderInline(d.message)}</div>
       </div>
-      ${d.action ? html`<span class="alr-act">${d.action}${icon('chevron-right', { size: 15 })}</span>` : null}
+      ${d.action ? html`<span class="alr-act">Next: ${d.action}</span>` : null}
     </div>`;
   },
 });

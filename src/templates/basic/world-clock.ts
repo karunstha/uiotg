@@ -1,11 +1,18 @@
 import { z } from 'zod';
 import { titleFields } from '../../core/format.ts';
-import { html } from '../../core/html.ts';
-import { icon } from '../../core/icons.ts';
+import { hourSky } from '../../core/art.ts';
+import { backdrop, backgroundFields } from '../../core/backdrop.ts';
+import { html, raw, style, type Html } from '../../core/html.ts';
 import { formatClock, offsetMinutes, timeZoneSchema, zoneAbbreviation, zoned } from '../../core/time.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { fitColumns, header } from '../../core/ui.ts';
 import { analogFace } from './clock.ts';
+
+/** A small square of the local sky: dawn, day, dusk or night, with the sun or moon on its arc. */
+function skyTile(hour: number): Html {
+  const art = hourSky(hour, 44, 44);
+  return html`<span class="wc-sky" style="${style({ background: art.background })}">${raw(art.overlay)}</span>`;
+}
 
 function relativeOffset(minutes: number): string {
   if (minutes === 0) return 'Same time';
@@ -13,6 +20,10 @@ function relativeOffset(minutes: number): string {
   const h = Math.floor(Math.abs(minutes) / 60);
   const m = Math.abs(minutes) % 60;
   return `${sign}${h}h${m ? ` ${m}m` : ''}`;
+}
+
+function resolveStyle(d: { style: 'auto' | 'cards' | 'list' | 'analog'; cities: unknown[] }): 'cards' | 'list' | 'analog' {
+  return d.style === 'auto' ? (d.cities.length <= 6 ? 'cards' : 'list') : d.style;
 }
 
 export const worldClock = defineTemplate({
@@ -31,7 +42,8 @@ export const worldClock = defineTemplate({
       .refine((s) => !Number.isNaN(Date.parse(s)), { message: 'Expected an ISO date-time, e.g. 2026-10-09T14:30:00Z' })
       .optional()
       .describe('ISO date-time to show instead of now'),
-    style: z.enum(['list', 'analog']).default('list'),
+    style: z.enum(['auto', 'cards', 'list', 'analog']).default('auto').describe('auto: cards (each city on its local sky) for up to 6 cities, a list beyond that'),
+    ...backgroundFields,
     hour12: z.boolean().default(false),
   }),
   example: {
@@ -48,14 +60,21 @@ export const worldClock = defineTemplate({
   },
   fit: 'content',
   minWidth: 360,
-  width: (d) => (d.style === 'analog' ? 760 : 560),
+  width: (d) => {
+    const style = resolveStyle(d);
+    return style === 'analog' ? 760 : style === 'cards' ? Math.min(760, Math.max(360, Math.min(3, d.cities.length) * 230 + 64)) : 560;
+  },
   css: /* css */ `
 .wc-list{display:flex;flex-direction:column}
 .wc-row{display:flex;align-items:center;gap:14px;padding:12px 0}
 .wc-row + .wc-row{border-top:1px solid var(--grid)}
-.wc-ico{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center}
-.wc-ico.day{background:color-mix(in srgb, #eda100 16%, var(--surface));color:#c98500}
-.wc-ico.night{background:color-mix(in srgb, #4a3aa7 16%, var(--surface));color:#7d6fe0}
+.wc-sky{width:44px;height:44px;border-radius:12px;flex:none}
+.wc-cards{display:grid;gap:12px}
+.wc-card{border-radius:16px;padding:16px 16px 18px;color:#fff;min-height:132px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.wc-card .wc-name{color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
+.wc-card .wc-meta{color:rgba(255,255,255,.85)}
+.wc-card .wc-time{color:#fff;text-align:left;font-size:36px;margin-top:14px;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+.wc-card .wc-sfx{color:rgba(255,255,255,.85)}
 .wc-main{flex:1;min-width:0}
 .wc-name{font-size:16px;font-weight:620;color:var(--text)}
 .wc-meta{font-size:13px;color:var(--text-2);margin-top:1px}
@@ -65,7 +84,7 @@ export const worldClock = defineTemplate({
 .wc-cell{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;min-width:0}
 .wc-cell .wc-time{font-size:20px;text-align:center}
 `,
-  render(d, ctx) {
+  async render(d, ctx) {
     const now = d.at ? new Date(d.at) : new Date();
     const home = d.home ?? d.cities[0]!.timezone;
     const homeParts = zoned(now, home);
@@ -82,7 +101,24 @@ export const worldClock = defineTemplate({
       return { ...c, p, night: p.hour < 6 || p.hour >= 19, meta };
     });
 
-    if (d.style === 'analog') {
+    const style = resolveStyle(d);
+    if (style === 'cards') {
+      const cols = fitColumns(Math.min(3, rows.length), ctx.width, 160, 12);
+      const cardW = Math.round((ctx.width - (cols - 1) * 12) / cols);
+      const cards = await Promise.all(
+        rows.map(async (r) => {
+          const bg = await backdrop({ mode: d.background, query: `${r.name} skyline`, art: () => hourSky(r.p.hour + r.p.minute / 60, cardW, 150) });
+          const { time, suffix } = formatClock(r.p.hour, r.p.minute, { hour12: d.hour12 });
+          return html`<div class="${`wc-card${bg ? ' on-bk' : ''}`}" style="${bg ? '' : 'background:var(--subtle);color:var(--text)'}">
+            ${bg?.layer ?? null}
+            <div><div class="wc-name">${r.name}</div><div class="wc-meta">${r.meta}</div></div>
+            <div class="wc-time">${time}${suffix ? html`<span class="wc-sfx">${suffix}</span>` : null}</div>
+          </div>`;
+        }),
+      );
+      return html`${header(d)}<div class="wc-cards" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${cards}</div>`;
+    }
+    if (style === 'analog') {
       const cols = fitColumns(Math.min(4, rows.length), ctx.width, 150);
       const face = Math.min(150, (ctx.width - (cols - 1) * 16) / cols - 10);
       return html`${header(d)}<div class="wc-grid" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${rows.map((r) => {
@@ -96,7 +132,7 @@ export const worldClock = defineTemplate({
     return html`${header(d)}<div class="wc-list">${rows.map((r) => {
       const { time, suffix } = formatClock(r.p.hour, r.p.minute, { hour12: d.hour12 });
       return html`<div class="wc-row">
-        <span class="${`wc-ico ${r.night ? 'night' : 'day'}`}">${icon(r.night ? 'moon' : 'sun', { size: 17 })}</span>
+        ${skyTile(r.p.hour + r.p.minute / 60)}
         <div class="wc-main"><div class="wc-name">${r.name}</div><div class="wc-meta">${r.meta}</div></div>
         <div class="wc-time">${time}${suffix ? html`<span class="wc-sfx">${suffix}</span>` : null}</div>
       </div>`;

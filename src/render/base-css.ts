@@ -62,6 +62,11 @@ img{display:block;max-width:100%}
 .axis-title.y{margin-bottom:8px}
 .axis-title.x{text-align:center;margin-top:10px}
 
+.on-bk{position:relative;isolation:isolate;overflow:hidden}
+.bk{position:absolute;inset:0;z-index:-2}
+.bk > svg{position:absolute;inset:0;width:100%;height:100%}
+.bk-scrim{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.58))}
+
 .prose{color:var(--text);font-size:15px;line-height:1.6}
 .prose > * + *{margin-top:0.75em}
 .prose h1,.prose h2,.prose h3,.prose h4{line-height:1.25;letter-spacing:-0.015em;font-weight:650}

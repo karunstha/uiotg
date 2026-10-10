@@ -15,6 +15,8 @@ services:
       UIOTG_TILE_URL: ${UIOTG_TILE_URL:-}
       UIOTG_TILE_ATTRIBUTION: ${UIOTG_TILE_ATTRIBUTION:-}
       UIOTG_TILE_CONTACT: ${UIOTG_TILE_CONTACT:-}
+      UIOTG_UNSPLASH_ACCESS_KEY: ${UIOTG_UNSPLASH_ACCESS_KEY:-}
+      UIOTG_PEXELS_API_KEY: ${UIOTG_PEXELS_API_KEY:-}
     # Chromium uses shared memory for rendering.
     shm_size: "1gb"
     mem_limit: 1536m
