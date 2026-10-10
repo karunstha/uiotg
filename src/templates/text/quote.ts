@@ -20,6 +20,8 @@ export const quote = defineTemplate({
     author: 'Alan Kay',
     role: 'Computer scientist',
   },
+  fit: 'content',
+  minWidth: 360,
   width: 760,
   padding: 48,
   css: /* css */ `

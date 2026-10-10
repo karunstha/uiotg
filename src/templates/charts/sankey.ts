@@ -92,7 +92,8 @@ export const sankey = defineTemplate({
     const perColumn = new Map<number, number>();
     for (const n of names) perColumn.set(depth.get(n)!, (perColumn.get(depth.get(n)!) ?? 0) + 1);
     const crowded = Math.max(...perColumn.values());
-    if (!ctx.height && !d.height) size.height = Math.max(size.height, crowded * nodeGap + crowded * 18 + 20);
+    // Height follows the busiest column: small flows get small charts, crowded ones get room for labels.
+    if (!ctx.height && !d.height) size.height = Math.max(Math.min(size.height, crowded * 70 + 50), crowded * nodeGap + crowded * 18 + 20);
 
     const svg = renderChart(
       {

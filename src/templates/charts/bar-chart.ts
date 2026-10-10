@@ -58,9 +58,18 @@ export const barChart = defineTemplate({
     ],
     format: 'number',
   },
-  width: 800,
+  // Few bars don't need a wide plot.
+  width: (d) => (d.categories.length === 1 ? (d.series.length === 1 ? 440 : Math.min(1000, d.series.length * 252 + 64)) : d.categories.length * (d.stacked ? 1 : d.series.length) <= 4 ? 600 : 800),
   richWhen: (d) => d.categories.length >= 4,
-  render(d, ctx) {
+  async render(d, ctx) {
+    // A single category is a number, not a chart: show it as stat tile(s).
+    if (d.categories.length === 1) {
+      return ctx.include('stats', {
+        title: d.title,
+        subtitle: d.subtitle,
+        items: d.series.map((s) => ({ label: d.series.length === 1 ? String(d.categories[0]) : s.name, value: s.values[0] ?? 0, format: d.format })),
+      });
+    }
     const { theme } = ctx;
     const cats = d.categories.map(String);
     const order = cats.map((_, i) => i);
@@ -101,7 +110,7 @@ export const barChart = defineTemplate({
     const titles = axisTitles(d);
     const groupSize = d.stacked ? 1 : series.length;
     const band = Math.min(24, 120 / groupSize) * groupSize + 18;
-    const defaultHeight = horizontal ? Math.min(1400, Math.max(140, categories.length * band + 28)) : undefined;
+    const defaultHeight = horizontal ? Math.min(1400, Math.max(140, categories.length * band + 28)) : categories.length <= 3 ? 240 : categories.length <= 6 ? 300 : undefined;
     const summary = ctx.detail === 'rich' ? barSummary(categories, series, totals, fmt) : null;
     const size = plotSize(ctx, { ...d, height: d.height ?? defaultHeight }, legendItems, 0.52, titles.reserve + (summary ? SUMMARY_HEIGHT : 0));
 

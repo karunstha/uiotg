@@ -170,6 +170,8 @@ export const watchlist = defineTemplate({
       { symbol: 'BTC', name: 'Bitcoin', price: 81_340, change_percent: -2.41, prices: [83.4, 83.1, 82.6, 82.9, 82.1, 81.7, 81.9, 81.3], currency: 'USD' },
     ],
   },
+  fit: 'content',
+  minWidth: 360,
   width: 600,
   css: /* css */ `
 /* One grid for all rows so charts, prices and pills line up. */

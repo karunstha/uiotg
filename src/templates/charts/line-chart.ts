@@ -91,9 +91,24 @@ export const lineChart = defineTemplate({
     reference_lines: [{ value: 250, label: 'SLO 250 ms' }],
     format: { suffix: ' ms' },
   },
-  width: 800,
+  width: (d) => (d.x.length === 2 && d.series.length === 1 ? 440 : 800),
   richWhen: (d) => d.x.length >= 8 && d.series.length <= 4,
-  render(d, ctx) {
+  async render(d, ctx) {
+    // Two points of one series are a before/after: a value with its change reads better than a line.
+    if (d.x.length === 2 && d.series.length === 1 && d.series[0]!.values.every((v) => v != null)) {
+      const [a, b] = d.series[0]!.values as [number, number];
+      return ctx.include('stats', {
+        title: d.title,
+        subtitle: d.subtitle,
+        items: [{
+          label: d.series[0]!.name,
+          value: b,
+          format: d.format,
+          ...(a ? { delta: Math.round(((b - a) / Math.abs(a)) * 1000) / 10, delta_label: `vs ${d.x[0]}` } : {}),
+          caption: String(d.x[1]),
+        }],
+      });
+    }
     const { theme } = ctx;
     const x = d.x.map(String);
     const colors = d.series.map((s, i) => seriesColor(theme, i, s.color));

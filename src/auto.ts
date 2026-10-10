@@ -95,7 +95,7 @@ function formatTimeLabels(values: string[]): string[] {
 }
 
 /** Infers a display format from a column name and its values. */
-function inferFormat(name: string, raw: unknown[], nums: number[]): FormatSpec | undefined {
+export function inferFormat(name: string, raw: unknown[], nums: number[]): FormatSpec | undefined {
   const strings = raw.filter((v): v is string => typeof v === 'string');
   const big = Math.max(0, ...nums.map(Math.abs)) >= 10_000;
   const money = /price|revenue|cost|amount|spend|sales|income|profit|budget|usd|eur|salary|mrr|arr|gmv/i.test(name) || strings.some((s) => /^[-−]?\s*[$€£¥]/.test(s));

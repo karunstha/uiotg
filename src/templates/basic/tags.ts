@@ -43,6 +43,8 @@ export const tags = defineTemplate({
       { label: 'Zig', count: 180 },
     ],
   },
+  fit: 'content',
+  minWidth: 200,
   width: 600,
   css: /* css */ `
 .tg-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}

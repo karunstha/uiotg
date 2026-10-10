@@ -46,6 +46,8 @@ export const worldClock = defineTemplate({
       { name: 'Sydney', timezone: 'Australia/Sydney' },
     ],
   },
+  fit: 'content',
+  minWidth: 360,
   width: (d) => (d.style === 'analog' ? 760 : 560),
   css: /* css */ `
 .wc-list{display:flex;flex-direction:column}
@@ -74,7 +76,10 @@ export const worldClock = defineTemplate({
       const dayDiff = Math.round((Date.UTC(p.year, p.month - 1, p.day) - homeDay) / 86_400_000);
       const day = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : dayDiff === -1 ? 'Yesterday' : p.weekday;
       const diff = offsetMinutes(now, c.timezone) - homeOffset;
-      return { ...c, p, night: p.hour < 6 || p.hour >= 19, meta: `${day}, ${relativeOffset(diff)} · ${zoneAbbreviation(now, c.timezone)}` };
+      // The home city shows its date; the others show how far ahead or behind they are.
+      const isHome = c.timezone === home;
+      const meta = isHome ? `${p.weekday} · ${zoneAbbreviation(now, c.timezone)}` : `${day}, ${relativeOffset(diff)} · ${zoneAbbreviation(now, c.timezone)}`;
+      return { ...c, p, night: p.hour < 6 || p.hour >= 19, meta };
     });
 
     if (d.style === 'analog') {

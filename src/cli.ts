@@ -9,6 +9,7 @@ import { TemplateDataError, type RenderOptions } from './render/renderer.ts';
 import { startHttpServer } from './http.ts';
 import { createServer, VERSION } from './server.ts';
 import { chooseVisual, type Intent } from './auto.ts';
+import { minimalData } from './stress.ts';
 
 const HELP = `uiotg ${VERSION} — User Interface On The Go
 
@@ -20,7 +21,7 @@ Usage:
   uiotg render <template> [options]              Render to an image file
   uiotg html <template> [options]                Write the intermediate HTML document
   uiotg visualize --data <raw> [--title] [--intent]   Let uiotg pick the template for raw data
-  uiotg gallery [--out dir] [--theme both]       Render every template's example
+  uiotg gallery [--out dir] [--theme both] [--minimal]   Render every template's example (or its bare-minimum data)
 
 Render options:
   --data <json | @file.json | ->   Template data (default: the template's example)
@@ -58,6 +59,7 @@ const { values: flags, positionals } = parseArgs({
     port: { type: 'string' },
     host: { type: 'string' },
     only: { type: 'string' },
+    minimal: { type: 'boolean' },
     title: { type: 'string' },
     intent: { type: 'string' },
     detail: { type: 'string' },
@@ -213,7 +215,8 @@ async function gallery(renderer: ReturnType<typeof createRenderer>): Promise<voi
         const started = performance.now();
         const file = `${t.id}-${theme}.png`;
         try {
-          const r = await renderer.render(t.id, t.example, { ...renderOptions(), theme });
+          const data = flags.minimal ? minimalData(t, renderer.registry) : t.example;
+          const r = await renderer.render(t.id, data, { ...renderOptions(), theme });
           await writeFile(join(out, file), r.data);
           console.log(`✓ ${file.padEnd(32)} ${r.width}×${r.height}  ${Math.round(performance.now() - started)} ms`);
           entries.push(`<figure class="${theme}"><img src="${file}" width="${r.width}"><figcaption>${t.id} · ${theme}</figcaption></figure>`);

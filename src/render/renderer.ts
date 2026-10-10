@@ -163,6 +163,12 @@ export class Renderer {
         const body = await child.render(parsed, this.#context(theme, used, inner, depth + 1, childDetail, requested));
         return html`<div class="${`block tpl-${child.id}${bare ? ' bare' : ''}`}" style="${style({ padding: pad, height: box.height })}">${body}</div>`;
       },
+      include: async (id, data) => {
+        const child = this.#template(id);
+        const parsed = this.#validate(child, data, '');
+        used.add(child);
+        return child.render(parsed, this.#context(theme, used, size, depth + 1, detail, requested));
+      },
     };
   }
 
@@ -182,6 +188,11 @@ export class Renderer {
     const ctx = this.#context(theme, used, { width: width - padding * 2, height: height ? height - padding * 2 : undefined }, 0, detail, requested);
     const body = await t.render(parsed, ctx);
     const css = [...used].map((u) => u.css ?? '').join('\n');
+    // Shrink-wrapping templates size to their content, between minWidth and the default width.
+    const fit = t.fit === 'content' && opts.width == null && !height;
+    const rootStyle = fit
+      ? style({ width: 'fit-content', 'min-width': `${Math.min(width, t.minWidth ?? 280)}px`, 'max-width': `${width}px`, padding })
+      : style({ width, height, padding });
     const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}`;
     const doc = html`<!doctype html>
 <html lang="en" data-theme="${mode}">
@@ -190,7 +201,7 @@ export class Renderer {
 <style>${raw(fontFaceCss())}</style>
 <style>:root{${raw(themeVars(theme))};color-scheme:${mode}}${raw(BASE_CSS)}${raw(css)}</style>
 </head>
-<body><div id="root" class="${rootClass}" style="${style({ width, height, padding })}">${body}</div></body>
+<body><div id="root" class="${rootClass}" style="${rootStyle}">${body}</div></body>
 </html>`;
     return { html: doc.value, detail, width, height, theme: mode };
   }

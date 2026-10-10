@@ -68,6 +68,8 @@ export const comparison = defineTemplate({
     ],
     footer: 'Latency measured on a 10M-vector sample, top-k = 10.',
   },
+  fit: 'content',
+  minWidth: 420,
   width: (d) => Math.min(1200, 260 + d.options.length * 190 + 64),
   css: /* css */ `
 .cm{display:grid;font-size:14px}

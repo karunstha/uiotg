@@ -49,7 +49,7 @@ export const heatmap = defineTemplate({
       [1, 3, 6, 9, 10, 9, 7, 6, 3],
     ],
   },
-  width: 760,
+  width: (d) => Math.round(Math.min(760, Math.max(360, Math.min(160, Math.max(...d.y.map((l) => String(l).length * 7))) + 24 + d.x.length * 76 + 64))),
   css: /* css */ `
 .hm{display:grid;gap:2px;align-items:stretch}
 .hm-yl{font-size:12px;line-height:1.25;color:var(--text-2);padding-right:10px;text-align:right;display:flex;align-items:center;justify-content:flex-end;min-width:0}

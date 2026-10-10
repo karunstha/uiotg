@@ -34,6 +34,8 @@ export const math = defineTemplate({
       { tex: 'x = 1 \\quad\\text{or}\\quad x = 3', note: '**Solutions**' },
     ],
   },
+  fit: 'content',
+  minWidth: 240,
   width: 720,
   css: /* css */ `${katexCss()}
 .mx{display:grid;row-gap:6px}

@@ -88,6 +88,7 @@ export function growToFit(): { width: number; height: number; grewWidth: boolean
   let grewWidth = false;
   let grewHeight = false;
   if (root.scrollWidth > root.clientWidth + 1) {
+    root.style.maxWidth = 'none';
     root.style.width = `${root.scrollWidth}px`;
     grewWidth = true;
   }

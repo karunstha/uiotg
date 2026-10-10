@@ -43,6 +43,8 @@ export const textCard = defineTemplate({
     text: 'This release cuts **cold build time by 38%** and trims the runtime by 12 KB.\n\n- Incremental type-checking\n- Parallel asset hashing\n- New `--profile` flag',
     footer: 'Shipped October 9, 2026',
   },
+  fit: 'content',
+  minWidth: 320,
   width: 720,
   css: /* css */ `
 .tc{display:flex;flex-direction:column;gap:12px}

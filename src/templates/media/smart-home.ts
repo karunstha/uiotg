@@ -85,7 +85,13 @@ export const smartHome = defineTemplate({
       { name: 'Garage', type: 'door', state: 'closed', area: 'Entrance' },
     ],
   },
-  width: 760,
+  // As many columns as the busiest room needs (up to 4).
+  width: (d) => {
+    const perArea = new Map<string, number>();
+    for (const dev of d.devices) perArea.set(dev.area ?? '', (perArea.get(dev.area ?? '') ?? 0) + 1);
+    const cols = Math.min(4, Math.max(...perArea.values()));
+    return Math.max(300, cols * 170 + (cols - 1) * 10 + 64);
+  },
   background: 'plane',
   css: /* css */ `
 .sh-area + .sh-area{margin-top:20px}
@@ -108,7 +114,8 @@ export const smartHome = defineTemplate({
   render(d, ctx) {
     const areas: string[] = [];
     for (const dev of d.devices) if (!areas.includes(dev.area ?? '')) areas.push(dev.area ?? '');
-    const cols = fitColumns(4, ctx.width, 150, 10);
+    const perArea = areas.map((a) => d.devices.filter((x) => (x.area ?? '') === a).length);
+    const cols = fitColumns(Math.min(4, Math.max(...perArea)), ctx.width, 150, 10);
     const tile = (dev: Device): Html => {
       const active = dev.on ?? (dev.type === 'thermostat' ? /heat|cool/i.test(dev.state ?? '') : dev.type === 'sensor' ? false : ACTIVE.test(dev.state ?? ''));
       const glow =

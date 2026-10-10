@@ -43,7 +43,8 @@ export const treemap = defineTemplate({
   render(d, ctx) {
     const { theme } = ctx;
     const fmt = makeFormatter(d.format);
-    const size = plotSize(ctx, d, [], 0.56);
+    const leaves = d.items.reduce((n, it) => n + ('children' in it ? it.children.length : 1), 0);
+    const size = plotSize(ctx, { ...d, height: d.height ?? Math.min(Math.round(ctx.width * 0.56), Math.max(160, leaves * 60 + 60)) }, [], 0.56);
     const data = d.items.map((item, i) => {
       const color = seriesColor(theme, i, item.color);
       const ink = inkOn(color);

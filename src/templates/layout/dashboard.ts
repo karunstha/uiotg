@@ -6,6 +6,11 @@ import { header } from '../../core/ui.ts';
 
 const GAP = 16;
 
+/** A dashboard never has more columns than its blocks can fill. */
+function effectiveColumns(d: { columns: number; blocks: Array<{ span: number }> }): number {
+  return Math.max(1, Math.min(d.columns, d.blocks.reduce((n, b) => n + b.span, 0)));
+}
+
 export const dashboard = defineTemplate({
   id: 'dashboard',
   title: 'Dashboard',
@@ -94,7 +99,10 @@ export const dashboard = defineTemplate({
       },
     ],
   },
-  width: (d) => (d.columns >= 3 ? 1320 : d.columns === 1 ? 760 : 1120),
+  width: (d) => {
+    const cols = effectiveColumns(d);
+    return cols >= 3 ? 1320 : cols === 1 ? 760 : 1120;
+  },
   padding: 28,
   background: 'plane',
   css: /* css */ `
@@ -108,7 +116,7 @@ export const dashboard = defineTemplate({
 .db-footer{margin-top:16px;font-size:12px;color:var(--muted)}
 `,
   async render(d, ctx) {
-    const cols = d.columns;
+    const cols = effectiveColumns(d);
     const colWidth = (ctx.width - GAP * (cols - 1)) / cols;
     const blocks = await Promise.all(
       d.blocks.map(async (b, i) => {

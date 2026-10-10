@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { display, formatSchema, makeFormatter, statusSchema, titleFields, type Formatter } from '../../core/format.ts';
 import { html, style, type Html } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
+import { humanize, inferFormat } from '../../auto.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header, statusBadge } from '../../core/ui.ts';
 
@@ -83,6 +84,8 @@ export const table = defineTemplate({
     footer: { region: 'Total', revenue: 11_300_000, growth: 0.109, customers: 5304 },
     caption: 'Source: billing warehouse, refreshed daily.',
   },
+  fit: 'content',
+  minWidth: 320,
   width: (d) => {
     const n = d.columns?.length ?? (Array.isArray(d.rows[0]) ? d.rows[0].length : Object.keys(d.rows[0] ?? {}).length);
     return Math.min(1200, Math.max(560, n * 150 + 64));
@@ -119,15 +122,18 @@ export const table = defineTemplate({
       const values = d.rows.map((r) => valueAt(r, { key: spec.key, index }));
       const present = values.filter((v) => v != null && v !== '');
       const numeric = present.length > 0 && present.every((v) => typeof v === 'number');
-      const type = spec.type ?? (numeric ? 'number' : 'text');
+      const statuses = present.length > 0 && present.every((v) => typeof v === 'string' && statusSchema.safeParse(v).success);
+      const type = spec.type ?? (statuses ? 'status' : numeric ? 'number' : 'text');
       const nums = values.filter((v): v is number => typeof v === 'number');
       return {
         key: spec.key,
-        label: spec.label ?? spec.key,
+        // Bare keys like "monthly_revenue" read as "Monthly revenue".
+        label: spec.label ?? (/[_a-z]/.test(spec.key) && spec.key === spec.key.toLowerCase() ? humanize(spec.key) : spec.key),
         index,
         type,
         align: spec.align ?? (type === 'number' ? 'right' : 'left'),
-        fmt: makeFormatter(spec.format),
+        // Without an explicit format, infer one from the name and values ($ for revenue, % for rates…).
+        fmt: makeFormatter(spec.format ?? (numeric ? inferFormat(spec.key, present, nums) : undefined)),
         bar: !!spec.bar && nums.length > 0,
         max: Math.max(0, ...nums),
         width: spec.width,

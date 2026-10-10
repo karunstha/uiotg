@@ -51,7 +51,7 @@ export const albumGrid = defineTemplate({
   },
   width: (d) => {
     const cols = columnsFor(d.items.length, d.columns);
-    return Math.min(1400, Math.max(480, cols * 220 + (cols - 1) * 10 + 64));
+    return Math.min(1400, Math.max(280, cols * 220 + (cols - 1) * 10 + 64));
   },
   css: /* css */ `
 .cg-grid{display:grid;gap:10px}

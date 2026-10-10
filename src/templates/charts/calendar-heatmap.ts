@@ -18,6 +18,19 @@ function fmtDay(day: number): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 }
 
+/**
+ * Days shown: explicit start/end, else the span of the data, at least 12 weeks
+ * (so a few days still read as a calendar) and at most a year.
+ */
+function range(d: { values: Array<{ date: string }>; start?: string; end?: string }): { start: number; end: number } {
+  const days = d.values.map((v) => parseDay(v.date));
+  const end = d.end ? parseDay(d.end) : days.length ? Math.max(...days) : Math.floor(Date.now() / DAY);
+  if (d.start) return { start: parseDay(d.start), end };
+  const earliest = days.length ? Math.min(...days) : end;
+  const span = Math.max(12 * 7, Math.min(52 * 7, end - earliest));
+  return { start: end - span - new Date(end * DAY).getUTCDay(), end };
+}
+
 export const calendarHeatmap = defineTemplate({
   id: 'calendar_heatmap',
   title: 'Calendar heatmap',
@@ -48,11 +61,15 @@ export const calendarHeatmap = defineTemplate({
     }
     return { title: 'Commits', subtitle: 'uiotg repository, last 12 months', values, unit: 'commits' };
   })(),
-  width: 860,
+  width: (d) => {
+    const { start, end } = range(d);
+    const weeks = Math.ceil((end - start + 7) / 7) + 1;
+    return Math.min(860, Math.max(360, 30 + weeks * 25 + 64));
+  },
   css: /* css */ `
-.cal-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;font-size:12px;color:var(--text-2)}
+.cal-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:12px;font-size:12px;color:var(--text-2)}
 .cal-foot b{color:var(--text);font-weight:600}
-.cal-legend{display:flex;align-items:center;gap:4px;color:var(--muted)}
+.cal-legend{display:flex;align-items:center;gap:4px;color:var(--muted);flex:none;white-space:nowrap}
 .cal-legend i{display:inline-block;width:11px;height:11px;border-radius:2px}
 `,
   render(d, ctx) {
@@ -60,9 +77,7 @@ export const calendarHeatmap = defineTemplate({
     const fmt = makeFormatter(d.format);
     const byDay = new Map<number, number>();
     for (const v of d.values) byDay.set(parseDay(v.date), (byDay.get(parseDay(v.date)) ?? 0) + v.value);
-    const days = [...byDay.keys()];
-    const end = d.end ? parseDay(d.end) : days.length ? Math.max(...days) : Math.floor(Date.now() / DAY);
-    const start = d.start ? parseDay(d.start) : end - 52 * 7 - new Date(end * DAY).getUTCDay();
+    const { start, end } = range(d);
     const weekStart = d.week_start === 'monday' ? 1 : 0;
     const dow = (day: number) => (new Date(day * DAY).getUTCDay() - weekStart + 7) % 7;
     const first = start - dow(start);
@@ -123,7 +138,7 @@ export const calendarHeatmap = defineTemplate({
       ${raw(`<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="font-family:inherit" aria-hidden="true">${parts.join('')}</svg>`)}
     </div>
     <div class="cal-foot">
-      <span><b>${fmt(total)}</b> ${d.unit} · longest streak <b>${longest}</b> days · best day <b>${fmt(best.value)}</b> on ${fmtDay(best.day)}</span>
+      <span><b>${fmt(total)}</b> ${d.unit}${total > 0 ? html` · longest streak <b>${longest}</b> days · best day <b>${fmt(best.value)}</b> on ${fmtDay(best.day)}` : null}</span>
       <span class="cal-legend">Less ${levels.map((c) => html`<i style="${style({ background: c })}"></i>`)} More</span>
     </div>`;
   },

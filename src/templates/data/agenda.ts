@@ -43,6 +43,8 @@ export const agenda = defineTemplate({
       { start: '17:00', end: '17:30', title: 'Team retro', category: 'Team', status: 'cancelled' },
     ],
   },
+  fit: 'content',
+  minWidth: 320,
   width: 600,
   css: /* css */ `
 .ag{display:flex;flex-direction:column;gap:8px}

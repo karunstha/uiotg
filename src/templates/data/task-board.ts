@@ -80,7 +80,7 @@ export const taskBoard = defineTemplate({
       },
     ],
   },
-  width: (d) => Math.min(1600, Math.max(640, d.columns.length * 280 + (d.columns.length - 1) * 14 + 64)),
+  width: (d) => Math.min(1600, Math.max(340, d.columns.length * 280 + (d.columns.length - 1) * 14 + 64)),
   background: 'plane',
   css: /* css */ `
 .kb-board{display:grid;gap:14px;align-items:start}

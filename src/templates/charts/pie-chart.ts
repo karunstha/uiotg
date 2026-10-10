@@ -40,7 +40,7 @@ export const pieChart = defineTemplate({
     format: 'currency_compact',
     center_label: 'Total spend',
   },
-  width: 680,
+  width: (d) => (d.slices.length === 1 ? 440 : 680),
   richWhen: (d) => d.slices.length >= 4,
   css: /* css */ `
 .pie{display:flex;align-items:center;gap:clamp(16px, 5%, 36px)}
@@ -61,7 +61,12 @@ export const pieChart = defineTemplate({
 .pie-val{color:var(--text);font-weight:550;font-variant-numeric:tabular-nums;text-align:right}
 .pie-pct{color:var(--text-2);font-variant-numeric:tabular-nums;text-align:right}
 `,
-  render(d, ctx) {
+  async render(d, ctx) {
+    // A single slice is 100% of itself: show the number instead.
+    if (d.slices.length === 1) {
+      const s = d.slices[0]!;
+      return ctx.include('stats', { title: d.title, subtitle: d.subtitle, items: [{ label: s.label, value: s.value, format: d.format }] });
+    }
     const { theme } = ctx;
     const fmt = makeFormatter(d.format);
     let slices = d.slices.map((s, i) => ({ ...s, index: i }));

@@ -32,6 +32,11 @@ export interface RenderContext extends Size {
    * templates). `path` prefixes validation errors, e.g. "blocks[2].data".
    */
   renderBlock(template: string, data: unknown, size: Size, path: string): Promise<Html>;
+  /**
+   * Renders another template inline at this size (no block wrapper), e.g. a
+   * chart degrading to a stat tile when there's too little data for a chart.
+   */
+  include(template: string, data: unknown): Promise<Html>;
 }
 
 export interface Template<S extends z.ZodType = z.ZodType> {
@@ -47,6 +52,13 @@ export interface Template<S extends z.ZodType = z.ZodType> {
   width: number | ((data: z.output<S>) => number);
   /** Default fixed height; omitted means the image fits its content. */
   height?: number;
+  /**
+   * "content": the image shrink-wraps to its content (up to `width`) instead of
+   * always using the full width, so a one-line list isn't a wide empty card.
+   */
+  fit?: 'content';
+  /** Narrowest the image may shrink to with fit "content" (default 280). */
+  minWidth?: number;
   /** Frame padding in CSS px (default 32). Full-bleed templates use 0. */
   padding?: number;
   /**

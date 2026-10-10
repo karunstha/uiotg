@@ -77,7 +77,7 @@ export const statusPage = defineTemplate({
       { title: 'Elevated search latency', status: 'monitoring', time: 'Today, 14:21 UTC', message: 'A fix has been deployed and we are monitoring results.' },
     ],
   },
-  width: 760,
+  width: (d) => (d.services.some((s) => s.history?.length) ? 760 : 560),
   css: /* css */ `
 .ss-banner{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:12px;font-size:16px;font-weight:650;color:var(--text);
   background:color-mix(in srgb, var(--c) 12%, var(--surface));border:1px solid color-mix(in srgb, var(--c) 35%, transparent)}

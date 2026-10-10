@@ -43,6 +43,8 @@ export const keyValue = defineTemplate({
     ],
     total: { label: 'Total', value: 260.53, format: 'currency' },
   },
+  fit: 'content',
+  minWidth: 300,
   width: (d) => (d.columns === 2 ? 760 : 460),
   css: /* css */ `
 .kv-grid{display:grid;column-gap:32px}

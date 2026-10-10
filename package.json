@@ -30,6 +30,7 @@
     "start": "node src/cli.ts serve",
     "gallery": "node src/cli.ts gallery --out gallery",
     "audit": "node scripts/audit.ts",
+    "gallery:minimal": "node src/cli.ts gallery --minimal --theme light --out gallery/minimal",
     "test": "node --test 'test/**/*.test.ts'",
     "prepublishOnly": "npm run typecheck && npm run build"
   },

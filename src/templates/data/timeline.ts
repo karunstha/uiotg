@@ -39,6 +39,8 @@ export const timeline = defineTemplate({
       { date: 'Oct 10', title: 'Post-incident review', status: 'upcoming' },
     ],
   },
+  fit: 'content',
+  minWidth: 320,
   width: 720,
   css: /* css */ `
 .tl{display:grid;grid-template-columns:auto 28px 1fr;column-gap:14px}

@@ -40,6 +40,8 @@ export const steps = defineTemplate({
       { title: 'Connect your agent', description: 'Point your MCP client at `https://your-host/mcp` with the bearer token.', status: 'upcoming' },
     ],
   },
+  fit: 'content',
+  minWidth: 320,
   width: 720,
   css: /* css */ `
 .stp-list{display:flex;flex-direction:column}

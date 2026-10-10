@@ -49,6 +49,8 @@ export const list = defineTemplate({
       { text: 'Publish release notes', status: 'todo', meta: 'Oct 20' },
     ],
   },
+  fit: 'content',
+  minWidth: 320,
   width: 640,
   css: /* css */ `
 .ls{display:flex;flex-direction:column}

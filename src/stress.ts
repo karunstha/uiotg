@@ -1,6 +1,9 @@
 import type { Template } from './core/types.ts';
 import type { Registry } from './registry.ts';
 
+/** Raw content kept whole when minimizing (table rows, chart options, block templates). */
+const KEEP = new Set(['template', 'option', 'rows', 'footer']);
+
 /** Identifiers and raw configs: changing these changes meaning, not text. */
 const SKIP_KEYS = new Set(['template', 'option', 'language', 'code_theme', 'timezone', 'month', 'format', 'x_format', 'y_format', 'delta_format']);
 
@@ -57,5 +60,66 @@ export function stressData(t: Template, registry?: Registry, maxNumbers = 60): u
     void get;
   };
   visit(doc, () => {}, () => doc, 0);
+  return doc;
+}
+
+/**
+ * The smallest valid variant of a template's example: optional fields
+ * removed and lists cut to their minimum length. This is what a terse agent
+ * call looks like, and every template should still look intentional with it.
+ */
+export function minimalData(t: Template, registry?: Registry): unknown {
+  let doc = structuredClone(t.example) as unknown;
+  const blocksValid = (d: unknown) => {
+    const blocks = (d as { blocks?: Array<{ template: string; data: unknown }> }).blocks;
+    return !registry || !blocks || blocks.every((b) => registry.get(b.template)?.schema.safeParse(b.data).success);
+  };
+  const valid = (d: unknown) => t.schema.safeParse(d).success && blocksValid(d);
+
+  // 1. Cut every list to the same length at once (keeps parallel lists, like
+  //    categories and series values, consistent), as short as validates.
+  const truncateAll = (node: unknown, n: number): unknown =>
+    Array.isArray(node)
+      ? node.slice(0, n).map((c) => truncateAll(c, n))
+      : node && typeof node === 'object'
+        ? Object.fromEntries(Object.entries(node).map(([k, v]) => [k, SKIP_KEYS.has(k) ? v : truncateAll(v, n)]))
+        : node;
+  for (let n = 1; n <= 12; n++) {
+    const candidate = truncateAll(doc, n);
+    if (valid(candidate)) {
+      doc = candidate;
+      break;
+    }
+  }
+
+  // 2. Shorten individual lists further and drop optional fields, keeping each change only if still valid.
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      while (node.length > 1) {
+        const removed = node.pop();
+        if (!valid(doc)) {
+          node.push(removed);
+          break;
+        }
+      }
+      node.forEach(visit);
+      return;
+    }
+    if (node && typeof node === 'object') {
+      const obj = node as Record<string, unknown>;
+      // Later fields go first, so when a template takes one of several alternatives
+      // (markers or routes, value or wifi) the primary, earlier one survives.
+      for (const key of Object.keys(obj).reverse()) {
+        if (KEEP.has(key)) continue;
+        const value = obj[key];
+        delete obj[key];
+        if (!valid(doc)) {
+          obj[key] = value;
+          visit(value);
+        }
+      }
+    }
+  };
+  visit(doc);
   return doc;
 }

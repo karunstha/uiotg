@@ -34,6 +34,8 @@ export const alert = defineTemplate({
     message: '`api.example.com` uses a certificate that expires on **Oct 15**. Renew it to avoid downtime.',
     action: 'Renew now',
   },
+  fit: 'content',
+  minWidth: 320,
   width: 600,
   padding: 16,
   css: /* css */ `
