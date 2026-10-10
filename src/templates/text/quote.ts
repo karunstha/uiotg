@@ -8,6 +8,7 @@ export const quote = defineTemplate({
   id: 'quote',
   title: 'Quote',
   category: 'text',
+  photo: 'title',
   description: 'A pull-quote card with attribution and optional avatar. Use for testimonials, citations and memorable lines.',
   schema: z.object({
     quote: z.string().min(1).max(1200),

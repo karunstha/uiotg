@@ -13,6 +13,7 @@ export const linkCard = defineTemplate({
   id: 'link_card',
   title: 'Link preview',
   category: 'basic',
+  photo: 'keyword',
   description:
     'A link preview card like the ones chat apps unfurl: optional image, site name/domain, title and description. Use to present a URL, article, product page or resource.',
   schema: z.object({

@@ -93,7 +93,7 @@ export const occasion = defineTemplate({
     const bg = await backdrop({
       mode: d.background,
       url: d.background_url,
-      query: theme ? BUILT_IN[theme].query : d.occasion,
+      query: d.background_image_query_keyword ?? (theme ? BUILT_IN[theme].query : d.occasion),
       art: () =>
         theme && !d.color
           ? occasionArt(theme, w, h, `${title}${d.name ?? ''}`)

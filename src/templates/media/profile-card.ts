@@ -9,6 +9,7 @@ export const profileCard = defineTemplate({
   id: 'profile_card',
   title: 'Profile card',
   category: 'media',
+  photo: 'keyword',
   description:
     'A person, team, company or account card: banner, avatar (initials fallback), name, handle, bio, location/link/joined meta, tags and a row of stats. Use for user summaries, contact cards, GitHub/social profiles.',
   schema: z.object({

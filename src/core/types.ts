@@ -74,6 +74,13 @@ export interface Template<S extends z.ZodType = z.ZodType> {
    * summary to say something).
    */
   richWhen?: (data: z.output<S>) => boolean;
+  /**
+   * Accepts a photo behind the whole card (see core/backdrop.ts `photoSchema`),
+   * when a photo API key is set. "keyword": only when the caller passes
+   * `background_image_query_keyword`. "title": that, else the card's title or
+   * label — for single-subject cards where the title names the subject.
+   */
+  photo?: 'keyword' | 'title';
   /** Stylesheet included once per document when the template is used. */
   css?: string;
   render(data: z.output<S>, ctx: RenderContext): Html | Promise<Html>;

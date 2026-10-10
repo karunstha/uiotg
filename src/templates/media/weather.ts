@@ -211,7 +211,7 @@ export const weather = defineTemplate({
     const bg = await backdrop({
       mode: d.background,
       url: d.background_url,
-      query: `${d.location} city`,
+      query: d.background_image_query_keyword ?? `${d.location} city`,
       art: () => skyArt(SKY[c.condition], c.is_night, Math.round(ctx.width), 240, d.location),
     });
     return html`<div class="wx">

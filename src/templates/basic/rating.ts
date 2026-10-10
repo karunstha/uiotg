@@ -20,6 +20,7 @@ export const rating = defineTemplate({
   id: 'rating',
   title: 'Rating',
   category: 'basic',
+  photo: 'keyword',
   description:
     'A star rating: big score, partially filled stars, review count and an optional per-star distribution. Use for reviews, app ratings, satisfaction and scores out of 5 (or 10).',
   schema: z

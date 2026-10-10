@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { framePhoto, photoSchema } from '../core/backdrop.ts';
 import { colorSchema } from '../core/format.ts';
 import { fontFaceCss } from '../core/fonts.ts';
 import { html, raw, style, type Html } from '../core/html.ts';
+import { imageBackground } from '../core/ui.ts';
 import { getTheme, themeVars, type Mode, type Theme } from '../core/theme.ts';
 import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
 import type { Registry } from '../registry.ts';
@@ -145,6 +147,15 @@ export class Renderer {
     );
   }
 
+  /** Validates the shared photo fields (template schemas don't declare them) and resolves the photo. */
+  async #photo(t: Template, data: unknown): Promise<string | null> {
+    const raw = coerceData(data);
+    const fields = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+    const result = photoSchema.safeParse(fields);
+    if (!result.success) throw new TemplateDataError(t.id, result.error.issues.map((issue) => `${formatPath('', issue.path)}: ${issue.message}`));
+    return framePhoto(result.data, fields, t.photo!);
+  }
+
   #context(theme: Theme, used: Set<Template>, size: Size, depth: number, detail: Detail, requested: RequestedDetail): RenderContext {
     return {
       ...size,
@@ -177,7 +188,9 @@ export class Renderer {
     const opts = { ...this.defaults, ...renderOptionsSchema.parse(options) };
     const t = this.#template(templateId);
     const parsed = this.#validate(t, data, '');
-    const mode: Mode = opts.theme ?? 'light';
+    const photo = t.photo ? await this.#photo(t, data) : null;
+    // Text sits on a darkened photo, so the card renders in dark mode with see-through surfaces.
+    const mode: Mode = photo ? 'dark' : (opts.theme ?? 'light');
     const theme = getTheme(mode, opts.accent);
     const width = opts.width ?? (typeof t.width === 'function' ? t.width(parsed as never) : t.width);
     const height = opts.height ?? t.height;
@@ -193,7 +206,8 @@ export class Renderer {
     const rootStyle = fit
       ? style({ width: 'fit-content', 'min-width': `${Math.min(width, t.minWidth ?? 280)}px`, 'max-width': `${width}px`, padding })
       : style({ width, height, padding });
-    const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}`;
+    const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}${photo ? ' on-bk photo' : ''}`;
+    const photoLayer = photo ? html`<div class="bk bg-img" style="${style({ 'background-image': imageBackground(photo, t.title) })}"></div><div class="bk-scrim"></div>` : null;
     const doc = html`<!doctype html>
 <html lang="en" data-theme="${mode}">
 <head>
@@ -201,7 +215,7 @@ export class Renderer {
 <style>${raw(fontFaceCss())}</style>
 <style>:root{${raw(themeVars(theme))};color-scheme:${mode}}${raw(BASE_CSS)}${raw(css)}</style>
 </head>
-<body><div id="root" class="${rootClass}" style="${rootStyle}">${body}</div></body>
+<body><div id="root" class="${rootClass}" style="${rootStyle}">${photoLayer}${body}</div></body>
 </html>`;
     return { html: doc.value, detail, width, height, theme: mode };
   }

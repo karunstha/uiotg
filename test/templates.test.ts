@@ -5,6 +5,7 @@ import { makeAxisFormatter, makeFormatter } from '../src/core/format.ts';
 import { TemplateDataError, TemplateNotFoundError } from '../src/render/renderer.ts';
 import { BASE_CSS } from '../src/render/base-css.ts';
 import { katexCss } from '../src/core/katex.ts';
+import { photoQuery, photoSchema } from '../src/core/backdrop.ts';
 
 const renderer = createRenderer();
 after(() => renderer.close());
@@ -92,6 +93,41 @@ describe('validation', () => {
 
   test('rejects non-http image URLs', async () => {
     await assert.rejects(renderer.toHtml('profile_card', { name: 'A', avatar_url: 'file:///etc/passwd' }), TemplateDataError);
+  });
+});
+
+describe('photo backgrounds', () => {
+  const opts = (o: object = {}) => photoSchema.parse(o);
+
+  test('searches the keyword, and the title only on single-subject cards', () => {
+    assert.equal(photoQuery(opts({ background_image_query_keyword: 'christmas' }), { title: 'Q3' }, 'keyword'), 'christmas');
+    assert.equal(photoQuery(opts(), { title: 'Product health' }, 'keyword'), null);
+    assert.equal(photoQuery(opts(), { label: 'Christmas in' }, 'title'), 'Christmas in');
+    assert.equal(photoQuery(opts({ background: 'none', background_image_query_keyword: 'x' }), {}, 'title'), null);
+  });
+
+  test('draws the photo behind the card in dark mode', async () => {
+    const doc = await renderer.toHtml('countdown', { label: 'Christmas in', days: 3, background_url: 'https://example.com/x.jpg' });
+    assert.match(doc.html, /class="[^"]*\bphoto\b/);
+    assert.match(doc.html, /example\.com\/x\.jpg/);
+    assert.equal(doc.theme, 'dark');
+  });
+
+  test('templates without photo support ignore the fields', async () => {
+    const t = renderer.registry.get('bar_chart')!;
+    const doc = await renderer.toHtml('bar_chart', { ...(t.example as object), background_url: 'https://example.com/x.jpg' });
+    assert.doesNotMatch(doc.html, /example\.com\/x\.jpg/);
+  });
+
+  test('rejects bad photo fields', async () => {
+    await assert.rejects(renderer.toHtml('countdown', { days: 3, background: 'art' }), TemplateDataError);
+  });
+
+  test('advertises the fields only where they apply', () => {
+    const props = (id: string) => renderer.registry.jsonSchema(id).properties as Record<string, { description?: string }>;
+    assert.match(props('countdown').background_image_query_keyword!.description!, /defaults to the title/);
+    assert.doesNotMatch(props('stats').background_image_query_keyword!.description!, /title/);
+    assert.equal(props('bar_chart').background_image_query_keyword, undefined);
   });
 });
 

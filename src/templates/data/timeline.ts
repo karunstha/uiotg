@@ -10,6 +10,7 @@ export const timeline = defineTemplate({
   id: 'timeline',
   title: 'Timeline',
   category: 'data',
+  photo: 'keyword',
   description:
     'A vertical timeline of dated events with done / current / upcoming / blocked states. Use for roadmaps, changelogs, incident timelines, histories and itineraries.',
   schema: z.object({

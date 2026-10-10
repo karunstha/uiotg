@@ -109,7 +109,7 @@ export const sportsScore = defineTemplate({
     const bg = await backdrop({
       mode: d.background,
       url: d.background_url,
-      query: d.sport ? `${d.sport} stadium` : 'stadium lights',
+      query: d.background_image_query_keyword ?? (d.sport ? `${d.sport} stadium` : 'stadium lights'),
       art: () => teamArt(hc, ac, Math.round(ctx.width), 260),
     });
     const hasScore = d.home.score != null || d.away.score != null;

@@ -65,6 +65,8 @@ img{display:block;max-width:100%}
 .on-bk{position:relative;isolation:isolate;overflow:hidden}
 .bk{position:absolute;inset:0;z-index:-2}
 .bk > svg{position:absolute;inset:0;width:100%;height:100%}
+#root.photo{--surface:rgba(255,255,255,.06);--plane:transparent;--subtle:rgba(255,255,255,.14);--border:rgba(255,255,255,.2);background:transparent}
+#root.photo > .bk-scrim{background:linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.66))}
 .bk-scrim{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.58))}
 
 .prose{color:var(--text);font-size:15px;line-height:1.6}

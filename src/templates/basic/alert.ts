@@ -19,6 +19,7 @@ export const alert = defineTemplate({
   id: 'alert',
   title: 'Alert / banner',
   category: 'basic',
+  photo: 'keyword',
   description:
     'A one-message banner with a tone icon: info, success, warning, critical or neutral, plus an optional title and action text. Use for status messages, warnings, confirmations and notices.',
   schema: z.object({

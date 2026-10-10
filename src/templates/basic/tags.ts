@@ -19,6 +19,7 @@ export const tags = defineTemplate({
   id: 'tags',
   title: 'Tags / chips',
   category: 'basic',
+  photo: 'keyword',
   description:
     'A wrapping row of tags or chips, optionally with counts, tones and icons, or sized by count as a tag cloud. Use for skills, topics, categories, filters and keywords.',
   schema: z.object({

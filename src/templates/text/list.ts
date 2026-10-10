@@ -18,6 +18,7 @@ export const list = defineTemplate({
   id: 'list',
   title: 'List / checklist',
   category: 'text',
+  photo: 'keyword',
   description:
     'A styled list: bullets, numbers, icons or a checklist with per-item status (done, in_progress, todo, blocked, skipped). Items can carry a description, a right-aligned meta value and a tag. Use for todos, steps, rankings and feature lists.',
   schema: z.object({

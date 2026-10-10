@@ -39,6 +39,8 @@ Each template has a zod schema (exposed to models as JSON Schema), a complete ex
 
 These are generated SVG art by default, so they work offline and cost nothing. To use real photos, set a free `UIOTG_UNSPLASH_ACCESS_KEY` or `UIOTG_PEXELS_API_KEY`. Templates then search for a fitting photo ("Lisbon city", "christmas lights", "soccer stadium") and cache results for six hours. If the search fails, the generated art is used instead. Each of these templates accepts `background`: `auto` (photo when a key is set, otherwise art), `art`, `photo` or `none`, plus `background_url` to supply your own image.
 
+21 more card-style templates accept a photo behind the whole card, set with `background_image_query_keyword` (e.g. `"christmas"` on a Christmas countdown). Single-subject cards (`countdown`, `calendar_date`, `quote`, `notification`, `alarm`, `clock`) search their title when no keyword is given. The rest (`stats`, `agenda`, `timeline`, `key_value`, `profile_card`…) only take a photo when you pass a keyword. Cards stay plain with no photo key, no match, or `background: "none"`. Charts, tables, code and other dense templates never take a photo. The four templates above also accept the keyword to override their own search.
+
 ## Setup
 
 Requires Node.js ≥ 22.18 and a Chromium.

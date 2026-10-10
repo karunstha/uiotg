@@ -19,6 +19,8 @@ const UNSPLASH = process.env.UIOTG_UNSPLASH_ACCESS_KEY;
 const PEXELS = process.env.UIOTG_PEXELS_API_KEY;
 const OFFLINE = process.env.UIOTG_OFFLINE === '1';
 const TTL = 6 * 3600_000;
+/** Misses and errors (rate limits, timeouts) are retried sooner than hits. */
+const MISS_TTL = 10 * 60_000;
 const cache = new Map<string, { at: number; photo: Photo | null }>();
 
 export function photosEnabled(): boolean {
@@ -59,7 +61,7 @@ export async function findPhoto(query: string, orientation: 'landscape' | 'portr
   if (!photosEnabled() || !query.trim()) return null;
   const key = `${orientation}:${query.trim().toLowerCase()}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL) return hit.photo;
+  if (hit && Date.now() - hit.at < (hit.photo ? TTL : MISS_TTL)) return hit.photo;
   let photo: Photo | null = null;
   try {
     photo = UNSPLASH ? await unsplash(query, orientation) : await pexels(query, orientation);

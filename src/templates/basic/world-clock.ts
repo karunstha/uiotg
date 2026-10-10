@@ -107,7 +107,7 @@ export const worldClock = defineTemplate({
       const cardW = Math.round((ctx.width - (cols - 1) * 12) / cols);
       const cards = await Promise.all(
         rows.map(async (r) => {
-          const bg = await backdrop({ mode: d.background, query: `${r.name} skyline`, art: () => hourSky(r.p.hour + r.p.minute / 60, cardW, 150) });
+          const bg = await backdrop({ mode: d.background, url: d.background_url, query: d.background_image_query_keyword ?? `${r.name} skyline`, art: () => hourSky(r.p.hour + r.p.minute / 60, cardW, 150) });
           const { time, suffix } = formatClock(r.p.hour, r.p.minute, { hour12: d.hour12 });
           return html`<div class="${`wc-card${bg ? ' on-bk' : ''}`}" style="${bg ? '' : 'background:var(--subtle);color:var(--text)'}">
             ${bg?.layer ?? null}

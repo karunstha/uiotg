@@ -10,6 +10,7 @@ export const activity = defineTemplate({
   id: 'activity',
   title: 'Activity rings / health summary',
   category: 'data',
+  photo: 'keyword',
   description:
     'Daily activity or health at a glance: concentric goal rings (move, exercise, stand, steps…) with value vs goal, plus metric tiles (sleep, heart rate, water, weight). Rings past 100% keep wrapping, like fitness apps.',
   schema: z.object({

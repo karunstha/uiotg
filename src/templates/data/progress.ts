@@ -10,6 +10,7 @@ export const progress = defineTemplate({
   id: 'progress',
   title: 'Progress / meters',
   category: 'data',
+  photo: 'keyword',
   description:
     'Labeled progress bars (meters) with optional targets, captions and status. Use for goals, quotas, budgets, completion, capacity and resource usage.',
   schema: z.object({

@@ -11,6 +11,7 @@ export const steps = defineTemplate({
   id: 'steps',
   title: 'Steps / how-to',
   category: 'text',
+  photo: 'keyword',
   description:
     'Numbered step-by-step instructions with an optional code snippet and tip per step, and done/current/upcoming progress. Use for setup guides, recipes, troubleshooting and onboarding.',
   schema: z.object({

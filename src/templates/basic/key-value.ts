@@ -11,6 +11,7 @@ export const keyValue = defineTemplate({
   id: 'key_value',
   title: 'Key–value list',
   category: 'basic',
+  photo: 'keyword',
   description:
     'Label/value rows with an optional total, like a receipt, order summary, invoice, spec sheet or account details. Numbers are formatted and right-aligned.',
   schema: z.object({

@@ -10,6 +10,7 @@ export const calendarDate = defineTemplate({
   id: 'calendar_date',
   title: 'Calendar date',
   category: 'basic',
+  photo: 'title',
   description:
     'A tear-off calendar page for one date (month band, big day number, weekday), optionally beside an event title, time and location. Use for "save the date", due dates and reminders.',
   schema: z.object({

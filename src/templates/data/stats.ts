@@ -33,6 +33,7 @@ export const stats = defineTemplate({
   id: 'stats',
   title: 'KPI / stat tiles',
   category: 'data',
+  photo: 'keyword',
   description:
     'Headline numbers as stat tiles: label, value, signed delta colored by whether up is good, optional sparkline trend and status. A single item renders as a hero number. Use when the answer is a number, not a chart.',
   schema: z.object({

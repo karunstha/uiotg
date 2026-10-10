@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { photoSchema, QUERY_FIELD } from './core/backdrop.ts';
 import type { Category, Template } from './core/types.ts';
 
 export class Registry {
@@ -38,6 +39,11 @@ export class Registry {
     if (!t) throw new Error(`Unknown template "${id}"`);
     const schema = z.toJSONSchema(t.schema, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
     delete schema.$schema;
+    if (t.photo && schema.properties) {
+      const extra = z.toJSONSchema(photoSchema, { io: 'input' }) as { properties: Record<string, { description?: string }> };
+      if (t.photo === 'title') extra.properties[QUERY_FIELD]!.description += '; defaults to the title';
+      Object.assign(schema.properties as object, extra.properties);
+    }
     return schema;
   }
 }

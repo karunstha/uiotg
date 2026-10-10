@@ -10,6 +10,7 @@ export const agenda = defineTemplate({
   id: 'agenda',
   title: 'Agenda / schedule',
   category: 'data',
+  photo: 'keyword',
   description:
     'A day or week agenda: time-ordered events with time range, location, attendees and a color per category. Use for calendars, itineraries, conference schedules and run-of-show.',
   schema: z.object({

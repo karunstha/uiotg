@@ -37,6 +37,7 @@ export const clock = defineTemplate({
   id: 'clock',
   title: 'Clock',
   category: 'basic',
+  photo: 'title',
   description:
     'The time as an analog face, a large digital readout, or both, with date and time zone. Give a time zone for "now" there, or a specific time. Use for "what time is it in…", reminders and timestamps.',
   schema: z

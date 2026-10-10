@@ -10,6 +10,7 @@ export const notification = defineTemplate({
   id: 'notification',
   title: 'Notification',
   category: 'basic',
+  photo: 'title',
   description:
     'A phone-style push notification: app icon and name, time, title, message and optional thumbnail, with a stacked look when there are more. Use for alerts, reminders and "you received…" messages.',
   schema: z.object({

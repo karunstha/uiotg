@@ -39,6 +39,7 @@ export const stockQuote = defineTemplate({
   id: 'stock_quote',
   title: 'Stock quote',
   category: 'data',
+  photo: 'keyword',
   description:
     'A ticker card: symbol and name, big price, change in value and percent (green up, red down), a price chart for the period against the previous close, market status and key stats (open, high, low, volume, market cap…). Works for stocks, ETFs, crypto and FX.',
   schema: z.object({

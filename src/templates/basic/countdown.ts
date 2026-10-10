@@ -11,6 +11,7 @@ export const countdown = defineTemplate({
   id: 'countdown',
   title: 'Countdown',
   category: 'basic',
+  photo: 'title',
   description:
     'Time remaining until an event as big number tiles (days / hours / minutes / seconds). Give a `target` date-time to compute it, or the numbers directly. Use for launches, deadlines and events.',
   schema: z

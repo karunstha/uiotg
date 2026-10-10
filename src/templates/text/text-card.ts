@@ -18,6 +18,7 @@ export const textCard = defineTemplate({
   id: 'text_card',
   title: 'Text card',
   category: 'text',
+  photo: 'keyword',
   description:
     'A typographic card: optional eyebrow, headline, Markdown body and footer. Use for announcements, summaries, callouts, definitions or any short answer that should look designed.',
   schema: z

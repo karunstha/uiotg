@@ -69,6 +69,7 @@ export const alarm = defineTemplate({
   id: 'alarm',
   title: 'Alarm',
   category: 'basic',
+  photo: 'title',
   description:
     'One alarm or a list of alarms: time, label, repeat days, on/off state and when the next one rings ("in 8 h 42 min"). Use to confirm an alarm was set or to show what is scheduled.',
   schema: z.object({
