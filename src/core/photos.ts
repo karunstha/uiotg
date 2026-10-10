@@ -21,53 +21,58 @@ const OFFLINE = process.env.UIOTG_OFFLINE === '1';
 const TTL = 6 * 3600_000;
 /** Misses and errors (rate limits, timeouts) are retried sooner than hits. */
 const MISS_TTL = 10 * 60_000;
-const cache = new Map<string, { at: number; photo: Photo | null }>();
+/** Each render picks at random from this many top results, so repeat cards vary. */
+const POOL = 10;
+
+interface Candidate extends Photo {
+  /** Unsplash download endpoint, pinged each time the photo is used. */
+  ping?: string;
+}
+
+const cache = new Map<string, { at: number; photos: Candidate[] }>();
 
 export function photosEnabled(): boolean {
   return !OFFLINE && !!(UNSPLASH || PEXELS);
 }
 
-function pick<T>(items: T[], query: string): T | undefined {
-  if (!items.length) return undefined;
-  let h = 0;
-  for (const c of query) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  // Stable per query but not always the top result, so cards don't all look alike.
-  return items[h % Math.min(items.length, 6)];
-}
-
-async function unsplash(query: string, orientation: string): Promise<Photo | null> {
-  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=10&orientation=${orientation}&content_filter=high`;
+async function unsplash(query: string, orientation: string): Promise<Candidate[]> {
+  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${POOL}&orientation=${orientation}&content_filter=high`;
   const res = await fetch(url, { headers: { Authorization: `Client-ID ${UNSPLASH}`, 'Accept-Version': 'v1' }, signal: AbortSignal.timeout(4000) });
-  if (!res.ok) return null;
+  if (!res.ok) return [];
   const body = (await res.json()) as { results: Array<{ urls: { raw: string }; user: { name: string }; links: { download_location: string } }> };
-  const hit = pick(body.results, query);
-  if (!hit) return null;
-  // Required by the Unsplash API guidelines when a photo is used.
-  void fetch(hit.links.download_location, { headers: { Authorization: `Client-ID ${UNSPLASH}` }, signal: AbortSignal.timeout(4000) }).catch(() => {});
-  return { url: `${hit.urls.raw}&w=1600&q=80&fit=crop&auto=format`, credit: `Photo: ${hit.user.name} / Unsplash` };
+  return body.results.map((hit) => ({
+    url: `${hit.urls.raw}&w=1600&q=80&fit=crop&auto=format`,
+    credit: `Photo: ${hit.user.name} / Unsplash`,
+    ping: hit.links.download_location,
+  }));
 }
 
-async function pexels(query: string, orientation: string): Promise<Photo | null> {
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=10&orientation=${orientation === 'squarish' ? 'square' : orientation}`;
+async function pexels(query: string, orientation: string): Promise<Candidate[]> {
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${POOL}&orientation=${orientation === 'squarish' ? 'square' : orientation}`;
   const res = await fetch(url, { headers: { Authorization: PEXELS! }, signal: AbortSignal.timeout(4000) });
-  if (!res.ok) return null;
+  if (!res.ok) return [];
   const body = (await res.json()) as { photos: Array<{ src: { large2x: string }; photographer: string }> };
-  const hit = pick(body.photos, query);
-  return hit ? { url: hit.src.large2x, credit: `Photo: ${hit.photographer} / Pexels` } : null;
+  return body.photos.map((hit) => ({ url: hit.src.large2x, credit: `Photo: ${hit.photographer} / Pexels` }));
 }
 
-/** A relevant photo for `query`, or null (no key, offline, nothing found, or an error). */
+/** A random relevant photo for `query`, or null (no key, offline, nothing found, or an error). */
 export async function findPhoto(query: string, orientation: 'landscape' | 'portrait' | 'squarish' = 'landscape'): Promise<Photo | null> {
   if (!photosEnabled() || !query.trim()) return null;
   const key = `${orientation}:${query.trim().toLowerCase()}`;
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < (hit.photo ? TTL : MISS_TTL)) return hit.photo;
-  let photo: Photo | null = null;
-  try {
-    photo = UNSPLASH ? await unsplash(query, orientation) : await pexels(query, orientation);
-  } catch {
-    photo = null;
+  let entry = cache.get(key);
+  if (!entry || Date.now() - entry.at >= (entry.photos.length ? TTL : MISS_TTL)) {
+    let photos: Candidate[] = [];
+    try {
+      photos = UNSPLASH ? await unsplash(query, orientation) : await pexels(query, orientation);
+    } catch {
+      photos = [];
+    }
+    entry = { at: Date.now(), photos };
+    cache.set(key, entry);
   }
-  cache.set(key, { at: Date.now(), photo });
-  return photo;
+  const hit = entry.photos[Math.floor(Math.random() * entry.photos.length)];
+  if (!hit) return null;
+  // Required by the Unsplash API guidelines each time a photo is used.
+  if (hit.ping) void fetch(hit.ping, { headers: { Authorization: `Client-ID ${UNSPLASH}` }, signal: AbortSignal.timeout(4000) }).catch(() => {});
+  return { url: hit.url, credit: hit.credit };
 }
