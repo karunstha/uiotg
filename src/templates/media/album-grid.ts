@@ -3,7 +3,7 @@ import { imageUrlSchema, titleFields } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header, imageBackground } from '../../core/ui.ts';
+import { fitColumns, header, imageBackground } from '../../core/ui.ts';
 
 function columnsFor(n: number, requested?: number): number {
   if (requested) return requested;
@@ -55,12 +55,13 @@ export const albumGrid = defineTemplate({
   },
   css: /* css */ `
 .cg-grid{display:grid;gap:10px}
-.cg-tile{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;
+.cg-tile{position:relative;aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;justify-content:flex-end;
   color:rgba(255,255,255,.6)}
-.cg-ph{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px;text-align:center}
+.cg-ph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center}
 .cg-ph-title{font-size:16px;font-weight:650;color:#fff;letter-spacing:-0.01em;text-shadow:0 1px 8px rgba(0,0,0,.25)}
-.cg-scrim{position:absolute;left:0;right:0;bottom:0;padding:44px 12px 11px;
+.cg-scrim{margin-top:auto;padding:44px 12px 11px;border-radius:0 0 8px 8px;
   background:linear-gradient(180deg, transparent, rgba(0,0,0,.72));color:#fff}
+/* Long titles make the tile taller rather than being cut off. */
 .cg-t{font-size:14px;font-weight:650;line-height:1.25;letter-spacing:-0.005em}
 .cg-s{font-size:12px;opacity:.82;margin-top:1px}
 .cg-c{font-size:11px;opacity:.7;margin-top:3px;font-variant-numeric:tabular-nums}
@@ -71,11 +72,11 @@ export const albumGrid = defineTemplate({
 .cg-below .cg-s{color:var(--text-2);opacity:1}
 .cg-below .cg-c{color:var(--muted);opacity:1}
 `,
-  render(d) {
-    const cols = columnsFor(d.items.length, d.columns);
+  render(d, ctx) {
+    const cols = fitColumns(columnsFor(d.items.length, d.columns), ctx.width, 130, 10);
     return html`${header(d)}<div class="cg-grid" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.items.map((it, i) => {
       const seed = `${it.subtitle ?? ''} ${it.title}`;
-      const text = html`<div class="cg-t ellipsis">${it.title}</div>${it.subtitle ? html`<div class="cg-s ellipsis">${it.subtitle}</div>` : null}${
+      const text = html`<div class="cg-t shrink">${it.title}</div>${it.subtitle ? html`<div class="cg-s shrink">${it.subtitle}</div>` : null}${
         it.caption ? html`<div class="cg-c">${it.caption}</div>` : null
       }`;
       return html`<div>

@@ -40,7 +40,7 @@ export const math = defineTemplate({
 .mx.notes{row-gap:0}
 .mx.notes .mx-eq,.mx.notes .mx-note{display:flex;align-items:center;padding:4px 0}
 .mx.notes{grid-template-columns:minmax(0, auto) 1fr;column-gap:28px}
-.mx-eq{color:var(--text);overflow:hidden}
+.mx-eq{color:var(--text);min-width:0}
 .mx:not(.notes) .mx-eq{text-align:center}
 .mx-eq .katex-display{margin:6px 0}
 .mx.notes .mx-eq .katex-display{text-align:left}

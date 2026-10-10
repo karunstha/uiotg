@@ -37,6 +37,8 @@ export function icon(name: string | undefined, opts: IconOptions = {}): Html | n
   const key = name.trim().toLowerCase().replace(/[\s_]+/g, '-');
   const inner = /^[a-z0-9-]+$/.test(key) ? body(key) : null;
   if (!inner) {
+    // Unknown names render as text only when they look like an emoji or symbol; anything longer is dropped.
+    if ([...name.trim()].length > 4) return null;
     return raw(`<span class="${cls} glyph" style="font-size:${Math.round(size * 0.9)}px;width:${size}px;height:${size}px">${escapeHtml(name)}</span>`);
   }
   return raw(

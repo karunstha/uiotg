@@ -1,4 +1,9 @@
 import type { Template } from '../core/types.ts';
+import { clock } from './basic/clock.ts';
+import { volume } from './basic/volume.ts';
+import { worldClock } from './basic/world-clock.ts';
+import { stockQuote, watchlist } from './data/stock-quote.ts';
+import { smartHome } from './media/smart-home.ts';
 import { qrCode } from './basic/qr-code.ts';
 import { monthCalendar } from './data/month-calendar.ts';
 import { statusPage } from './data/status-page.ts';
@@ -69,6 +74,9 @@ export const builtinTemplates: Template[] = [
   countdown,
   calendarDate,
   qrCode,
+  volume,
+  clock,
+  worldClock,
   // text
   textCard,
   quote,
@@ -88,6 +96,8 @@ export const builtinTemplates: Template[] = [
   statusPage,
   taskBoard,
   monthCalendar,
+  stockQuote,
+  watchlist,
   // charts
   barChart,
   lineChart,
@@ -108,6 +118,7 @@ export const builtinTemplates: Template[] = [
   profileCard,
   weather,
   map,
+  smartHome,
   // layout
   dashboard,
 ] as Template[];

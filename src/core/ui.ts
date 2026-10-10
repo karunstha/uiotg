@@ -40,7 +40,7 @@ export function headerHeight(d: { title?: string; subtitle?: string }): number {
 export interface LegendItem {
   name: string;
   color: string;
-  shape?: 'square' | 'line' | 'dot';
+  shape?: 'square' | 'line' | 'dot' | 'dash';
 }
 
 export function legend(items: LegendItem[]): Html | null {
@@ -217,3 +217,8 @@ export function summaryStrip(items: SummaryItem[]): Html | null {
 
 /** Height reserved for a summary strip when the output has a fixed height. */
 export const SUMMARY_HEIGHT = 58;
+
+/** Fewest-rows column count where each column stays at least `minWidth` wide. */
+export function fitColumns(wanted: number, width: number, minWidth: number, gap = 16): number {
+  return Math.max(1, Math.min(wanted, Math.floor((width + gap) / (minWidth + gap))));
+}

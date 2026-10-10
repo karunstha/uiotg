@@ -38,7 +38,7 @@ export const markdown = defineTemplate({
   width: 800,
   padding: 40,
   css: /* css */ `${katexCss()}
-.md-math{overflow:hidden}
+.md-math{min-width:0}
 .md-doc .md-code pre{border:0}
 .md-doc .md-code{border-radius:10px;overflow:hidden;border:1px solid var(--border)}
 `,

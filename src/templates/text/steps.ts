@@ -58,7 +58,7 @@ export const steps = defineTemplate({
 .stp-desc{font-size:14px;line-height:1.5;color:var(--text-2);margin-top:4px}
 .stp-desc code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:4px}
 .stp-code{margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
-.stp-code pre.shiki{margin:0;padding:10px 14px;font-family:var(--font-mono);font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-all}
+.stp-code pre.shiki{margin:0;padding:10px 14px;font-family:var(--font-mono);font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .stp-tip{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.45;
   background:color-mix(in srgb, var(--warning) 12%, var(--surface));color:var(--text)}
 .stp-tip .icon{color:var(--warning);margin-top:1px}

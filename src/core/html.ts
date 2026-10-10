@@ -24,18 +24,29 @@ export function escapeHtml(value: unknown): string {
   return String(value).replace(/[&<>"']/g, (c) => ESCAPES[c]!);
 }
 
-function interpolate(value: unknown): string {
+/** Numbers as displayed: "1,234", "$4.2M", "−12.5%", "23°", "4:05", "212 ms". */
+const NUMBER_TEXT = /^[+−-]?[$€£¥]?\d[\d,.:]*\s?(%|[A-Za-z°]{1,3})?$/;
+
+function interpolate(value: unknown, inText = true): string {
   // null/undefined/booleans render nothing so `cond && html`...`` works inline.
   if (value == null || typeof value === 'boolean') return '';
   if (value instanceof Html) return value.value;
-  if (Array.isArray(value)) return value.map(interpolate).join('');
-  return escapeHtml(value);
+  if (Array.isArray(value)) return value.map((v) => interpolate(v, inText)).join('');
+  const text = escapeHtml(value);
+  // Numbers in page text never break across lines; layouts make room for them instead.
+  if (inText && NUMBER_TEXT.test(String(value).trim())) return `<span class="nw">${text}</span>`;
+  return text;
+}
+
+/** True when a template chunk ends inside an attribute value or tag (so the next value isn't page text). */
+function inAttribute(chunk: string): boolean {
+  return /=\s*"[^"]*$/.test(chunk) || /<[^>]*$/.test(chunk);
 }
 
 /** Tagged template that escapes interpolations. */
 export function html(strings: TemplateStringsArray, ...values: unknown[]): Html {
   let out = strings[0]!;
-  for (let i = 0; i < values.length; i++) out += interpolate(values[i]) + strings[i + 1];
+  for (let i = 0; i < values.length; i++) out += interpolate(values[i], !inAttribute(out)) + strings[i + 1];
   return new Html(out);
 }
 

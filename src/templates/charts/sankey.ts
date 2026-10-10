@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { renderChart } from '../../core/echarts.ts';
+import { html } from '../../core/html.ts';
+import { wrapText } from '../../core/measure.ts';
 import { formatSchema, makeFormatter, titleFields } from '../../core/format.ts';
 import { seriesColor } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
@@ -36,6 +38,12 @@ export const sankey = defineTemplate({
     format: 'number',
   },
   width: 860,
+  css: /* css */ `
+.sk-key{list-style:none;display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px 18px;margin-top:12px;font-size:13px;color:var(--text-2)}
+.sk-key li{display:flex;gap:8px;align-items:baseline;min-width:0}
+.sk-key b{flex:none;width:20px;height:20px;border-radius:50%;background:var(--subtle);color:var(--text);font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+.sk-key .sk-v{white-space:nowrap;margin-left:auto;color:var(--text);font-weight:550;font-variant-numeric:tabular-nums}
+`,
   render(d, ctx) {
     const { theme } = ctx;
     const fmt = makeFormatter(d.format);
@@ -65,30 +73,53 @@ export const sankey = defineTemplate({
     const rightLabels = names.filter((n) => depth.get(n) === maxDepth).map(labelText);
     const leftLabels = names.filter((n) => depth.get(n) === 0).map(labelText);
     const size = plotSize(ctx, d, [], 0.5);
+    // Side labels get up to 22% of the width each and wrap beyond it.
+    const cap = Math.max(70, size.width * 0.22);
+    let leftW = Math.min(cap, Math.max(...leftLabels.map((t) => textWidth(t, 12))) + 6);
+    let rightW = Math.min(cap, Math.max(...rightLabels.map((t) => textWidth(t, 12))) + 6);
+    const midW = (size.width - leftW - rightW) / Math.max(1, maxDepth) - 24;
+    const widthFor = (n: string) => (depth.get(n) === 0 ? leftW : depth.get(n) === maxDepth ? rightW : midW);
+    // When labels can't fit beside their nodes (too narrow, or more than three lines), nodes get
+    // numbers and a key below lists every name and value.
+    const numbered = (maxDepth >= 2 && midW < 70) || names.some((n) => wrapText(labelText(n), widthFor(n), 12).length > 3);
+    if (numbered) leftW = rightW = 22;
+    const index = (n: string) => String(names.indexOf(n) + 1);
+    const text = (n: string) => (numbered ? index(n) : wrapText(labelText(n), widthFor(n), 12).join('\n'));
+    const lines = (n: string) => text(n).split('\n').length;
+    // Adjacent node centers are at least nodeGap apart, so a gap as tall as the tallest label block keeps labels apart.
+    const maxLines = Math.max(...names.map(lines));
+    const nodeGap = Math.max(14, maxLines * 16 + 4);
+    const perColumn = new Map<number, number>();
+    for (const n of names) perColumn.set(depth.get(n)!, (perColumn.get(depth.get(n)!) ?? 0) + 1);
+    const crowded = Math.max(...perColumn.values());
+    if (!ctx.height && !d.height) size.height = Math.max(size.height, crowded * nodeGap + crowded * 18 + 20);
 
     const svg = renderChart(
       {
         series: [
           {
             type: 'sankey',
-            left: Math.max(...leftLabels.map((t) => textWidth(t, 12))) + 12,
-            right: Math.max(...rightLabels.map((t) => textWidth(t, 12))) + 12,
-            top: 6,
-            bottom: 6,
+            left: leftW + 18,
+            right: rightW + 18,
+            // Multi-line labels are centered on their node, so the outer nodes need room above and below.
+            top: Math.max(6, (maxLines - 1) * 8 + 4),
+            bottom: Math.max(6, (maxLines - 1) * 8 + 4),
             nodeWidth: 10,
-            nodeGap: 14,
+            nodeGap,
             nodeAlign: 'justify',
             layoutIterations: 64,
             draggable: false,
             emphasis: { disabled: true },
-            label: { color: theme.text, fontSize: 12, formatter: (p: { name: string }) => labelText(p.name) },
+            label: { color: theme.text, fontSize: 12, lineHeight: 16, fontWeight: numbered ? 700 : 400, formatter: (p: { name: string }) => text(p.name) },
             lineStyle: { color: 'source', opacity: theme.mode === 'dark' ? 0.36 : 0.26, curveness: 0.5 },
             itemStyle: { borderWidth: 0, borderRadius: 2 },
             data: names.map((n, i) => ({
               name: n,
               itemStyle: { color: seriesColor(theme, i) },
               // First-column labels sit to the left of their node, the rest to the right.
-              label: { position: depth.get(n) === 0 ? 'left' : 'right' },
+              label: {
+                position: depth.get(n) === 0 ? 'left' : 'right',
+              },
             })),
             links: d.links,
           },
@@ -97,6 +128,9 @@ export const sankey = defineTemplate({
       size,
       theme,
     );
-    return chartLayout(d, null, svg);
+    const key = numbered
+      ? html`<ol class="sk-key">${names.map((n, i) => html`<li><b>${i + 1}</b><span>${n}</span><span class="sk-v">${fmt(flow(n))}</span></li>`)}</ol>`
+      : null;
+    return chartLayout(d, null, svg, { below: key });
   },
 });

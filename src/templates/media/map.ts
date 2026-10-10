@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { colorSchema, titleFields, toneSchema } from '../../core/format.ts';
 import { centeredViewport, fitViewport, tilesFor, toScreen, type LatLon } from '../../core/geo.ts';
 import { html, raw, style } from '../../core/html.ts';
+import { measureText } from '../../core/measure.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header, headerHeight, toneColor } from '../../core/ui.ts';
 import { seriesColor } from '../../core/theme.ts';
@@ -70,8 +71,8 @@ export const map = defineTemplate({
 .mp{position:relative;overflow:hidden;border-radius:12px;border:1px solid var(--border);background:var(--subtle)}
 .mp-tile{position:absolute;width:256px;height:256px;max-width:none}
 .mp svg{position:absolute;inset:0}
-.mp-lbl{position:absolute;transform:translate(-50%, 0);white-space:nowrap;font-size:12px;font-weight:600;color:var(--text);
-  background:var(--surface);padding:3px 8px;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.mp-lbl{position:absolute;font-size:12px;line-height:16px;font-weight:600;color:var(--text);text-align:center;
+  background:var(--surface);padding:3px 8px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .mp-attr{position:absolute;right:0;bottom:0;font-size:10px;color:#555;background:rgba(255,255,255,.75);padding:1px 6px;border-top-left-radius:6px}
 .mp-key{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--text-2)}
 .mp-key span{display:inline-flex;align-items:center;gap:6px}
@@ -114,7 +115,18 @@ export const map = defineTemplate({
       }
       // Teardrop pin with its tip on the point.
       svg += `<g transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})"><path d="M0 0C-2-6-11-11-11-19a11 11 0 0 1 22 0C11-11 2-6 0 0z" fill="${c}" stroke="${theme.surface}" stroke-width="2"/><circle cy="-19" r="4" fill="${theme.surface}"/></g>`;
-      if (m.label) labels.push(html`<span class="mp-lbl" style="${style({ left: Math.round(p.x), top: Math.round(p.y + 6) })}">${m.label}</span>`);
+      if (m.label) {
+        // Keep the whole label inside the map: wrap long ones, slide them in from the edges,
+        // and put them above the pin near the bottom.
+        const maxW = Math.min(220, width - 16);
+        const textW = measureText(m.label, 12, true) + 18;
+        const w = Math.min(maxW, textW);
+        const lines = Math.ceil(textW / maxW) + (textW > maxW ? 1 : 0);
+        const h = lines * 16 + 6;
+        const left = Math.max(8, Math.min(width - w - 8, p.x - w / 2));
+        const top = p.y + 6 + h > height - 8 ? Math.max(8, p.y - 30 - h) : p.y + 6;
+        labels.push(html`<span class="mp-lbl" style="${style({ left: Math.round(left), top: Math.round(top), width: Math.round(w) })}">${m.label}</span>`);
+      }
     }
     const key = routes.filter((r) => r.label);
     return html`${header(d)}

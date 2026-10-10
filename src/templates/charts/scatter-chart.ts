@@ -123,6 +123,7 @@ export const scatterChart = defineTemplate({
     const summary = rich ? correlationSummary(d.series.map((s) => s.name), data) : null;
     const size = plotSize(ctx, d, legendItems, 0.56, titles.reserve + (summary ? SUMMARY_HEIGHT : 0));
     const xs = all.map((p) => p.x);
+    const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
 
     const series: unknown[] = d.series.map((s, si) => ({
       type: 'scatter',
@@ -130,7 +131,8 @@ export const scatterChart = defineTemplate({
       data: data[si]!.map((p) => ({
         value: [p.x, p.y],
         symbolSize: diameter(p.size),
-        label: p.label && !minimal ? { show: true, formatter: p.label } : undefined,
+        // Labels sit on the side of the point facing the plot's center, so they stay inside it.
+        label: p.label && !minimal ? { show: true, formatter: p.label, position: p.x > midX ? 'left' : 'right', width: 140, overflow: 'break' } : undefined,
       })),
       itemStyle: { color: colors[si], opacity: sizes.length ? 0.78 : 0.9, borderColor: theme.surface, borderWidth: 2 },
       label: { show: false, position: 'right', distance: 6, color: theme.text, fontSize: 11, fontWeight: 500 },

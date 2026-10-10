@@ -114,7 +114,12 @@ describe('formatting', () => {
 
 describe('html helper', () => {
   test('escapes interpolations but not raw()', () => {
-    const out = html`<p title="${'"x"'}">${'<b>'}${raw('<i>ok</i>')}${[1, 2]}${null}${false}</p>`;
-    assert.equal(out.value, '<p title="&quot;x&quot;">&lt;b&gt;<i>ok</i>12</p>');
+    const out = html`<p title="${'"x"'}">${'<b>'}${raw('<i>ok</i>')}${['a', 'b']}${null}${false}</p>`;
+    assert.equal(out.value, '<p title="&quot;x&quot;">&lt;b&gt;<i>ok</i>ab</p>');
+  });
+
+  test('keeps numbers in text unbreakable, but not in attributes', () => {
+    const out = html`<p style="${'width:12px'}" data-n="${42}">${'$4.2M'} of ${'1,234 ms'} in ${'October'}</p>`;
+    assert.equal(out.value, '<p style="width:12px" data-n="42"><span class="nw">$4.2M</span> of <span class="nw">1,234 ms</span> in October</p>');
   });
 });

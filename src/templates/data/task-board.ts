@@ -3,7 +3,7 @@ import { titleFields, toneSchema } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header, imageBackground, initials, toneColor } from '../../core/ui.ts';
+import { fitColumns, header, imageBackground, initials, toneColor } from '../../core/ui.ts';
 
 const PRIORITY = {
   urgent: { icon: 'flame', color: 'var(--critical)', label: 'Urgent' },
@@ -93,7 +93,7 @@ export const taskBoard = defineTemplate({
 .kb-cards{display:flex;flex-direction:column;gap:8px}
 .kb-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .kb-ct{font-size:14px;font-weight:600;line-height:1.35;color:var(--text)}
-.kb-cd{font-size:12.5px;line-height:1.4;color:var(--text-2);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.kb-cd{font-size:12.5px;line-height:1.4;color:var(--text-2);margin-top:3px}
 .kb-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .kb-tags .tag{font-size:11px;padding:1px 7px;line-height:16px}
 .kb-prog{height:4px;border-radius:999px;background:var(--subtle);margin-top:9px;overflow:hidden}
@@ -105,7 +105,8 @@ export const taskBoard = defineTemplate({
 .kb-empty{font-size:12.5px;color:var(--muted);text-align:center;padding:12px 0}
 `,
   render(d, ctx) {
-    return html`${header(d)}<div class="kb-board" style="${`grid-template-columns:repeat(${d.columns.length}, minmax(0, 1fr))`}">${d.columns.map((col) => {
+    const cols = fitColumns(d.columns.length, ctx.width, 210, 14);
+    return html`${header(d)}<div class="kb-board" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.columns.map((col) => {
       const over = col.limit != null && col.cards.length > col.limit;
       const tone = col.tone ?? columnTone(col.name);
       const done = tone === 'success';

@@ -63,11 +63,11 @@ export const progress = defineTemplate({
       const fmt = it.format ? makeFormatter(it.format) : null;
       const value = fmt
         ? html`${fmt(it.value)} <span class="of">/ ${fmt(it.max)}</span>`
-        : html`${Math.round((it.value / it.max) * 100)}%`;
+        : html`${`${Math.round((it.value / it.max) * 100)}%`}`;
       const targetPct = it.target != null ? Math.max(0, Math.min(1, it.target / it.max)) : null;
       return html`<div class="pg-item">
         <div class="pg-top">
-          <div class="pg-label">${icon(it.icon, { size: 15 })}<span class="ellipsis">${it.label}</span></div>
+          <div class="pg-label">${icon(it.icon, { size: 15 })}<span class="shrink">${it.label}</span></div>
           <div class="pg-value">${value}</div>
         </div>
         <div class="pg-track" style="${style({ background: track })}">

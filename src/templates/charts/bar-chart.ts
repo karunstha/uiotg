@@ -80,7 +80,7 @@ export const barChart = defineTemplate({
     const single = series.length === 1;
     const minimal = ctx.detail === 'minimal';
     // Minimal drops the value axis, so values move onto the bars whenever that stays readable.
-    const showValues = d.show_values ?? (single && categories.length <= (minimal ? 24 : 16));
+    let showValues = d.show_values ?? (single && categories.length <= (minimal ? 24 : 16));
     const highlighted = new Set((d.highlight ?? []).map(String));
 
     // The outermost segment of each bar gets the rounded data-end.
@@ -105,6 +105,10 @@ export const barChart = defineTemplate({
     const summary = ctx.detail === 'rich' ? barSummary(categories, series, totals, fmt) : null;
     const size = plotSize(ctx, { ...d, height: d.height ?? defaultHeight }, legendItems, 0.52, titles.reserve + (summary ? SUMMARY_HEIGHT : 0));
 
+    // Auto value labels only when they fit the bar's band; the axis always carries the values.
+    const slot = (horizontal ? size.height : size.width - 60) / Math.max(1, categories.length);
+    const widestLabel = Math.max(...(d.stacked ? totals : series.flatMap((s) => s.values.map((v) => v ?? 0))).map((v) => textWidth(fmt(v), 11)));
+    if (d.show_values == null && showValues && !horizontal && widestLabel > slot * 0.95) showValues = false;
     const valueLabelWidth = Math.max(...(d.stacked ? totals : series.flatMap((s) => s.values.map((v) => v ?? 0))).map((v) => textWidth(fmt(v), 11)));
     const totalWidth = categories.reduce((w, c) => w + textWidth(c, 11) + 14, 0);
     const rotate = !horizontal && totalWidth > size.width ? 35 : 0;
@@ -179,7 +183,7 @@ export const barChart = defineTemplate({
       {
         grid: grid({
           top: !horizontal && showValues ? 22 : 8,
-          right: horizontal && showValues ? valueLabelWidth + 14 : 12,
+          right: horizontal && showValues ? valueLabelWidth + 24 : 12,
         }),
         xAxis: horizontal ? valueAxis : categoryAxis,
         yAxis: horizontal ? categoryAxis : valueAxis,

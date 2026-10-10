@@ -54,9 +54,10 @@ export const pieChart = defineTemplate({
 .pie-legend.no-share .pie-row{grid-template-columns:10px 1fr auto}
 .pie-row{display:grid;grid-template-columns:10px 1fr auto 52px;align-items:center;column-gap:10px;padding:9px 0;font-size:14px}
 .pie-row + .pie-row{border-top:1px solid var(--grid)}
-.pie-name{color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pie-name{color:var(--text);min-width:0}
 .pie-note{margin-top:12px;font-size:13px;color:var(--text-2)}
 .pie-note b{color:var(--text);font-weight:620}
+.pie-val,.pie-pct{white-space:nowrap}
 .pie-val{color:var(--text);font-weight:550;font-variant-numeric:tabular-nums;text-align:right}
 .pie-pct{color:var(--text-2);font-variant-numeric:tabular-nums;text-align:right}
 `,

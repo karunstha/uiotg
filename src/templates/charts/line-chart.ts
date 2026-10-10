@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { renderChart } from '../../core/echarts.ts';
+import { wrapText } from '../../core/measure.ts';
 import { formatSchema, makeAxisFormatter, makeFormatter, titleFields, type Formatter } from '../../core/format.ts';
 import type { Html } from '../../core/html.ts';
 import { neutralChange, seriesStats, summaryStrip, SUMMARY_HEIGHT } from '../../core/ui.ts';
@@ -102,6 +103,13 @@ export const lineChart = defineTemplate({
     const n = d.series.length;
     const area = d.area || d.stacked;
     const legendItems = seriesLegend(d.series.map((s) => s.name), colors, 'line');
+    // Reference labels that would need wrapping go in the legend instead of over the plot.
+    const refLabelWidth = Math.max(80, ctx.width * 0.3);
+    const refs = (d.reference_lines ?? []).map((r) => {
+      const text = r.label ?? fmt(r.value);
+      return { ...r, text, inline: textWidth(text, 11) + 12 <= refLabelWidth };
+    });
+    for (const r of refs) if (!r.inline) legendItems.push({ name: r.text, color: theme.text2, shape: 'dash' });
     const titles = axisTitles(d);
     const rich = ctx.detail === 'rich';
     const minimal = ctx.detail === 'minimal';
@@ -136,13 +144,18 @@ export const lineChart = defineTemplate({
           ? { show: true, formatter: '{a}', color: theme.text2, fontSize: 12, distance: 10 }
           : undefined,
         markLine:
-          si === 0 && d.reference_lines?.length
+          si === 0 && refs.length
             ? {
                 silent: true,
                 symbol: 'none',
                 lineStyle: { color: theme.text2, width: 1, type: [4, 4], opacity: 0.8 },
-                label: { position: 'insideEndTop', color: theme.text2, fontSize: 11, formatter: (p: { name: string }) => p.name },
-                data: d.reference_lines.map((r) => ({ yAxis: r.value, name: r.label ?? fmt(r.value) })),
+                label: {
+                  position: 'insideEndTop',
+                  color: theme.text2,
+                  fontSize: 11,
+                  formatter: (p: { name: string }) => p.name,
+                },
+                data: refs.map((r) => ({ yAxis: r.value, name: r.text, label: { show: r.inline } })),
               }
             : undefined,
         markPoint:
@@ -164,7 +177,7 @@ export const lineChart = defineTemplate({
 
     const svg = renderChart(
       {
-        grid: grid({ top: 14, right: Math.max(12, endLabelWidth) }),
+        grid: grid({ top: refs.some((r) => r.inline) ? 20 : 14, right: Math.max(12, endLabelWidth) }),
         xAxis: { type: 'category', data: x, boundaryGap: false, axisLabel: { hideOverlap: true } },
         yAxis: {
           type: 'value',

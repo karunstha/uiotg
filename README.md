@@ -20,15 +20,15 @@ An MCP server that turns structured data into polished UI images. A model calls 
 
 ## Templates
 
-51 templates across six categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
+57 templates across six categories. Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
 
 | Category | Templates |
 |---|---|
-| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` |
+| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` · `volume` (volume/brightness/level slider) · `clock` (analog/digital, any time zone) · `world_clock` |
 | **Text & content** | `text_card` · `quote` · `markdown` (with $math$) · `code` (Shiki, 18 themes) · `list` · `steps` (how-to with code and tips) · `diff` (line or word diff, or a git patch) · `math` (KaTeX, worked solutions) |
-| **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` · `status_page` · `task_board` · `month_calendar` |
+| **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` · `status_page` · `task_board` · `month_calendar` · `stock_quote` · `watchlist` |
 | **Charts** | `bar_chart` · `line_chart` · `pie_chart` · `scatter_chart` · `heatmap` · `radar_chart` · `treemap` · `sankey` · `funnel` · `gauge` · `candlestick` · `calendar_heatmap` · `echarts` (raw ECharts option escape hatch) |
-| **Media & cards** | `album_card` (now playing, track, album with track list) · `album_grid` (cover collage) · `profile_card` · `weather` · `map` (pins and routes, auto-framed) |
+| **Media & cards** | `album_card` (now playing, track, album with track list) · `album_grid` (cover collage) · `profile_card` · `weather` · `map` (pins and routes, auto-framed) · `smart_home` (Home Assistant–style device tiles) |
 | **Layout** | `dashboard`: a grid of cards, each rendering any other template |
 
 Each template has a zod schema (exposed to models as JSON Schema), a complete example, and a description of when to use it.
@@ -110,6 +110,18 @@ Invalid data never fails silently. The tool returns an error that lists each pro
   - **standard** applies in between.
 
   You can always force a level.
+
+### Nothing is ever cut off
+
+Text in uiotg never overflows, gets truncated with an ellipsis, or is hidden. Layouts adapt instead:
+- Text wraps, and long words or URLs break rather than overflow.
+- Numbers never break across lines. Big numbers shrink their font until they fit.
+- Tile grids (stats, covers, devices, task columns) reflow to fewer columns instead of squeezing.
+- Chart labels wrap. When they still don't fit around a chart, they become numbered markers with a key (radar axes, sankey nodes, heatmap columns).
+- Category labels are angled rather than skipped.
+- If content still doesn't fit, the image grows to show all of it, and the tool result says so.
+
+This is enforced by `npm run audit` and the test suite. Each one renders every template with its example, with stress data (very long text and huge numbers), and at a narrow width, then checks in the browser for clipped, truncated, out-of-bounds, overlapping or broken text.
 
 ### Render options
 

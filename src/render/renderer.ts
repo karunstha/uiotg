@@ -7,6 +7,8 @@ import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
 import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
 import { BrowserPool, type BrowserOptions } from './browser.ts';
+import { auditOverflow, growToFit, type OverflowIssue } from './audit.ts';
+import type { Page } from 'playwright';
 
 export const renderOptionsSchema = z.object({
   width: z.number().int().min(160).max(2400).optional().describe('Image width in CSS px; defaults to the template’s preferred width'),
@@ -36,6 +38,8 @@ export interface RenderResult {
   scale: number;
   /** The detail level the template rendered at. */
   detail: Detail;
+  /** Set when content didn't fit and the image grew: [requested, actual] in CSS px. */
+  adjusted?: { width?: [number, number]; height?: [number, number] };
 }
 
 export interface HtmlResult {
@@ -191,51 +195,70 @@ export class Renderer {
     return { html: doc.value, detail, width, height, theme: mode };
   }
 
+  /** Loads the document in a fresh page, waits for fonts and images, and grows the root to fit its content. */
+  async #load<T>(
+    templateId: string,
+    data: unknown,
+    options: RenderOptions,
+    fn: (page: Page, doc: HtmlResult, size: { width: number; height: number; adjusted?: RenderResult['adjusted'] }) => Promise<T>,
+  ): Promise<T> {
+    const opts = { ...this.defaults, ...renderOptionsSchema.parse(options) };
+    const doc = await this.toHtml(templateId, data, opts);
+    return this.browser.withPage({ width: doc.width, height: doc.height ?? 600, scale: opts.scale ?? 2, colorScheme: doc.theme }, async (page) => {
+      try {
+        await page.setContent(doc.html, { waitUntil: 'load', timeout: IMAGE_TIMEOUT_MS });
+      } catch (err) {
+        // A slow remote image shouldn't fail the render; capture what loaded.
+        if ((err as Error).name !== 'TimeoutError') throw err;
+      }
+      await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
+      // Never clip: content wider than the image (or taller than a fixed height) grows it.
+      if (doc.width < MAX_PIXELS) await page.setViewportSize({ width: MAX_PIXELS, height: doc.height ?? 600 });
+      const fit = await page.evaluate(growToFit);
+      const width = Math.min(MAX_PIXELS, fit.width);
+      const height = Math.min(MAX_AUTO_HEIGHT, Math.max(1, fit.height));
+      const adjusted =
+        fit.grewWidth || fit.grewHeight
+          ? { ...(fit.grewWidth ? { width: [doc.width, width] as [number, number] } : {}), ...(fit.grewHeight ? { height: [doc.height!, height] as [number, number] } : {}) }
+          : undefined;
+      await page.setViewportSize({ width, height });
+      return fn(page, doc, { width, height, adjusted });
+    });
+  }
+
   /** Renders a template to an image. */
   async render(templateId: string, data: unknown, options: RenderOptions = {}): Promise<RenderResult> {
     const opts = { ...this.defaults, ...renderOptionsSchema.parse(options) };
-    const doc = await this.toHtml(templateId, data, opts);
     const format = opts.format ?? 'png';
     const scale = opts.scale ?? 2;
-    return this.browser.withPage(
-      { width: doc.width, height: doc.height ?? 600, scale, colorScheme: doc.theme },
-      async (page) => {
-        try {
-          await page.setContent(doc.html, { waitUntil: 'load', timeout: IMAGE_TIMEOUT_MS });
-        } catch (err) {
-          // A slow remote image shouldn't fail the render; capture what loaded.
-          if ((err as Error).name !== 'TimeoutError') throw err;
-        }
-        await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
-        let height = doc.height;
-        if (!height) {
-          const box = await page.locator('#root').boundingBox();
-          // Round down: rounding up would expose a sub-pixel sliver below full-bleed content.
-          height = Math.min(MAX_AUTO_HEIGHT, Math.max(1, Math.floor(box?.height ?? 1)));
-        }
-        // Keep the bitmap within what image-consuming models accept: very large
-        // outputs fall back to one bitmap pixel per CSS pixel.
-        const fits = doc.width * scale <= MAX_PIXELS && height * scale <= MAX_PIXELS;
-        await page.setViewportSize({ width: doc.width, height });
-        const data = await page.screenshot({
-          type: format,
-          quality: format === 'jpeg' ? (opts.quality ?? 90) : undefined,
-          omitBackground: format === 'png' && !!opts.transparent,
-          scale: fits ? 'device' : 'css',
-          animations: 'disabled',
-          caret: 'hide',
-        });
-        return {
-          template: templateId,
-          data,
-          mimeType: format === 'jpeg' ? 'image/jpeg' : 'image/png',
-          width: doc.width,
-          height,
-          scale: fits ? scale : 1,
-          detail: doc.detail,
-        };
-      },
-    );
+    return this.#load(templateId, data, opts, async (page, doc, size) => {
+      // Keep the bitmap within what image-consuming models accept: very large
+      // outputs fall back to one bitmap pixel per CSS pixel.
+      const fits = size.width * scale <= MAX_PIXELS && size.height * scale <= MAX_PIXELS;
+      const image = await page.screenshot({
+        type: format,
+        quality: format === 'jpeg' ? (opts.quality ?? 90) : undefined,
+        omitBackground: format === 'png' && !!opts.transparent,
+        scale: fits ? 'device' : 'css',
+        animations: 'disabled',
+        caret: 'hide',
+      });
+      return {
+        template: templateId,
+        data: image,
+        mimeType: format === 'jpeg' ? 'image/jpeg' : 'image/png',
+        width: size.width,
+        height: size.height,
+        scale: fits ? scale : 1,
+        detail: doc.detail,
+        adjusted: size.adjusted,
+      };
+    });
+  }
+
+  /** Lists any text that would be clipped, cut short or pushed outside the image. */
+  async audit(templateId: string, data: unknown, options: RenderOptions = {}): Promise<OverflowIssue[]> {
+    return this.#load(templateId, data, { scale: 1, ...options }, (page) => page.evaluate(auditOverflow));
   }
 
   close(): Promise<void> {

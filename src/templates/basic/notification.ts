@@ -46,7 +46,7 @@ export const notification = defineTemplate({
 .nt-body{display:flex;gap:12px;margin-top:8px}
 .nt-text{flex:1;min-width:0}
 .nt-title{font-size:15px;font-weight:650;color:var(--text);line-height:1.3}
-.nt-msg{font-size:14px;line-height:1.4;color:var(--text-2);margin-top:2px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.nt-msg{font-size:14px;line-height:1.4;color:var(--text-2);margin-top:2px}
 .nt-thumb{width:48px;height:48px;border-radius:10px;flex:none}
 .nt-more{margin-top:10px;font-size:12px;color:var(--muted)}
 `,

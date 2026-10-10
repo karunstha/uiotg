@@ -3,7 +3,9 @@ export const BASE_CSS = /* css */ `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:transparent}
 body{font-family:var(--font-sans);color:var(--text);font-size:14px;line-height:1.45;
-  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-synthesis:none}
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-synthesis:none;
+  /* Nothing is ever cut off: long words and URLs break rather than overflow. */
+  overflow-wrap:anywhere}
 #root{position:relative;overflow:hidden}
 .frame-surface{background:var(--surface)}
 .frame-plane{background:var(--plane)}
@@ -15,30 +17,34 @@ img{display:block;max-width:100%}
 .num{font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
 .text-2{color:var(--text-2)}
-.ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.shrink{min-width:0}
 .bg-img{background-size:cover;background-position:center;background-repeat:no-repeat}
 
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
 .hdr-text{min-width:0}
 .hdr-title{font-size:20px;line-height:1.3;font-weight:600;letter-spacing:-0.012em;color:var(--text)}
 .hdr-sub{margin-top:4px;font-size:14px;line-height:1.45;color:var(--text-2)}
-.hdr-aside{flex:none;color:var(--text-2);font-size:13px}
+.hdr-aside{flex:0 1 auto;max-width:45%;text-align:right;color:var(--text-2);font-size:13px}
 
 .legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:14px;font-size:13px;line-height:20px;color:var(--text-2)}
-.legend-item{display:inline-flex;align-items:center;gap:7px}
+.legend-item{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:100%}
+.legend-item > .key{flex:none}
 .key{width:10px;height:10px;border-radius:3px;flex:none}
 .key-line{width:14px;height:3px;border-radius:2px}
 .key-dot{border-radius:50%}
+.key-dash{width:16px;height:0;background:none!important;border-top:2px dashed var(--text-2);border-radius:0}
 
 .status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text-2);white-space:nowrap}
 .status .icon{color:var(--c)}
 .status-icon{display:inline-flex}
 
 .tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;background:var(--subtle);
-  color:var(--text-2);font-size:12px;line-height:18px;font-weight:500;white-space:nowrap}
+  color:var(--text-2);font-size:12px;line-height:18px;font-weight:500;max-width:100%}
 
 .delta-wrap{display:inline-flex;align-items:baseline;gap:6px;flex-wrap:wrap}
-.delta{display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:600;white-space:nowrap}
+.delta{display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:600;min-width:0}
+.delta > .icon{flex:none}
+.num,.nw{white-space:nowrap}
 .delta .icon{vertical-align:middle}
 .delta.pos{color:var(--positive)}
 .delta.neg{color:var(--negative)}

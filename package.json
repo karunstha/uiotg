@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "start": "node src/cli.ts serve",
     "gallery": "node src/cli.ts gallery --out gallery",
+    "audit": "node scripts/audit.ts",
     "test": "node --test 'test/**/*.test.ts'",
     "prepublishOnly": "npm run typecheck && npm run build"
   },

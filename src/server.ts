@@ -76,6 +76,10 @@ export function createServer(opts: ServerOptions): McpServer {
         ...(note ? [note] : []),
         `Rendered ${templateId} (${result.detail} detail): ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
       ];
+      if (result.adjusted) {
+        const parts = Object.entries(result.adjusted).map(([k, [from, to]]) => `${k} ${from}→${to}px`);
+        lines.push(`Content didn't fit, so the image grew to show all of it (${parts.join(', ')}).`);
+      }
       if (outputDir) {
         const dir = resolve(outputDir);
         await mkdir(dir, { recursive: true });

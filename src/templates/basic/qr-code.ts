@@ -46,7 +46,7 @@ export const qrCode = defineTemplate({
 .qr-box svg{display:block}
 .qr-cap{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2);max-width:100%}
 .qr-cap .icon{color:var(--muted);flex:none}
-.qr-cap span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr-cap span{min-width:0}
 `,
   render(d, ctx) {
     const qr = QRCode.create(payload(d), { errorCorrectionLevel: 'M' });

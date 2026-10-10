@@ -43,9 +43,8 @@ export const linkCard = defineTemplate({
 .lk-site{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2)}
 .lk-fav{width:16px;height:16px;border-radius:4px;flex:none}
 .lk-site .icon{color:var(--muted)}
-.lk-title{font-size:16px;font-weight:650;line-height:1.3;color:var(--text);letter-spacing:-0.01em;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.lk-desc{font-size:14px;line-height:1.45;color:var(--text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lk-title{font-size:16px;font-weight:650;line-height:1.3;color:var(--text);letter-spacing:-0.01em}
+.lk-desc{font-size:14px;line-height:1.45;color:var(--text-2)}
 `,
   render(d) {
     const horizontal = (d.layout ?? (d.image_url ? 'vertical' : 'horizontal')) === 'horizontal';
@@ -58,7 +57,7 @@ export const linkCard = defineTemplate({
       <div class="lk-body">
         <div class="lk-site">${d.favicon_url
           ? html`<span class="lk-fav bg-img" style="${style({ 'background-image': imageBackground(d.favicon_url, domain) })}"></span>`
-          : icon('globe', { size: 14 })}<span class="ellipsis">${site}</span></div>
+          : icon('globe', { size: 14 })}<span class="shrink">${site}</span></div>
         <div class="lk-title">${d.title}</div>
         ${d.description ? html`<div class="lk-desc">${d.description}</div>` : null}
       </div>

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { html } from '../../core/html.ts';
+import { fitFontSize } from '../../core/measure.ts';
 import { defineTemplate } from '../../core/types.ts';
 
 const UNITS = ['days', 'hours', 'minutes', 'seconds'] as const;
@@ -32,11 +33,11 @@ export const countdown = defineTemplate({
 .cd-label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:12px;text-align:center}
 .cd-row{display:flex;gap:12px;justify-content:center}
 .cd-tile{flex:1;background:var(--subtle);border-radius:14px;padding:16px 8px 12px;text-align:center}
-.cd-n{font-size:46px;font-weight:700;letter-spacing:-0.03em;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+.cd-n{font-weight:700;letter-spacing:-0.03em;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
 .cd-u{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px}
 .cd-cap{font-size:13px;color:var(--text-2);margin-top:12px;text-align:center}
 `,
-  render(d) {
+  render(d, ctx) {
     const units = UNITS.filter((u) => d.units.includes(u));
     let values: Partial<Record<Unit, number>>;
     let ended = false;
@@ -53,10 +54,11 @@ export const countdown = defineTemplate({
     } else {
       values = { days: d.days, hours: d.hours, minutes: d.minutes, seconds: d.seconds };
     }
+    const tileW = (ctx.width - (units.length - 1) * 12) / units.length - 16;
     const pad = (u: Unit, n: number) => (u === 'days' ? String(n) : String(n).padStart(2, '0'));
     return html`${d.label ? html`<div class="cd-label">${d.label}</div>` : null}
     <div class="cd-row">${units.map(
-      (u) => html`<div class="cd-tile"><div class="cd-n">${pad(u, values[u] ?? 0)}</div><div class="cd-u">${(values[u] ?? 0) === 1 ? u.slice(0, -1) : u}</div></div>`,
+      (u) => html`<div class="cd-tile"><div class="cd-n" style="${`font-size:${fitFontSize(pad(u, values[u] ?? 0), tileW, 46, 18)}px`}">${pad(u, values[u] ?? 0)}</div><div class="cd-u">${(values[u] ?? 0) === 1 ? u.slice(0, -1) : u}</div></div>`,
     )}</div>
     ${d.caption || ended ? html`<div class="cd-cap">${ended ? 'This has started.' : d.caption}</div>` : null}`;
   },

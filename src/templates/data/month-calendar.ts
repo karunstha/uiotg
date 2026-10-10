@@ -69,7 +69,7 @@ export const monthCalendar = defineTemplate({
   font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;margin-bottom:3px}
 .mc-day.today .mc-n{background:var(--accent);color:#fff}
 .mc-ev{display:flex;align-items:center;gap:5px;font-size:11.5px;line-height:16px;padding:2px 6px;border-radius:5px;margin-top:2px;color:var(--text);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  min-width:0}
 .mc-ev b{font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
 .mc-more{font-size:11px;color:var(--text-2);padding:2px 6px;font-weight:500}
 `,

@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { display, formatSchema, iconSchema, makeFormatter, statusSchema, titleFields } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
+import { fitFontSize } from '../../core/measure.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { delta, header, sparkline, statusBadge, textDelta } from '../../core/ui.ts';
+import { delta, fitColumns, header, sparkline, statusBadge, textDelta } from '../../core/ui.ts';
 
 const itemSchema = z.object({
   label: z.string().min(1).max(80).describe('Sentence case, no trailing colon'),
@@ -61,21 +62,23 @@ export const stats = defineTemplate({
   background:var(--surface);min-width:0}
 .st-label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text-2)}
 .st-label .icon{color:var(--muted)}
-.st-value{font-size:32px;line-height:1.15;font-weight:620;letter-spacing:-0.022em;color:var(--text);white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
+.st-value{line-height:1.15;font-weight:620;letter-spacing:-0.022em;color:var(--text)}
 .st-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-height:20px}
 .st-caption{font-size:12px;color:var(--muted)}
 .st-spark{margin-top:8px}
 .st.hero{border:0;padding:0;gap:10px}
 .st.hero .st-label{font-size:15px}
-.st.hero .st-value{font-size:64px;line-height:1.05;letter-spacing:-0.035em}
+.st.hero .st-value{line-height:1.05;letter-spacing:-0.035em}
 .st.hero .delta{font-size:15px}
 `,
   render(d, ctx) {
     const hero = d.items.length === 1;
     const minimal = ctx.detail === 'minimal';
-    const cols = columnsFor(d.items.length, d.columns);
+    // Tiles reflow to fewer columns rather than squeeze below a readable width.
+    const cols = fitColumns(columnsFor(d.items.length, d.columns), ctx.width, 168);
     const tileWidth = hero ? ctx.width : (ctx.width - (cols - 1) * 16) / cols - 36;
+    // Big numbers stay on one line: shrink the type until the value fits its tile.
+    const valueSize = (text: string) => fitFontSize(text, tileWidth, hero ? 64 : 32, 16);
     return html`${header(d)}<div class="st-grid" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.items.map((it) => {
       const fmt = makeFormatter(it.format);
       let change = null;
@@ -86,7 +89,7 @@ export const stats = defineTemplate({
       }
       return html`<div class="${`st${hero ? ' hero' : ''}`}">
         <div class="st-label">${icon(it.icon, { size: 15 })}${it.label}</div>
-        <div class="st-value">${display(it.value, fmt)}</div>
+        <div class="st-value" style="${`font-size:${valueSize(display(it.value, fmt))}px`}">${display(it.value, fmt)}</div>
         ${change || it.status ? html`<div class="st-foot">${change}${it.status ? statusBadge(it.status) : null}</div>` : null}
         ${it.caption && !minimal ? html`<div class="st-caption">${it.caption}</div>` : null}
         ${it.trend && !minimal

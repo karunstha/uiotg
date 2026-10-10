@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
+import { fitFontSize } from '../../core/measure.ts';
 import { defineTemplate } from '../../core/types.ts';
 
 const condition = z.enum([
@@ -142,7 +143,7 @@ export const weather = defineTemplate({
 .wx-loc .icon{color:var(--text-2)}
 .wx-date{font-size:13px;color:var(--text-2);margin-top:2px}
 .wx-now{display:flex;align-items:center;gap:18px;margin-top:18px}
-.wx-temp{font-size:76px;font-weight:600;letter-spacing:-0.05em;line-height:1;color:var(--text)}
+.wx-temp{font-weight:600;letter-spacing:-0.05em;line-height:1;color:var(--text)}
 .wx-cond{font-size:17px;font-weight:550;color:var(--text)}
 .wx-hl{font-size:14px;color:var(--text-2);margin-top:3px;font-variant-numeric:tabular-nums}
 .wx-facts{display:grid;gap:8px;margin-top:22px}
@@ -156,14 +157,15 @@ export const weather = defineTemplate({
 .wx-ht{font-size:12px;color:var(--text-2)}
 .wx-hv{font-size:15px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
 .wx-pop{font-size:11px;font-weight:600;color:var(--accent);height:13px}
-.wx-day{display:grid;grid-template-columns:64px 28px 40px 40px 1fr 40px;align-items:center;column-gap:10px;padding:7px 0}
+.wx-days{display:grid;grid-template-columns:minmax(56px, auto) 28px auto auto minmax(60px, 1fr) auto;align-items:center;column-gap:10px;row-gap:14px}
+.wx-day{display:contents}
 .wx-dn{font-size:15px;font-weight:550;color:var(--text)}
 .wx-lo{font-size:15px;color:var(--text-2);text-align:right;font-variant-numeric:tabular-nums}
 .wx-hi{font-size:15px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
 .wx-range{position:relative;height:6px;border-radius:999px;background:var(--subtle)}
 .wx-bar{position:absolute;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg, #5598e7, #eda100)}
 `,
-  render(d) {
+  render(d, ctx) {
     const c = d.current;
     const deg = (v: number) => `${Math.round(v)}°`;
     const windUnit = d.units === 'imperial' ? 'mph' : 'km/h';
@@ -192,7 +194,7 @@ export const weather = defineTemplate({
       </div>
       <div class="wx-now">
         <span style="${`color:${ci.color}`}">${icon(ci.name, { size: 68, strokeWidth: 1.5 })}</span>
-        <div class="wx-temp">${deg(c.temperature)}</div>
+        <div class="wx-temp" style="${`font-size:${fitFontSize(deg(c.temperature), ctx.width * 0.4, 76, 28)}px`}">${deg(c.temperature)}</div>
         <div>
           <div class="wx-cond">${c.description ?? LABEL[c.condition]}</div>
           ${c.high != null && c.low != null ? html`<div class="wx-hl">H ${deg(c.high)} · L ${deg(c.low)}</div>` : null}
@@ -215,7 +217,7 @@ export const weather = defineTemplate({
           })}</div>`
         : null}
       ${days.length
-        ? html`<div class="wx-sec">${days.map((x) => {
+        ? html`<div class="wx-sec wx-days">${days.map((x) => {
             const di = conditionIcon(x.condition);
             return html`<div class="wx-day">
               <span class="wx-dn">${x.day}</span>
