@@ -40,7 +40,7 @@ export const markdown = defineTemplate({
   css: /* css */ `${katexCss()}
 .md-math{min-width:0}
 .md-doc .md-code pre{border:0}
-.md-doc .md-code{border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.md-doc .md-code{border-radius:calc(10px * var(--rk));overflow:hidden;border:1px solid var(--border)}
 `,
   async render(d, ctx) {
     return html`<article class="prose md-doc" style="${`font-size:${d.font_size}px`}">${await renderMarkdown(d.markdown, ctx.theme.mode)}</article>`;

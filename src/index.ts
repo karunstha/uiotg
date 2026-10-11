@@ -13,6 +13,7 @@ export { builtinTemplates } from './templates/index.ts';
 export { defineTemplate, CATEGORIES, type Category, type RenderContext, type Template } from './core/types.ts';
 export { html, raw, style, Html } from './core/html.ts';
 export { getTheme, type Theme } from './core/theme.ts';
+export { buildTheme, checkTheme, PRESETS, resolveTheme, ThemeStore, themeSpecSchema, type ThemeSpec } from './core/themes.ts';
 
 /** A registry preloaded with every built-in template. */
 export function defaultRegistry(): Registry {

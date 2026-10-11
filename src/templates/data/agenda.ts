@@ -54,7 +54,7 @@ export const agenda = defineTemplate({
 .ag-time{text-align:right;font-variant-numeric:tabular-nums;line-height:20px}
 .ag-start{font-size:14px;font-weight:600;color:var(--text)}
 .ag-end{font-size:12px;color:var(--muted)}
-.ag-bar{border-radius:2px}
+.ag-bar{border-radius:calc(2px * var(--rk))}
 .ag-title{font-size:15px;font-weight:600;line-height:20px;color:var(--text);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ag-meta{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--text-2)}
 .ag-meta span{display:inline-flex;align-items:center;gap:5px}

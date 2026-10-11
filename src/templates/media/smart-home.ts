@@ -97,7 +97,7 @@ export const smartHome = defineTemplate({
 .sh-area + .sh-area{margin-top:20px}
 .sh-area-h{font-size:13px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--text-2);margin-bottom:10px}
 .sh-grid{display:grid;gap:10px}
-.sh-tile{position:relative;border-radius:16px;padding:14px;background:var(--surface);border:1px solid var(--border);min-width:0;
+.sh-tile{position:relative;border-radius:calc(16px * var(--rk));padding:14px;background:var(--surface);border:1px solid var(--border);min-width:0;
   display:flex;flex-direction:column;gap:12px}
 .sh-tile.sh-on{border-color:color-mix(in srgb, var(--glow) 45%, var(--border));
   background:linear-gradient(160deg, color-mix(in srgb, var(--glow) 18%, var(--surface)), var(--surface) 70%)}
@@ -108,8 +108,8 @@ export const smartHome = defineTemplate({
 .sh-name{font-size:14px;font-weight:620;color:var(--text);line-height:1.3}
 .sh-state{font-size:13px;color:var(--text-2);margin-top:2px}
 .sh-tile.sh-on .sh-state{color:var(--text)}
-.sh-bar{height:4px;border-radius:999px;background:var(--subtle);overflow:hidden}
-.sh-bar span{display:block;height:100%;border-radius:999px;background:var(--glow)}
+.sh-bar{height:4px;border-radius:var(--pill);background:var(--subtle);overflow:hidden}
+.sh-bar span{display:block;height:100%;border-radius:var(--pill);background:var(--glow)}
 `,
   render(d, ctx) {
     const areas: string[] = [];

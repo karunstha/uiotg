@@ -42,7 +42,7 @@ export const qrCode = defineTemplate({
   css: /* css */ `
 .qr{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
 .qr-title{font-size:17px;font-weight:650;color:var(--text);letter-spacing:-0.01em}
-.qr-box{background:#fff;border-radius:16px;padding:14px;box-shadow:0 0 0 1px var(--border)}
+.qr-box{background:#fff;border-radius:calc(16px * var(--rk));padding:14px;box-shadow:0 0 0 1px var(--border)}
 .qr-box svg{display:block}
 .qr-cap{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2);max-width:100%}
 .qr-cap .icon{color:var(--muted);flex:none}

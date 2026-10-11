@@ -95,6 +95,10 @@ docker compose up -d --build
 | `render` | `{ template, data, options? }` → image. Its description carries the full template catalog. |
 | `list_templates` | Templates with descriptions, optionally filtered by `category`. |
 | `get_template` | One template's JSON Schema, default size and a complete example. |
+| `list_themes` | Presets, saved custom themes, the current default, and a guide to every theme field and where it shows up. |
+| `save_theme` | `{ name, theme, make_default? }` → preview image. Saves a custom theme; unreadable ones are rejected with what to fix. |
+| `set_default_theme` | `{ name? }`: the theme for every render that doesn't pick one (omit to clear). |
+| `delete_theme` | `{ name }`: removes a saved theme. |
 | `render_<template>` | Only with `--tools per-template` (or `UIOTG_TOOLS=per-template`): one tool per template with its exact input schema. This trades a longer tool list for zero schema lookups. |
 
 Invalid data never fails silently. The tool returns an error that lists each problem by path (e.g. `series[0].values: Series "iOS" has 5 values but there are 6 categories`), followed by a valid example, so the model can correct itself and retry.
@@ -137,7 +141,7 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 |---|---|---|
 | `width` | per template | Image width in CSS px (160–2400) |
 | `height` | fit content | Fixed height; charts resize their plot to fill it |
-| `theme` | `light` | `light` or `dark` |
+| `theme` | saved default, else `light` | A preset, a saved theme's name, or an inline theme object (see [Themes](#themes)) |
 | `scale` | `2` | Device pixel ratio (1–3) |
 | `format` | `png` | `png` or `jpeg` (`quality` 1–100) |
 | `transparent` | `false` | Transparent background (png) |
@@ -145,11 +149,30 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 | `accent` | palette blue | UI accent color (progress, links, highlights) |
 | `detail` | `auto` | `minimal`, `standard` or `rich` |
 
+### Themes
+
+Presets: `light`, `dark`, `midnight`, `nord`, `solarized`, `paper` (serif, small corners), `terminal` (monospace, square corners) and `high-contrast` (color-blind-safe chart colors).
+
+Agents can also design their own: an all-pink theme, a blood-red-on-black one, anything that suits the user. A theme is a light or dark `base` plus whatever you want to change. Usually `background`, `text` and `accent` are enough: secondary text, borders, grid lines, chart ramps and the rest are derived from them. Every derived color can still be set (`subtle`, `text_secondary`, `muted`, `grid`, `axis`, `border`, `page`, `series`, `positive`, `negative`, `status`), plus `font` (sans, serif, mono, rounded) and `corners` (sharp, small, default, round). `list_themes` explains where each one shows up.
+
+```jsonc
+// save_theme
+{ "name": "rose", "make_default": true,
+  "theme": { "base": "light", "background": "#fff0f5", "text": "#3b1d2a", "accent": "#e0457b",
+             "series": ["#e0457b", "#9b5de5", "#f28482", "#4d908e", "#f9a03f"], "font": "rounded", "corners": "round" } }
+```
+
+Saving checks readability. Text without enough contrast (4.5:1 for body text) is rejected with the exact ratios. Look-alike chart colors and faint accents come back as warnings next to a preview image. The same object works inline as `options.theme` to try a theme before saving it. Saved themes and the default live in `UIOTG_THEMES_DIR`. The default chain is: the call's theme, then the saved default, then `UIOTG_THEME`, then `light`. On a server several people share, set `UIOTG_THEMES_READONLY=1` to keep themes usable but not editable.
+
+Run `npm run gallery:themes` to render every template in every preset.
+
 ### Environment
 
 | Variable | |
 |---|---|
-| `UIOTG_THEME`, `UIOTG_SCALE`, `UIOTG_FORMAT` | Defaults for render options |
+| `UIOTG_THEME`, `UIOTG_SCALE`, `UIOTG_FORMAT` | Defaults for render options (a theme saved as default by an agent wins over `UIOTG_THEME`) |
+| `UIOTG_THEMES_DIR` | Where custom themes and the default are saved (default `~/.config/uiotg/themes`) |
+| `UIOTG_THEMES_READONLY=1` | Hide the tools that save, delete or change the default theme |
 | `UIOTG_OUTPUT_DIR` | Also write every MCP render to this directory and return the file path |
 | `UIOTG_TOOLS=per-template` | Expose one typed tool per template |
 | `UIOTG_CHROMIUM_PATH` | Explicit browser binary |
@@ -193,7 +216,7 @@ tool call ─► zod validation ─► template.render(data, ctx) ─► HTML fr
                      code/markdown: Shiki, marked                       screenshot of #root ─► PNG/JPEG
 ```
 
-- **Templates are pure functions** from validated data to an HTML fragment, built with an auto-escaping `html` tagged template. Charts are rendered to SVG on the server with ECharts; its text measurement uses Inter's real glyph metrics (`src/core/metrics.ts`), so labels lay out as the browser draws them.
+- **Templates are pure functions** from validated data to an HTML fragment, built with an auto-escaping `html` tagged template. Charts are rendered to SVG on the server with ECharts; its text measurement uses each bundled font's real glyph metrics (`src/core/metrics.ts`), so labels lay out as the browser draws them.
 - **One headless Chromium** is launched lazily and shared. Every render gets a fresh browser context with **JavaScript disabled**. Network access is limited to http(s) images, and bundled fonts (Inter, JetBrains Mono) are served from memory. User-supplied markup can only affect layout.
 - **Images that fail to load** fall back to a deterministic gradient, because covers and avatars are drawn as layered CSS backgrounds.
 - **Auto height**: the page is measured after layout, and the viewport is resized to fit the content. Bitmaps are capped at 7900 px per side.
@@ -209,7 +232,7 @@ Chart styling follows a fixed set of data-visualization rules:
 - Text never uses series colors.
 - Status colors always come with an icon and a label.
 
-Light and dark themes are tuned separately rather than inverted (`src/core/theme.ts`).
+Light and dark themes are tuned separately rather than inverted (`src/core/theme.ts`). Presets and custom themes (`src/core/themes.ts`) all build on them. Every color, the font and the corner rounding reach templates as CSS variables (`--surface`, `--accent`, `--on-accent`, `--rk`, `--pill`…), so templates never hardcode them.
 
 ## Adding a template
 

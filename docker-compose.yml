@@ -11,7 +11,12 @@ services:
       UIOTG_AUTH_TOKEN: ${UIOTG_AUTH_TOKEN:?set UIOTG_AUTH_TOKEN in .env}
       # Public base URL; when set, each render is also served at <url>/images/<file>.
       UIOTG_PUBLIC_URL: ${UIOTG_PUBLIC_URL:-}
+      # Fallback theme; a default saved by an agent (set_default_theme) takes precedence.
       UIOTG_THEME: ${UIOTG_THEME:-light}
+      # Custom themes agents save; kept in the uiotg-themes volume.
+      UIOTG_THEMES_DIR: /data/themes
+      # 1 = agents can use themes but not save, delete or change the default.
+      UIOTG_THEMES_READONLY: ${UIOTG_THEMES_READONLY:-0}
       UIOTG_TILE_URL: ${UIOTG_TILE_URL:-}
       UIOTG_TILE_ATTRIBUTION: ${UIOTG_TILE_ATTRIBUTION:-}
       UIOTG_TILE_CONTACT: ${UIOTG_TILE_CONTACT:-}
@@ -22,6 +27,8 @@ services:
     mem_limit: 1536m
     volumes:
       - uiotg-images:/tmp/uiotg-images
+      - uiotg-themes:/data/themes
 
 volumes:
   uiotg-images:
+  uiotg-themes:

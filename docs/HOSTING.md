@@ -104,7 +104,9 @@ claude mcp add --transport http uiotg https://uiotg.example.com/mcp --header "Au
 | `UIOTG_IMAGE_DIR` / `UIOTG_IMAGE_TTL_HOURS` | `/tmp/uiotg-images` / `24` | Image storage and expiry |
 | `PORT` / `UIOTG_HOST` | `8080` / `0.0.0.0` | Listen address |
 | `UIOTG_TOOLS` | `single` | `per-template` adds one typed tool per template |
-| `UIOTG_THEME`, `UIOTG_SCALE`, `UIOTG_FORMAT` | `light`, `2`, `png` | Render defaults |
+| `UIOTG_THEME`, `UIOTG_SCALE`, `UIOTG_FORMAT` | `light`, `2`, `png` | Render defaults. `UIOTG_THEME` takes any preset or saved theme; a default set by an agent wins over it |
+| `UIOTG_THEMES_DIR` | `~/.config/uiotg/themes` (`/data/themes` in Docker) | Where custom themes and the saved default live |
+| `UIOTG_THEMES_READONLY` | `0` | `1` hides `save_theme`, `set_default_theme` and `delete_theme`, e.g. on a server several people share |
 | `UIOTG_OFFLINE` | `0` | `1` blocks remote images, which then fall back to placeholders |
 | `UIOTG_TILE_URL` / `UIOTG_TILE_ATTRIBUTION` | OpenStreetMap | Map tiles. OSM's tile server is fine for light use; for production traffic use a keyed provider, e.g. `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}{r}.png?key=…` |
 | `UIOTG_TILE_CONTACT` | unset | Email/URL in the tile User-Agent, as OSM's tile policy asks |

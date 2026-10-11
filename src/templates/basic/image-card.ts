@@ -31,13 +31,13 @@ export const imageCard = defineTemplate({
   padding: 20,
   css: /* css */ `
 .ic{position:relative}
-.ic-media{border-radius:12px;overflow:hidden;background-size:cover;background-position:center}
+.ic-media{border-radius:calc(12px * var(--rk));overflow:hidden;background-size:cover;background-position:center}
 .ic-media img{width:100%;height:auto;display:block}
 .ic-text{margin-top:12px}
 .ic-title{font-size:17px;font-weight:650;color:var(--text);letter-spacing:-0.01em}
 .ic-cap{font-size:14px;line-height:1.45;color:var(--text-2);margin-top:3px}
 .ic-credit{font-size:12px;color:var(--muted);margin-top:6px}
-.ic.over .ic-text{position:absolute;left:0;right:0;bottom:0;margin:0;padding:48px 18px 16px;border-radius:0 0 12px 12px;
+.ic.over .ic-text{position:absolute;left:0;right:0;bottom:0;margin:0;padding:48px 18px 16px;border-radius:0 0 calc(12px * var(--rk)) calc(12px * var(--rk));
   background:linear-gradient(180deg, transparent, rgba(0,0,0,.72))}
 .ic.over .ic-title{color:#fff}.ic.over .ic-cap{color:rgba(255,255,255,.85)}.ic.over .ic-credit{color:rgba(255,255,255,.65)}
 `,

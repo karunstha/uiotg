@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { iconSchema, titleFields, toneSchema } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
+import { inkOn } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header, toneColor } from '../../core/ui.ts';
 
@@ -49,7 +50,7 @@ export const tags = defineTemplate({
   width: 600,
   css: /* css */ `
 .tg-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.tg{display:inline-flex;align-items:center;gap:6px;border-radius:999px;font-weight:550;white-space:nowrap;line-height:1}
+.tg{display:inline-flex;align-items:center;gap:6px;border-radius:var(--pill);font-weight:550;white-space:nowrap;line-height:1}
 .tg-n{font-weight:500;opacity:.65;font-variant-numeric:tabular-nums}
 `,
   render(d, ctx) {
@@ -61,7 +62,7 @@ export const tags = defineTemplate({
       const c = t.tone ? toneColor(ctx.theme, t.tone) : null;
       const look =
         d.style === 'solid'
-          ? { background: c ?? ctx.theme.text, color: c ? '#fff' : ctx.theme.surface }
+          ? { background: c ?? ctx.theme.text, color: c ? inkOn(c) : ctx.theme.surface }
           : d.style === 'outline'
             ? { background: 'transparent', color: ctx.theme.text, 'box-shadow': `inset 0 0 0 1px ${c ?? ctx.theme.axis}` }
             : { background: c ? `color-mix(in srgb, ${c} 15%, var(--surface))` : ctx.theme.subtle, color: ctx.theme.text };

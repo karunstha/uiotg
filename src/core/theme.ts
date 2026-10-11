@@ -3,6 +3,8 @@ export type Mode = 'light' | 'dark';
 export type Status = 'good' | 'warning' | 'serious' | 'critical';
 
 export interface Theme {
+  /** Preset or saved theme name ("custom" for an inline theme). */
+  name: string;
   mode: Mode;
   /** Page plane behind cards (dashboards). */
   plane: string;
@@ -19,6 +21,8 @@ export interface Theme {
   accent: string;
   /** Lighter step of the accent ramp, used for meter tracks. */
   accentTrack: string;
+  /** Text and icons on an accent fill (white or near-black, whichever reads). */
+  onAccent: string;
   /** Categorical palette in fixed order. Never cycled past 8. */
   series: readonly string[];
   /** Neutral used for folded "Other" buckets and de-emphasised marks. */
@@ -35,6 +39,10 @@ export interface Theme {
   negative: string;
   fontSans: string;
   fontMono: string;
+  /** Multiplier for every corner radius (0 = square corners). */
+  radius: number;
+  /** Radius of pill shapes (chips, badges, tracks). */
+  pill: string;
 }
 
 // Blue ramp, steps 100 → 700 (validated reference palette).
@@ -52,7 +60,8 @@ const STATUS: Record<Status, string> = {
 export const FONT_SANS = "Inter, system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'";
 export const FONT_MONO = "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
 
-const LIGHT: Theme = {
+export const LIGHT: Theme = {
+  name: 'light',
   mode: 'light',
   plane: '#f4f3f0',
   surface: '#fcfcfb',
@@ -65,6 +74,7 @@ const LIGHT: Theme = {
   border: 'rgba(11,11,11,0.10)',
   accent: '#2a78d6',
   accentTrack: '#cde2fb',
+  onAccent: '#ffffff',
   series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'],
   other: '#b5b3ab',
   sequential: [BLUE[0]!, BLUE[2]!, BLUE[4]!, BLUE[6]!, BLUE[8]!, BLUE[10]!, BLUE[12]!],
@@ -75,9 +85,12 @@ const LIGHT: Theme = {
   negative: '#c0392f',
   fontSans: FONT_SANS,
   fontMono: FONT_MONO,
+  radius: 1,
+  pill: '999px',
 };
 
-const DARK: Theme = {
+export const DARK: Theme = {
+  name: 'dark',
   mode: 'dark',
   plane: '#0d0d0d',
   surface: '#1a1a19',
@@ -90,6 +103,7 @@ const DARK: Theme = {
   border: 'rgba(255,255,255,0.10)',
   accent: '#3987e5',
   accentTrack: '#173a63',
+  onAccent: '#ffffff',
   series: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
   other: '#5c5b56',
   // In dark mode "near zero" recedes toward the dark surface, so the ramp runs dark → light.
@@ -101,12 +115,18 @@ const DARK: Theme = {
   negative: '#e66767',
   fontSans: FONT_SANS,
   fontMono: FONT_MONO,
+  radius: 1,
+  pill: '999px',
 };
 
 export function getTheme(mode: Mode, accent?: string): Theme {
-  const base = mode === 'dark' ? DARK : LIGHT;
+  return withAccent(mode === 'dark' ? DARK : LIGHT, accent);
+}
+
+/** A theme with its accent swapped (and the accent-derived tokens with it). */
+export function withAccent(base: Theme, accent?: string): Theme {
   if (!accent) return base;
-  return { ...base, accent, accentTrack: mix(accent, base.surface, mode === 'dark' ? 0.7 : 0.78) };
+  return { ...base, accent, accentTrack: mix(accent, base.surface, base.mode === 'dark' ? 0.7 : 0.78), onAccent: inkOn(accent) };
 }
 
 /** CSS custom properties for a theme, consumed by every template stylesheet. */
@@ -123,6 +143,7 @@ export function themeVars(t: Theme): string {
     border: t.border,
     accent: t.accent,
     'accent-track': t.accentTrack,
+    'on-accent': t.onAccent,
     other: t.other,
     good: t.status.good,
     warning: t.status.warning,
@@ -132,6 +153,8 @@ export function themeVars(t: Theme): string {
     negative: t.negative,
     'font-sans': t.fontSans,
     'font-mono': t.fontMono,
+    rk: String(t.radius),
+    pill: t.pill,
   };
   t.series.forEach((c, i) => (vars[`s${i + 1}`] = c));
   return Object.entries(vars).map(([k, v]) => `--${k}:${v}`).join(';');
@@ -180,6 +203,12 @@ export function luminance(color: string): number {
     return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   }) as [number, number, number];
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two hex colors (1–21). */
+export function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 /** Ink (white or near-black) that clears contrast on top of `fill`. */

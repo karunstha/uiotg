@@ -1,8 +1,21 @@
-import { INTER_REGULAR, INTER_SEMIBOLD } from './metrics.ts';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { METRICS } from './metrics.ts';
 
-/** Width in px of `text` set in Inter at `size`, from the measured advance widths. */
-export function measureText(text: string, size = 12, bold = false): number {
-  const table = bold ? INTER_SEMIBOLD : INTER_REGULAR;
+/**
+ * The font family of the render in progress (set by the renderer from the
+ * theme), so text measurement matches the font the page is set in.
+ */
+export const fontScope = new AsyncLocalStorage<string>();
+
+/** First family in a CSS font-family list or font shorthand that we have metrics for. */
+export function metricsFamily(css: string | undefined): string | undefined {
+  return Object.keys(METRICS).find((f) => css?.includes(f));
+}
+
+/** Width in px of `text` at `size`, from the measured advance widths of the current (or given) font. */
+export function measureText(text: string, size = 12, bold = false, family?: string): number {
+  const [regular, semibold] = METRICS[family ?? fontScope.getStore() ?? 'Inter'] ?? METRICS.Inter!;
+  const table = bold ? semibold : regular;
   let em = 0;
   for (const ch of text ?? '') {
     const code = ch.charCodeAt(0);
@@ -22,7 +35,7 @@ export function fitFontSize(text: string, maxWidth: number, base: number, min = 
 }
 
 /**
- * Wraps text into lines no wider than `maxWidth` using Inter metrics; words
+ * Wraps text into lines no wider than `maxWidth` using the font's metrics; words
  * longer than a line are split. Used where a renderer (e.g. some ECharts
  * labels) can't wrap on its own.
  */

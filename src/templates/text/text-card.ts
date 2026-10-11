@@ -52,7 +52,7 @@ export const textCard = defineTemplate({
 .tc.center{align-items:center;text-align:center}
 .tc.toned{border-left:4px solid var(--tone);padding-left:24px}
 .tc.center.toned{border-left:0;padding-left:0;border-top:4px solid var(--tone);padding-top:24px}
-.tc-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+.tc-icon{width:44px;height:44px;border-radius:calc(12px * var(--rk));display:flex;align-items:center;justify-content:center;
   color:var(--tone);background:color-mix(in srgb, var(--tone) 12%, transparent);margin-bottom:4px}
 .tc-eyebrow{font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-2)}
 .tc-title{font-weight:650;letter-spacing:-0.022em;line-height:1.15;color:var(--text);text-wrap:balance}

@@ -89,7 +89,7 @@ export function maxAbs(values: Array<number | null | undefined>): number {
   return m;
 }
 
-/** Label width in px for Inter at `size`. */
+/** Label width in px at `size`, in the current theme font. */
 export function textWidth(text: string, size = 12, bold = false): number {
   return measureText(text, size, bold);
 }

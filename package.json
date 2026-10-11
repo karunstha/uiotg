@@ -30,13 +30,17 @@
     "start": "node src/cli.ts serve",
     "gallery": "node src/cli.ts gallery --out gallery",
     "audit": "node scripts/audit.ts",
+    "audit:fonts": "node scripts/audit.ts --fonts",
     "gallery:minimal": "node src/cli.ts gallery --minimal --theme light --out gallery/minimal",
+    "gallery:themes": "node src/cli.ts gallery --theme all --out gallery/themes",
     "test": "node --test 'test/**/*.test.ts'",
     "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/nunito": "^5.3.0",
+    "@fontsource-variable/source-serif-4": "^5.3.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "echarts": "^6.1.0",
     "katex": "^0.19.0",

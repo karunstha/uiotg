@@ -40,14 +40,14 @@ export const alert = defineTemplate({
   width: 600,
   padding: 16,
   css: /* css */ `
-.alr-box{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;
+.alr-box{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:calc(12px * var(--rk));
   background:color-mix(in srgb, var(--tone) 9%, var(--surface));border:1px solid color-mix(in srgb, var(--tone) 32%, transparent)}
 .alr-ico{color:var(--tone);flex:none;height:21px;display:flex;align-items:center}
 .alr-main{flex:1;min-width:0}
 .alr-title{font-size:15px;font-weight:620;line-height:21px;color:var(--text)}
 .alr-msg{font-size:14px;line-height:20px;color:var(--text-2)}
 .alr-title + .alr-msg{margin-top:2px}
-.alr-msg code{font-family:var(--font-mono);font-size:.88em;background:color-mix(in srgb, var(--tone) 10%, var(--subtle));padding:.1em .35em;border-radius:4px}
+.alr-msg code{font-family:var(--font-mono);font-size:.88em;background:color-mix(in srgb, var(--tone) 10%, var(--subtle));padding:.1em .35em;border-radius:calc(4px * var(--rk))}
 .alr-msg strong{color:var(--text);font-weight:620}
 .alr-act{flex:0 1 auto;max-width:40%;text-align:right;font-size:13px;font-weight:550;color:var(--text-2);line-height:21px}
 `,

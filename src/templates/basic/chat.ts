@@ -51,7 +51,7 @@ export const chat = defineTemplate({
 .ch-group.me{align-self:flex-end;align-items:flex-end}
 .ch-group.them{align-self:flex-start;align-items:flex-start}
 .ch-name{font-size:12px;color:var(--text-2);margin:0 0 2px 12px}
-.ch-b{padding:8px 13px;font-size:15px;line-height:1.38;border-radius:18px;white-space:pre-wrap;word-break:break-word}
+.ch-b{padding:8px 13px;font-size:15px;line-height:1.38;border-radius:calc(18px * var(--rk));white-space:pre-wrap;word-break:break-word}
 .ch-group.them .ch-b{background:var(--subtle);color:var(--text)}
 /* Consecutive bubbles tuck their inner corners together. */
 .ch-group.me .ch-b:not(.last){border-bottom-right-radius:6px}

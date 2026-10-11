@@ -24,9 +24,9 @@ export const calendarDate = defineTemplate({
   width: (d) => (d.title ? 520 : 196),
   css: /* css */ `
 .dt{display:flex;gap:22px;align-items:center}
-.dt-page{width:132px;flex:none;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--border);
+.dt-page{width:132px;flex:none;border-radius:calc(16px * var(--rk));overflow:hidden;background:var(--surface);border:1px solid var(--border);
   box-shadow:0 1px 2px rgba(0,0,0,.05),0 8px 24px -10px rgba(0,0,0,.25);text-align:center}
-.dt-month{background:var(--s8);color:#fff;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:7px 0}
+.dt-month{background:var(--accent);color:var(--on-accent);font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:7px 0}
 .dt-day{font-size:60px;font-weight:700;letter-spacing:-0.04em;line-height:1;color:var(--text);padding:12px 0 4px}
 .dt-wd{font-size:12px;font-weight:600;color:var(--text-2);padding-bottom:12px}
 .dt-title{font-size:21px;font-weight:700;letter-spacing:-0.015em;color:var(--text);line-height:1.25}

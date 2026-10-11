@@ -45,7 +45,7 @@ export const code = defineTemplate({
   },
   background: 'plane',
   css: /* css */ `
-.cw{border-radius:12px;overflow:hidden;border:1px solid var(--border);
+.cw{border-radius:calc(12px * var(--rk));overflow:hidden;border:1px solid var(--border);
   box-shadow:0 1px 2px rgba(0,0,0,.06),0 12px 32px -8px rgba(0,0,0,.18)}
 .cw-bar{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;position:relative}
 .cw-dot{width:12px;height:12px;border-radius:50%}

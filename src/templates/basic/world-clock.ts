@@ -68,9 +68,9 @@ export const worldClock = defineTemplate({
 .wc-list{display:flex;flex-direction:column}
 .wc-row{display:flex;align-items:center;gap:14px;padding:12px 0}
 .wc-row + .wc-row{border-top:1px solid var(--grid)}
-.wc-sky{width:44px;height:44px;border-radius:12px;flex:none}
+.wc-sky{width:44px;height:44px;border-radius:calc(12px * var(--rk));flex:none}
 .wc-cards{display:grid;gap:12px}
-.wc-card{border-radius:16px;padding:16px 16px 18px;color:#fff;min-height:132px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.wc-card{border-radius:calc(16px * var(--rk));padding:16px 16px 18px;color:#fff;min-height:132px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
 .wc-card .wc-name{color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
 .wc-card .wc-meta{color:rgba(255,255,255,.85)}
 .wc-card .wc-time{color:#fff;text-align:left;font-size:36px;margin-top:14px;text-shadow:0 2px 12px rgba(0,0,0,.25)}

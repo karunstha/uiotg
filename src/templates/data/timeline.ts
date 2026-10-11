@@ -59,7 +59,7 @@ export const timeline = defineTemplate({
 .tl-dot.blocked{background:var(--critical);border-color:var(--critical)}
 .tl-ico{position:relative;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   background:var(--subtle);color:var(--text-2);box-shadow:0 0 0 3px var(--surface)}
-.tl-ico.done{background:var(--accent);color:#fff}
+.tl-ico.done{background:var(--accent);color:var(--on-accent)}
 .tl-ico.current{background:color-mix(in srgb, var(--accent) 16%, var(--surface));color:var(--accent)}
 .tl-ico.blocked{background:var(--critical);color:#fff}
 .tl-body{padding-bottom:22px;min-width:0}
@@ -67,7 +67,7 @@ export const timeline = defineTemplate({
 .tl-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;font-weight:600;line-height:22px;color:var(--text)}
 .tl-row.upcoming .tl-title{color:var(--text-2)}
 .tl-desc{margin-top:3px;font-size:13.5px;line-height:20px;color:var(--text-2)}
-.tl-desc code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:4px}
+.tl-desc code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:calc(4px * var(--rk))}
 `,
   render(d) {
     return html`${header(d)}<div class="tl">${d.events.map((e) => {

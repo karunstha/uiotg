@@ -84,20 +84,20 @@ export const taskBoard = defineTemplate({
   background: 'plane',
   css: /* css */ `
 .kb-board{display:grid;gap:14px;align-items:start}
-.kb-col{background:color-mix(in srgb, var(--subtle) 70%, transparent);border-radius:14px;padding:10px}
+.kb-col{background:color-mix(in srgb, var(--subtle) 70%, transparent);border-radius:calc(14px * var(--rk));padding:10px}
 .kb-colhead{display:flex;align-items:center;gap:8px;padding:4px 6px 10px;font-size:13.5px;font-weight:650;color:var(--text)}
 .kb-dot{width:8px;height:8px;border-radius:50%}
-.kb-count{margin-left:auto;font-size:12px;font-weight:600;color:var(--text-2);background:var(--surface);border-radius:999px;padding:1px 8px;
+.kb-count{margin-left:auto;font-size:12px;font-weight:600;color:var(--text-2);background:var(--surface);border-radius:var(--pill);padding:1px 8px;
   font-variant-numeric:tabular-nums}
 .kb-count.kb-over{color:#fff;background:var(--critical)}
 .kb-cards{display:flex;flex-direction:column;gap:8px}
-.kb-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kb-card{background:var(--surface);border:1px solid var(--border);border-radius:calc(10px * var(--rk));padding:10px 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .kb-ct{font-size:14px;font-weight:600;line-height:1.35;color:var(--text)}
 .kb-cd{font-size:12.5px;line-height:1.4;color:var(--text-2);margin-top:3px}
 .kb-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .kb-tags .tag{font-size:11px;padding:1px 7px;line-height:16px}
-.kb-prog{height:4px;border-radius:999px;background:var(--subtle);margin-top:9px;overflow:hidden}
-.kb-prog span{display:block;height:100%;background:var(--accent);border-radius:999px}
+.kb-prog{height:4px;border-radius:var(--pill);background:var(--subtle);margin-top:9px;overflow:hidden}
+.kb-prog span{display:block;height:100%;background:var(--accent);border-radius:var(--pill)}
 .kb-meta{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:12px;color:var(--text-2)}
 .kb-meta > span{display:inline-flex;align-items:center;gap:4px}
 .kb-who{margin-left:auto;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;

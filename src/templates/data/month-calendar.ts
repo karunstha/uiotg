@@ -57,7 +57,7 @@ export const monthCalendar = defineTemplate({
   },
   width: 980,
   css: /* css */ `
-.mc{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.mc{border:1px solid var(--border);border-radius:calc(12px * var(--rk));overflow:hidden}
 .mc-grid{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr))}
 .mc-wd{font-size:11.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);padding:8px 10px;border-bottom:1px solid var(--grid)}
 .mc-day{min-height:104px;padding:6px 6px 8px;border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);min-width:0}
@@ -65,10 +65,10 @@ export const monthCalendar = defineTemplate({
 .mc-day:nth-last-child(-n+7){border-bottom:0}
 .mc-day.wkend{background:color-mix(in srgb, var(--subtle) 45%, transparent)}
 .mc-day.out .mc-n{color:var(--muted);opacity:.6}
-.mc-n{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 4px;border-radius:999px;font-size:13px;
+.mc-n{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 4px;border-radius:var(--pill);font-size:13px;
   font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;margin-bottom:3px}
-.mc-day.today .mc-n{background:var(--accent);color:#fff}
-.mc-ev{display:flex;align-items:center;gap:5px;font-size:11.5px;line-height:16px;padding:2px 6px;border-radius:5px;margin-top:2px;color:var(--text);
+.mc-day.today .mc-n{background:var(--accent);color:var(--on-accent)}
+.mc-ev{display:flex;align-items:center;gap:5px;font-size:11.5px;line-height:16px;padding:2px 6px;border-radius:calc(5px * var(--rk));margin-top:2px;color:var(--text);
   min-width:0}
 .mc-ev b{font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
 .mc-more{font-size:11px;color:var(--text-2);padding:2px 6px;font-weight:500}

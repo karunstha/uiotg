@@ -50,7 +50,7 @@ export const steps = defineTemplate({
 .stp-rail{display:flex;flex-direction:column;align-items:center}
 .stp-num{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;
   font-weight:700;background:var(--subtle);color:var(--text-2);font-variant-numeric:tabular-nums}
-.stp-step.stp-done .stp-num{background:var(--accent);color:#fff}
+.stp-step.stp-done .stp-num{background:var(--accent);color:var(--on-accent)}
 .stp-step.stp-current .stp-num{background:var(--surface);color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent),0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent)}
 .stp-line{flex:1;width:2px;background:var(--grid);margin:4px 0}
 .stp-step:last-child .stp-line{display:none}
@@ -59,10 +59,10 @@ export const steps = defineTemplate({
 .stp-title{font-size:16px;font-weight:620;color:var(--text);line-height:22px}
 .stp-step.stp-upcoming .stp-title{color:var(--text-2)}
 .stp-desc{font-size:14px;line-height:1.5;color:var(--text-2);margin-top:4px}
-.stp-desc code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:4px}
-.stp-code{margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.stp-desc code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:calc(4px * var(--rk))}
+.stp-code{margin-top:10px;border-radius:calc(10px * var(--rk));overflow:hidden;border:1px solid var(--border)}
 .stp-code pre.shiki{margin:0;padding:10px 14px;font-family:var(--font-mono);font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
-.stp-tip{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.45;
+.stp-tip{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:8px 12px;border-radius:calc(8px * var(--rk));font-size:13px;line-height:1.45;
   background:color-mix(in srgb, var(--warning) 12%, var(--surface));color:var(--text)}
 .stp-tip .icon{color:var(--warning);margin-top:1px}
 `,

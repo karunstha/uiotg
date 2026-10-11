@@ -66,7 +66,7 @@ export const activity = defineTemplate({
 .at-val small{font-size:12.5px;font-weight:500;color:var(--text-2)}
 .at-pct{grid-column:2 / 4;font-size:12px;color:var(--text-2)}
 .at-tiles{display:grid;gap:10px;margin-top:22px}
-.at-tile{background:var(--subtle);border-radius:12px;padding:12px 14px;min-width:0}
+.at-tile{background:var(--subtle);border-radius:calc(12px * var(--rk));padding:12px 14px;min-width:0}
 .at-tl{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:550;color:var(--text-2)}
 .at-tv{font-size:22px;font-weight:650;letter-spacing:-0.02em;color:var(--text);margin-top:4px}
 .at-tv small{font-size:13px;font-weight:500;color:var(--text-2);margin-left:3px;letter-spacing:0}

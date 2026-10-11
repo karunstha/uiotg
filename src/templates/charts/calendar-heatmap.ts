@@ -70,7 +70,7 @@ export const calendarHeatmap = defineTemplate({
 .cal-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:12px;font-size:12px;color:var(--text-2)}
 .cal-foot b{color:var(--text);font-weight:600}
 .cal-legend{display:flex;align-items:center;gap:4px;color:var(--muted);flex:none;white-space:nowrap}
-.cal-legend i{display:inline-block;width:11px;height:11px;border-radius:2px}
+.cal-legend i{display:inline-block;width:11px;height:11px;border-radius:calc(2px * var(--rk))}
 `,
   render(d, ctx) {
     const { theme } = ctx;

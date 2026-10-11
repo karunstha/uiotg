@@ -59,7 +59,7 @@ export const stats = defineTemplate({
   },
   css: /* css */ `
 .st-grid{display:grid;gap:16px}
-.st{border:1px solid var(--border);border-radius:14px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:6px;
+.st{border:1px solid var(--border);border-radius:calc(14px * var(--rk));padding:18px 18px 16px;display:flex;flex-direction:column;gap:6px;
   background:var(--surface);min-width:0}
 .st-label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text-2)}
 .st-label .icon{color:var(--muted)}

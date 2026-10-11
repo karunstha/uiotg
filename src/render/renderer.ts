@@ -4,7 +4,9 @@ import { colorSchema } from '../core/format.ts';
 import { fontFaceCss } from '../core/fonts.ts';
 import { html, raw, style, type Html } from '../core/html.ts';
 import { imageBackground } from '../core/ui.ts';
-import { getTheme, themeVars, type Mode, type Theme } from '../core/theme.ts';
+import { fontScope, metricsFamily } from '../core/measure.ts';
+import { themeVars, withAccent, type Mode, type Theme } from '../core/theme.ts';
+import { photoTheme, PRESETS, resolveTheme, themeSpecSchema, ThemeStore } from '../core/themes.ts';
 import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
 import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
@@ -15,7 +17,10 @@ import type { Page } from 'playwright';
 export const renderOptionsSchema = z.object({
   width: z.number().int().min(160).max(2400).optional().describe('Image width in CSS px; defaults to the template’s preferred width'),
   height: z.number().int().min(80).max(4000).optional().describe('Fixed image height in CSS px; omit to fit the content'),
-  theme: z.enum(['light', 'dark']).optional().describe('Color theme (default light)'),
+  theme: z
+    .union([z.string().min(1).max(40), themeSpecSchema])
+    .optional()
+    .describe(`Theme: a preset (${Object.keys(PRESETS).join(', ')}), a saved custom theme's name, or an inline theme object (see list_themes). Defaults to the saved default theme, else light`),
   scale: z.number().min(1).max(3).optional().describe('Device pixel ratio; 2 (default) gives crisp images'),
   format: z.enum(['png', 'jpeg']).optional().describe('Image format (default png)'),
   quality: z.number().int().min(1).max(100).optional().describe('JPEG quality (default 90)'),
@@ -113,23 +118,43 @@ const IMAGE_TIMEOUT_MS = 10_000;
 export interface RendererOptions {
   registry: Registry;
   browser?: BrowserOptions | BrowserPool;
-  /** Defaults applied under per-call options. Env: UIOTG_THEME, UIOTG_SCALE, UIOTG_FORMAT. */
+  /** Defaults applied under per-call options. Env: UIOTG_SCALE, UIOTG_FORMAT. */
   defaults?: RenderOptions;
+  /** Saved custom themes and the default theme (UIOTG_THEMES_DIR). */
+  themes?: ThemeStore;
 }
 
 export class Renderer {
   readonly registry: Registry;
   readonly browser: BrowserPool;
   readonly defaults: RenderOptions;
+  readonly themes: ThemeStore;
 
   constructor(opts: RendererOptions) {
     this.registry = opts.registry;
     this.browser = opts.browser instanceof BrowserPool ? opts.browser : new BrowserPool(opts.browser);
+    this.themes = opts.themes ?? new ThemeStore();
     const env: RenderOptions = {};
-    if (process.env.UIOTG_THEME === 'dark' || process.env.UIOTG_THEME === 'light') env.theme = process.env.UIOTG_THEME;
     if (process.env.UIOTG_SCALE) env.scale = Number(process.env.UIOTG_SCALE);
     if (process.env.UIOTG_FORMAT === 'jpeg' || process.env.UIOTG_FORMAT === 'png') env.format = process.env.UIOTG_FORMAT;
     this.defaults = renderOptionsSchema.parse({ ...env, ...opts.defaults });
+  }
+
+  /**
+   * The theme for a render: the call's, else the saved default, else
+   * UIOTG_THEME, else light. A default that no longer exists falls through.
+   */
+  #theme(requested: RenderOptions['theme']): Theme {
+    if (requested) return resolveTheme(requested as string, this.themes);
+    for (const name of [this.themes.getDefault(), process.env.UIOTG_THEME]) {
+      if (!name) continue;
+      try {
+        return resolveTheme(name, this.themes);
+      } catch {
+        // Deleted or misspelled default: try the next one.
+      }
+    }
+    return resolveTheme('light');
   }
 
   #template(id: string): Template {
@@ -189,9 +214,10 @@ export class Renderer {
     const t = this.#template(templateId);
     const parsed = this.#validate(t, data, '');
     const photo = t.photo ? await this.#photo(t, data) : null;
-    // Text sits on a darkened photo, so the card renders in dark mode with see-through surfaces.
-    const mode: Mode = photo ? 'dark' : (opts.theme ?? 'light');
-    const theme = getTheme(mode, opts.accent);
+    const chosen = withAccent(this.#theme(opts.theme), opts.accent);
+    // Text sits on a darkened photo: light-on-dark neutrals, see-through surfaces, the theme's colors kept.
+    const theme = photo ? photoTheme(chosen) : chosen;
+    const mode: Mode = theme.mode;
     const width = opts.width ?? (typeof t.width === 'function' ? t.width(parsed as never) : t.width);
     const height = opts.height ?? t.height;
     const padding = opts.padding ?? t.padding ?? DEFAULT_PADDING;
@@ -199,7 +225,7 @@ export class Renderer {
     const requested = opts.detail ?? 'auto';
     const detail = resolveDetail(requested, t, parsed, width - padding * 2);
     const ctx = this.#context(theme, used, { width: width - padding * 2, height: height ? height - padding * 2 : undefined }, 0, detail, requested);
-    const body = await t.render(parsed, ctx);
+    const body = await fontScope.run(metricsFamily(theme.fontSans) ?? 'Inter', () => t.render(parsed, ctx));
     const css = [...used].map((u) => u.css ?? '').join('\n');
     // Shrink-wrapping templates size to their content, between minWidth and the default width.
     const fit = t.fit === 'content' && opts.width == null && !height;

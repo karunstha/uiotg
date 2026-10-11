@@ -61,7 +61,7 @@ export const list = defineTemplate({
 .ls-bullet{width:6px;height:6px;border-radius:50%;background:var(--muted)}
 .ls-num{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
 .ls-text{font-size:15px;line-height:22px;color:var(--text)}
-.ls-text code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:4px}
+.ls-text code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:calc(4px * var(--rk))}
 .ls-text strong{font-weight:620}
 .ls-item.ls-done .ls-text,.ls-item.ls-skipped .ls-text{color:var(--text-2)}
 .ls-desc{margin-top:2px;font-size:13px;line-height:19px;color:var(--text-2)}

@@ -33,7 +33,7 @@ export const countdown = defineTemplate({
   css: /* css */ `
 .cd-label{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:12px;text-align:center}
 .cd-row{display:flex;gap:12px;justify-content:center}
-.cd-tile{flex:1;background:var(--subtle);border-radius:14px;padding:16px 8px 12px;text-align:center}
+.cd-tile{flex:1;background:var(--subtle);border-radius:calc(14px * var(--rk));padding:16px 8px 12px;text-align:center}
 .cd-n{font-weight:700;letter-spacing:-0.03em;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
 .cd-u{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px}
 .cd-cap{font-size:13px;color:var(--text-2);margin-top:12px;text-align:center}

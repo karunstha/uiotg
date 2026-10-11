@@ -33,7 +33,7 @@ export const funnel = defineTemplate({
 .fn-label{font-size:14px;color:var(--text);line-height:18px}
 .fn-step{font-size:12px;color:var(--muted);line-height:16px;font-variant-numeric:tabular-nums}
 .fn-track{height:36px;display:flex;justify-content:center}
-.fn-bar{height:36px;border-radius:4px;min-width:3px}
+.fn-bar{height:36px;border-radius:calc(4px * var(--rk));min-width:3px}
 .fn-val{text-align:right;font-variant-numeric:tabular-nums;min-width:96px}
 .fn-num{font-size:14px;font-weight:600;color:var(--text)}
 .fn-pct{font-size:12px;color:var(--text-2)}

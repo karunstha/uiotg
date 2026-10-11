@@ -31,7 +31,7 @@ RUN npx playwright install --with-deps chromium-headless-shell \
 
 COPY --from=build /app/dist ./dist
 # Owned by the runtime user so a mounted volume here is writable.
-RUN mkdir -p /tmp/uiotg-images && chown node:node /tmp/uiotg-images
+RUN mkdir -p /tmp/uiotg-images /data/themes && chown node:node /tmp/uiotg-images /data/themes
 
 USER node
 EXPOSE 8080

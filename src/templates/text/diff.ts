@@ -98,7 +98,7 @@ export const diff = defineTemplate({
   },
   background: 'plane',
   css: /* css */ `
-.df{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.df{border:1px solid var(--border);border-radius:calc(12px * var(--rk));overflow:hidden;background:var(--surface)}
 .df-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--grid);font-size:13px}
 .df-file{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--text);font-family:var(--font-mono)}
 .df-file .icon{color:var(--muted)}
@@ -113,13 +113,13 @@ export const diff = defineTemplate({
 .df-row.del{background:color-mix(in srgb, var(--critical) 10%, transparent)}
 .df-row.add{background:color-mix(in srgb, var(--good) 12%, transparent)}
 .df-row.del .df-s{color:var(--negative)}.df-row.add .df-s{color:var(--positive)}
-.df-row.del mark{background:color-mix(in srgb, var(--critical) 28%, transparent);color:inherit;border-radius:3px}
-.df-row.add mark{background:color-mix(in srgb, var(--good) 32%, transparent);color:inherit;border-radius:3px}
+.df-row.del mark{background:color-mix(in srgb, var(--critical) 28%, transparent);color:inherit;border-radius:calc(3px * var(--rk))}
+.df-row.add mark{background:color-mix(in srgb, var(--good) 32%, transparent);color:inherit;border-radius:calc(3px * var(--rk))}
 .df-gap{padding:3px 14px 3px 98px;color:var(--muted);font-size:12px;background:var(--subtle);font-family:var(--font-sans)}
 .df-words{padding:16px 18px;font-size:16px;line-height:1.7;color:var(--text);white-space:pre-wrap}
 .df-words del{background:color-mix(in srgb, var(--critical) 16%, transparent);color:var(--negative);text-decoration:line-through;
-  text-decoration-color:color-mix(in srgb, var(--critical) 60%, transparent);border-radius:3px}
-.df-words ins{background:color-mix(in srgb, var(--good) 18%, transparent);color:var(--positive);text-decoration:none;border-radius:3px}
+  text-decoration-color:color-mix(in srgb, var(--critical) 60%, transparent);border-radius:calc(3px * var(--rk))}
+.df-words ins{background:color-mix(in srgb, var(--good) 18%, transparent);color:var(--positive);text-decoration:none;border-radius:calc(3px * var(--rk))}
 `,
   render(d) {
     const parsed = d.patch ? parsePatch(d.patch) : null;

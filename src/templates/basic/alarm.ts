@@ -98,7 +98,7 @@ export const alarm = defineTemplate({
   fit: 'content',
   minWidth: 320,
   css: /* css */ `
-.am-next{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--subtle);margin-bottom:14px;font-size:14px;color:var(--text-2)}
+.am-next{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:calc(12px * var(--rk));background:var(--subtle);margin-bottom:14px;font-size:14px;color:var(--text-2)}
 .am-next b{color:var(--text);font-weight:620}
 .am-next .icon{color:var(--accent);flex:none}
 .am-row{display:flex;align-items:center;gap:16px;padding:12px 0}
@@ -108,7 +108,7 @@ export const alarm = defineTemplate({
 .am-main{flex:1;min-width:0}
 .am-label{font-size:14px;font-weight:600;color:var(--text)}
 .am-rep{font-size:13px;color:var(--text-2);margin-top:1px}
-.am-state{font-size:12px;font-weight:650;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.am-state{font-size:12px;font-weight:650;padding:3px 9px;border-radius:var(--pill);white-space:nowrap}
 .am-state.am-on{background:color-mix(in srgb, var(--accent) 14%, var(--surface));color:var(--accent)}
 .am-state.am-off{background:var(--subtle);color:var(--muted)}
 .am-row.am-dis .am-time,.am-row.am-dis .am-label{color:var(--muted)}

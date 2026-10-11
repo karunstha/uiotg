@@ -37,18 +37,18 @@ export const notification = defineTemplate({
   background: 'plane',
   css: /* css */ `
 .nt{position:relative}
-.nt-card{position:relative;z-index:2;background:var(--surface);border-radius:20px;padding:14px 16px;
+.nt-card{position:relative;z-index:2;background:var(--surface);border-radius:calc(20px * var(--rk));padding:14px 16px;
   box-shadow:0 1px 2px rgba(0,0,0,.06),0 10px 30px -10px rgba(0,0,0,.25);border:1px solid var(--border)}
-.nt-ghost{position:absolute;left:50%;transform:translateX(-50%);height:24px;border-radius:0 0 18px 18px;background:var(--surface);
+.nt-ghost{position:absolute;left:50%;transform:translateX(-50%);height:24px;border-radius:0 0 calc(18px * var(--rk)) calc(18px * var(--rk));background:var(--surface);
   border:1px solid var(--border);border-top:0}
 .nt-head{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
 .nt-app{font-weight:600;letter-spacing:.04em;text-transform:uppercase;flex:1}
-.nt-ico{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:none}
+.nt-ico{width:22px;height:22px;border-radius:calc(6px * var(--rk));display:flex;align-items:center;justify-content:center;flex:none}
 .nt-body{display:flex;gap:12px;margin-top:8px}
 .nt-text{flex:1;min-width:0}
 .nt-title{font-size:15px;font-weight:650;color:var(--text);line-height:1.3}
 .nt-msg{font-size:14px;line-height:1.4;color:var(--text-2);margin-top:2px}
-.nt-thumb{width:48px;height:48px;border-radius:10px;flex:none}
+.nt-thumb{width:48px;height:48px;border-radius:calc(10px * var(--rk));flex:none}
 .nt-more{margin-top:10px;font-size:12px;color:var(--muted)}
 `,
   render(d, ctx) {

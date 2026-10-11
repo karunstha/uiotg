@@ -31,15 +31,15 @@ export const volume = defineTemplate({
   width: 440,
   css: /* css */ `
 .vo-top{display:flex;align-items:center;gap:12px}
-.vo-ico{width:40px;height:40px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;background:var(--subtle);color:var(--text)}
+.vo-ico{width:40px;height:40px;border-radius:calc(12px * var(--rk));flex:none;display:flex;align-items:center;justify-content:center;background:var(--subtle);color:var(--text)}
 .vo-main{flex:1;min-width:0}
 .vo-label{font-size:16px;font-weight:620;color:var(--text)}
 .vo-cap{font-size:13px;color:var(--text-2);margin-top:1px}
 .vo-val{font-size:22px;font-weight:650;letter-spacing:-0.02em;color:var(--text);font-variant-numeric:tabular-nums}
 .vo-val.vo-off{color:var(--muted);font-size:15px}
 .vo-row{display:flex;align-items:center;gap:12px;margin-top:18px;color:var(--muted)}
-.vo-track{position:relative;flex:1;height:8px;border-radius:999px}
-.vo-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+.vo-track{position:relative;flex:1;height:8px;border-radius:var(--pill)}
+.vo-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--pill)}
 `,
   render(d, ctx) {
     const k = KINDS[d.kind];

@@ -76,7 +76,7 @@ export const albumCard = defineTemplate({
 .al-veil{position:absolute;inset:0;z-index:-1;background:color-mix(in srgb, var(--surface) 64%, transparent)}
 .al-body{padding:36px}
 .al-top{display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:center}
-.al-cover{border-radius:10px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.55);
+.al-cover{border-radius:calc(10px * var(--rk));display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.55);
   box-shadow:0 22px 50px -16px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.06)}
 .al-eyebrow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
 .al-title{font-size:34px;font-weight:720;letter-spacing:-0.028em;line-height:1.08;margin-top:10px;color:var(--text);text-wrap:balance}
@@ -85,11 +85,11 @@ export const albumCard = defineTemplate({
 .al-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
 .al-tags .tag{background:color-mix(in srgb, var(--text) 9%, transparent);color:var(--text)}
 .al-progress{margin-top:26px}
-.al-track{position:relative;height:5px;border-radius:999px;background:color-mix(in srgb, var(--text) 16%, transparent)}
-.al-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--text)}
+.al-track{position:relative;height:5px;border-radius:var(--pill);background:color-mix(in srgb, var(--text) 16%, transparent)}
+.al-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--pill);background:var(--text)}
 .al-times{display:flex;justify-content:space-between;margin-top:9px;font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums}
 .al-list{margin-top:30px;border-top:1px solid color-mix(in srgb, var(--text) 12%, transparent)}
-.al-row{display:grid;grid-template-columns:28px 1fr auto;gap:14px;align-items:center;padding:11px 8px;border-radius:8px}
+.al-row{display:grid;grid-template-columns:28px 1fr auto;gap:14px;align-items:center;padding:11px 8px;border-radius:calc(8px * var(--rk))}
 .al-row + .al-row{box-shadow:inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent)}
 .al-row.on{background:color-mix(in srgb, var(--text) 8%, transparent);box-shadow:none}
 .al-row.on + .al-row{box-shadow:none}

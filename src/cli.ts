@@ -10,6 +10,7 @@ import { startHttpServer } from './http.ts';
 import { createServer, VERSION } from './server.ts';
 import { chooseVisual, type Intent } from './auto.ts';
 import { minimalData } from './stress.ts';
+import { PRESETS } from './core/themes.ts';
 
 const HELP = `uiotg ${VERSION} — User Interface On The Go
 
@@ -21,16 +22,17 @@ Usage:
   uiotg render <template> [options]              Render to an image file
   uiotg html <template> [options]                Write the intermediate HTML document
   uiotg visualize --data <raw> [--title] [--intent]   Let uiotg pick the template for raw data
-  uiotg gallery [--out dir] [--theme both] [--minimal]   Render every template's example (or its bare-minimum data)
+  uiotg gallery [--out dir] [--theme both|all|a,b] [--minimal]   Render every template's example (or its bare-minimum data)
 
 Render options:
   --data <json | @file.json | ->   Template data (default: the template's example)
   --out <file>                     Output path (default: <template>.png)
   --width <px> --height <px> --scale <1-3> --padding <px>
-  --theme light|dark   --format png|jpeg   --transparent   --accent <#hex>
+  --theme <preset | saved name | JSON theme>   --format png|jpeg   --transparent   --accent <#hex>
 
 Environment:
-  UIOTG_THEME, UIOTG_SCALE, UIOTG_FORMAT   Default render options
+  UIOTG_THEME, UIOTG_SCALE, UIOTG_FORMAT   Default render options (a saved default theme wins over UIOTG_THEME)
+  UIOTG_THEMES_DIR                         Where custom themes are saved (default ~/.config/uiotg/themes)
   UIOTG_OUTPUT_DIR                         Also save every MCP render here
   UIOTG_TOOLS=per-template                 Same as --tools per-template
   UIOTG_CHROMIUM_PATH                      Use a specific Chrome/Chromium binary
@@ -77,7 +79,7 @@ function renderOptions(): RenderOptions {
     height: num(flags.height),
     scale: num(flags.scale),
     padding: num(flags.padding),
-    theme: flags.theme as RenderOptions['theme'],
+    theme: flags.theme?.trim().startsWith('{') ? JSON.parse(flags.theme) : flags.theme,
     format: flags.format as RenderOptions['format'],
     accent: flags.accent,
     transparent: flags.transparent,
@@ -204,7 +206,8 @@ async function main(): Promise<void> {
 async function gallery(renderer: ReturnType<typeof createRenderer>): Promise<void> {
   const out = resolve(flags.out ?? 'gallery');
   await mkdir(out, { recursive: true });
-  const themes: Array<'light' | 'dark'> = flags.theme === 'dark' ? ['dark'] : flags.theme === 'light' ? ['light'] : ['light', 'dark'];
+  // "both" (default): light and dark; "all": every preset; or a comma-separated list of theme names.
+  const themes = !flags.theme || flags.theme === 'both' ? ['light', 'dark'] : flags.theme === 'all' ? Object.keys(PRESETS) : flags.theme.split(',');
   const only = flags.only ? new Set(flags.only.split(',')) : null;
   const templates = renderer.registry.list().filter((t) => !only || only.has(t.id));
   const entries: string[] = [];

@@ -107,7 +107,7 @@ export const dashboard = defineTemplate({
   background: 'plane',
   css: /* css */ `
 .db-grid{display:grid;gap:${GAP}px;align-items:stretch}
-.db-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;min-width:0}
+.db-card{background:var(--surface);border:1px solid var(--border);border-radius:calc(14px * var(--rk));overflow:hidden;min-width:0}
 .db-card > .block{height:100%}
 .db-card:has(> .block.bare){background:none;border:0;border-radius:0;overflow:visible}
 .db-card .hdr{margin-bottom:14px}

@@ -174,7 +174,7 @@ export const weather = defineTemplate({
   },
   width: 560,
   css: /* css */ `
-.wx-head.on-bk{border-radius:16px;padding:20px 22px 24px;color:#fff}
+.wx-head.on-bk{border-radius:calc(16px * var(--rk));padding:20px 22px 24px;color:#fff}
 .wx-head.on-art .wx-loc,.wx-head.on-art .wx-temp,.wx-head.on-art .wx-cond{color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.25)}
 .wx-head.on-art .wx-loc .icon,.wx-head.on-art .wx-date,.wx-head.on-art .wx-hl{color:rgba(255,255,255,.85)}
 .wx-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
@@ -186,7 +186,7 @@ export const weather = defineTemplate({
 .wx-cond{font-size:17px;font-weight:550;color:var(--text)}
 .wx-hl{font-size:14px;color:var(--text-2);margin-top:3px;font-variant-numeric:tabular-nums}
 .wx-facts{display:grid;gap:8px;margin-top:22px}
-.wx-fact{background:var(--subtle);border-radius:10px;padding:10px 11px;min-width:0}
+.wx-fact{background:var(--subtle);border-radius:calc(10px * var(--rk));padding:10px 11px;min-width:0}
 .wx-fl{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
   color:var(--text-2);white-space:nowrap}
 .wx-fv{font-size:16px;font-weight:600;color:var(--text);margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -201,8 +201,8 @@ export const weather = defineTemplate({
 .wx-dn{font-size:15px;font-weight:550;color:var(--text)}
 .wx-lo{font-size:15px;color:var(--text-2);text-align:right;font-variant-numeric:tabular-nums}
 .wx-hi{font-size:15px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
-.wx-range{position:relative;height:6px;border-radius:999px;background:var(--subtle)}
-.wx-bar{position:absolute;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg, #5598e7, #eda100)}
+.wx-range{position:relative;height:6px;border-radius:var(--pill);background:var(--subtle)}
+.wx-bar{position:absolute;top:0;bottom:0;border-radius:var(--pill);background:linear-gradient(90deg, #5598e7, #eda100)}
 `,
   async render(d, ctx) {
     const c = d.current;

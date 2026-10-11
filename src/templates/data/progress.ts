@@ -49,9 +49,9 @@ export const progress = defineTemplate({
 .pg-label .icon{color:var(--text-2)}
 .pg-value{font-size:14px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
 .pg-value .of{color:var(--muted);font-weight:500}
-.pg-track{position:relative;height:10px;border-radius:999px}
-.pg-fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
-.pg-target{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:1px;background:var(--text);margin-left:-1px}
+.pg-track{position:relative;height:10px;border-radius:var(--pill)}
+.pg-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--pill)}
+.pg-target{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:calc(1px * var(--rk));background:var(--text);margin-left:-1px}
 .pg-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
 .pg-caption{font-size:12px;color:var(--text-2)}
 `,

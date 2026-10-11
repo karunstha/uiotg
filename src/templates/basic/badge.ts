@@ -37,7 +37,7 @@ export const badge = defineTemplate({
   padding: 12,
   css: /* css */ `
 .bd-wrap{display:flex;justify-content:center}
-.bd{display:inline-flex;align-items:stretch;border-radius:999px;overflow:hidden;font-weight:600;white-space:nowrap;line-height:1}
+.bd{display:inline-flex;align-items:stretch;border-radius:var(--pill);overflow:hidden;font-weight:600;white-space:nowrap;line-height:1}
 .bd > span{display:inline-flex;align-items:center;gap:5px}
 .bd-l{color:var(--text)}
 `,

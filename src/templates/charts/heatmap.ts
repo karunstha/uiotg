@@ -60,12 +60,12 @@ export const heatmap = defineTemplate({
 .hm-c{white-space:nowrap}
 .hm-key{list-style:none;display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:6px 18px;margin-top:12px;font-size:13px;color:var(--text-2)}
 .hm-key li{display:flex;gap:8px;min-width:0}
-.hm-key b{flex:none;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--subtle);color:var(--text);font-size:11px;display:flex;align-items:center;justify-content:center}
-.hm-c{border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;
+.hm-key b{flex:none;min-width:20px;height:20px;padding:0 5px;border-radius:var(--pill);background:var(--subtle);color:var(--text);font-size:11px;display:flex;align-items:center;justify-content:center}
+.hm-c{border-radius:calc(3px * var(--rk));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;
   font-variant-numeric:tabular-nums;overflow:hidden}
 .hm-nil{background:var(--subtle);color:var(--muted)}
 .hm-scale{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
-.hm-bar{width:160px;height:8px;border-radius:4px}
+.hm-bar{width:160px;height:8px;border-radius:calc(4px * var(--rk))}
 `,
   render(d, ctx) {
     const { theme } = ctx;

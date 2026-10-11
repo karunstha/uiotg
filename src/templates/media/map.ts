@@ -68,15 +68,15 @@ export const map = defineTemplate({
   },
   width: 800,
   css: /* css */ `
-.mp{position:relative;overflow:hidden;border-radius:12px;border:1px solid var(--border);background:var(--subtle)}
+.mp{position:relative;overflow:hidden;border-radius:calc(12px * var(--rk));border:1px solid var(--border);background:var(--subtle)}
 .mp-tile{position:absolute;width:256px;height:256px;max-width:none}
 .mp svg{position:absolute;inset:0}
 .mp-lbl{position:absolute;font-size:12px;line-height:16px;font-weight:600;color:var(--text);text-align:center;
-  background:var(--surface);padding:3px 8px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+  background:var(--surface);padding:3px 8px;border-radius:calc(10px * var(--rk));box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .mp-attr{position:absolute;right:0;bottom:0;font-size:10px;color:#555;background:rgba(255,255,255,.75);padding:1px 6px;border-top-left-radius:6px}
 .mp-key{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--text-2)}
 .mp-key span{display:inline-flex;align-items:center;gap:6px}
-.mp-key i{display:inline-block;width:16px;height:4px;border-radius:2px}
+.mp-key i{display:inline-block;width:16px;height:4px;border-radius:calc(2px * var(--rk))}
 `,
   render(d, ctx) {
     const { theme } = ctx;

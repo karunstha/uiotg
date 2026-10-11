@@ -83,11 +83,11 @@ export const comparison = defineTemplate({
 .cm-name{font-size:16px;font-weight:650;letter-spacing:-0.01em}
 .cm-desc{font-size:12.5px;color:var(--text-2)}
 .cm-price{font-size:13px;font-weight:600;color:var(--text);margin-top:2px}
-.cm-badge{font-size:11px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--accent);
-  padding:3px 9px;border-radius:999px;margin-bottom:4px}
+.cm-badge{font-size:11px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--on-accent);background:var(--accent);
+  padding:3px 9px;border-radius:var(--pill);margin-bottom:4px}
 .cm-hl{background:color-mix(in srgb, var(--accent) 7%, transparent)}
-.cm-head.cm-hl{border-top:3px solid var(--accent);border-radius:12px 12px 0 0}
-.cm-last.cm-hl{border-radius:0 0 12px 12px;border-bottom-color:transparent}
+.cm-head.cm-hl{border-top:3px solid var(--accent);border-radius:calc(12px * var(--rk)) calc(12px * var(--rk)) 0 0}
+.cm-last.cm-hl{border-radius:0 0 calc(12px * var(--rk)) calc(12px * var(--rk));border-bottom-color:transparent}
 .cm-yes{color:var(--good)}.cm-no{color:var(--muted)}.cm-nil{color:var(--muted)}
 .cm-footer{margin-top:14px;font-size:12px;color:var(--muted)}
 `,

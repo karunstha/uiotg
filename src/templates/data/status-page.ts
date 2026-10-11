@@ -79,12 +79,12 @@ export const statusPage = defineTemplate({
   },
   width: (d) => (d.services.some((s) => s.history?.length) ? 760 : 560),
   css: /* css */ `
-.ss-banner{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:12px;font-size:16px;font-weight:650;color:var(--text);
+.ss-banner{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:calc(12px * var(--rk));font-size:16px;font-weight:650;color:var(--text);
   background:color-mix(in srgb, var(--c) 12%, var(--surface));border:1px solid color-mix(in srgb, var(--c) 35%, transparent)}
 .ss-banner .icon{color:var(--c)}
 .ss-upd{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--text-2)}
 .ss-title{font-size:20px;font-weight:650;letter-spacing:-0.012em;margin-bottom:14px;color:var(--text)}
-.ss-list{margin-top:18px;border:1px solid var(--border);border-radius:12px}
+.ss-list{margin-top:18px;border:1px solid var(--border);border-radius:calc(12px * var(--rk))}
 .ss-svc{padding:14px 16px}
 .ss-svc + .ss-svc{border-top:1px solid var(--grid)}
 .ss-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -93,7 +93,7 @@ export const statusPage = defineTemplate({
 .ss-state{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:550;color:var(--text-2);white-space:nowrap}
 .ss-state .icon{color:var(--c)}
 .ss-bars{display:flex;gap:2px;height:28px;margin-top:10px}
-.ss-bars span{flex:1;border-radius:2px;min-width:2px}
+.ss-bars span{flex:1;border-radius:calc(2px * var(--rk));min-width:2px}
 .ss-axis{display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .ss-inc{margin-top:18px}
 .ss-inc-h{font-size:13px;font-weight:650;color:var(--text-2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
@@ -103,7 +103,7 @@ export const statusPage = defineTemplate({
 .ss-i-time{font-size:12px;color:var(--muted);margin-top:3px}
 .ss-key{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--text-2)}
 .ss-key span{display:inline-flex;align-items:center;gap:5px}
-.ss-key i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.ss-key i{width:9px;height:9px;border-radius:calc(2px * var(--rk));display:inline-block}
 `,
   render(d) {
     const worst = d.services.reduce<State>((w, s) => (META[s.status].rank > META[w].rank ? s.status : w), 'operational');

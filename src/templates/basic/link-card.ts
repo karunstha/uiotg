@@ -36,13 +36,13 @@ export const linkCard = defineTemplate({
   padding: 20,
   background: 'plane',
   css: /* css */ `
-.lk{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}
+.lk{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:calc(14px * var(--rk));overflow:hidden;background:var(--surface)}
 .lk.h{flex-direction:row}
 .lk-img{aspect-ratio:1.91/1}
 .lk.h .lk-img{aspect-ratio:auto;width:132px;flex:none}
 .lk-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:5px;min-width:0}
 .lk-site{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2)}
-.lk-fav{width:16px;height:16px;border-radius:4px;flex:none}
+.lk-fav{width:16px;height:16px;border-radius:calc(4px * var(--rk));flex:none}
 .lk-site .icon{color:var(--muted)}
 .lk-title{font-size:16px;font-weight:650;line-height:1.3;color:var(--text);letter-spacing:-0.01em}
 .lk-desc{font-size:14px;line-height:1.45;color:var(--text-2)}

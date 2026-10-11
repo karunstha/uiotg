@@ -110,7 +110,7 @@ export const table = defineTemplate({
 .tb-bar{display:flex;align-items:center;gap:10px;justify-content:flex-end}
 /* Fixed-width track anchored to the cell's right edge, so every bar shares one baseline. */
 .tb-bar-track{flex:none;width:110px;height:8px;display:flex;justify-content:flex-start}
-.tb-bar-fill{height:8px;border-radius:0 4px 4px 0;background:var(--accent)}
+.tb-bar-fill{height:8px;border-radius:0 calc(4px * var(--rk)) calc(4px * var(--rk)) 0;background:var(--accent)}
 .tb-caption{margin-top:12px;font-size:12px;color:var(--muted)}
 `,
   render(d, ctx) {

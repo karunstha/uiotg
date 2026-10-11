@@ -186,7 +186,7 @@ export const watchlist = defineTemplate({
 .wl-sym{font-size:15px;font-weight:700;color:var(--text)}
 .wl-name{font-size:12.5px;color:var(--text-2);margin-top:1px}
 .wl-price{font-size:15px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.wl-pill{font-size:13px;font-weight:650;color:#fff;border-radius:7px;padding:4px 8px;text-align:right;min-width:72px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wl-pill{font-size:13px;font-weight:650;color:#fff;border-radius:calc(7px * var(--rk));padding:4px 8px;text-align:right;min-width:72px;font-variant-numeric:tabular-nums;white-space:nowrap}
 `,
   render(d, ctx) {
     const { theme } = ctx;

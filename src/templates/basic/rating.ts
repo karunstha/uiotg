@@ -56,8 +56,8 @@ export const rating = defineTemplate({
 .rt-dist{flex:1;display:flex;flex-direction:column;gap:7px}
 .rt-row{display:grid;grid-template-columns:24px 1fr 38px;gap:10px;align-items:center;font-size:12px;color:var(--text-2);
   font-variant-numeric:tabular-nums}
-.rt-bar{height:8px;border-radius:999px;background:var(--subtle);overflow:hidden}
-.rt-bar span{display:block;height:100%;border-radius:999px}
+.rt-bar{height:8px;border-radius:var(--pill);background:var(--subtle);overflow:hidden}
+.rt-bar span{display:block;height:100%;border-radius:var(--pill)}
 .rt-row b{font-weight:500;text-align:right}
 `,
   render(d, ctx) {

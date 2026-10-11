@@ -66,14 +66,14 @@ export const mediaCard = defineTemplate({
 .mv-bg{position:absolute;inset:-80px;z-index:-2;background-size:cover;background-position:center;filter:blur(48px) saturate(1.3);opacity:.7}
 .mv-veil{position:absolute;inset:0;z-index:-1;background:color-mix(in srgb, var(--surface) 72%, transparent)}
 .mv-body{display:grid;grid-template-columns:auto minmax(0, 1fr);gap:28px;padding:32px}
-.mv-poster{width:180px;aspect-ratio:2/3;border-radius:10px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);
+.mv-poster{width:180px;aspect-ratio:2/3;border-radius:calc(10px * var(--rk));display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);
   box-shadow:0 18px 40px -14px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.06)}
 .mv-kind{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
 .mv-title{font-size:30px;font-weight:750;letter-spacing:-0.025em;line-height:1.1;color:var(--text);margin-top:8px;text-wrap:balance}
 .mv-title .mv-year{font-weight:500;color:var(--text-2)}
 .mv-by{font-size:15px;color:var(--text-2);margin-top:4px}
 .mv-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:12px;font-size:13.5px;color:var(--text-2)}
-.mv-cert{border:1px solid var(--axis);border-radius:4px;padding:0 6px;font-size:12px;font-weight:650;color:var(--text)}
+.mv-cert{border:1px solid var(--axis);border-radius:calc(4px * var(--rk));padding:0 6px;font-size:12px;font-weight:650;color:var(--text)}
 .mv-ratings{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px}
 .mv-score{display:flex;align-items:baseline;gap:6px}
 .mv-score b{font-size:24px;font-weight:750;color:var(--text);letter-spacing:-0.02em}
@@ -84,8 +84,8 @@ export const mediaCard = defineTemplate({
 .mv-row b{color:var(--text);font-weight:600}
 .mv-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .mv-prog{margin-top:14px}
-.mv-track{height:6px;border-radius:999px;background:color-mix(in srgb, var(--text) 14%, transparent);overflow:hidden}
-.mv-track span{display:block;height:100%;border-radius:999px;background:var(--accent)}
+.mv-track{height:6px;border-radius:var(--pill);background:color-mix(in srgb, var(--text) 14%, transparent);overflow:hidden}
+.mv-track span{display:block;height:100%;border-radius:var(--pill);background:var(--accent)}
 .mv-pl{display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-top:6px}
 `,
   render(d, ctx) {

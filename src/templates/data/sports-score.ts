@@ -78,9 +78,9 @@ export const sportsScore = defineTemplate({
   },
   width: 640,
   css: /* css */ `
-.sc-hero{border-radius:16px;padding:18px 20px 22px;color:#fff}
+.sc-hero{border-radius:calc(16px * var(--rk));padding:18px 20px 22px;color:#fff}
 .sc-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;font-weight:600;opacity:.9}
-.sc-status{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(0,0,0,.35);white-space:nowrap;
+.sc-status{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--pill);background:rgba(0,0,0,.35);white-space:nowrap;
   font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .sc-status i{width:7px;height:7px;border-radius:50%;background:#ff4d4f;box-shadow:0 0 0 3px rgba(255,77,79,.3)}
 .sc-board{display:grid;grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr);align-items:center;gap:14px;margin-top:18px}

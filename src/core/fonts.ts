@@ -15,6 +15,10 @@ const SOURCES = [
   { pkg: '@fontsource-variable/inter', css: 'wght.css', family: 'Inter' },
   { pkg: '@fontsource-variable/inter', css: 'wght-italic.css', family: 'Inter' },
   { pkg: '@fontsource-variable/jetbrains-mono', css: 'wght.css', family: 'JetBrains Mono' },
+  // Theme fonts (see core/themes.ts): only fetched by pages that use them.
+  { pkg: '@fontsource-variable/source-serif-4', css: 'wght.css', family: 'Source Serif 4' },
+  { pkg: '@fontsource-variable/source-serif-4', css: 'wght-italic.css', family: 'Source Serif 4' },
+  { pkg: '@fontsource-variable/nunito', css: 'wght.css', family: 'Nunito' },
 ];
 
 let cssCache: string | undefined;

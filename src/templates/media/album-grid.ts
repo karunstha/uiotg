@@ -55,17 +55,17 @@ export const albumGrid = defineTemplate({
   },
   css: /* css */ `
 .cg-grid{display:grid;gap:10px}
-.cg-tile{position:relative;aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;justify-content:flex-end;
+.cg-tile{position:relative;aspect-ratio:1;border-radius:calc(8px * var(--rk));display:flex;flex-direction:column;justify-content:flex-end;
   color:rgba(255,255,255,.6)}
 .cg-ph{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center}
 .cg-ph-title{font-size:16px;font-weight:650;color:#fff;letter-spacing:-0.01em;text-shadow:0 1px 8px rgba(0,0,0,.25)}
-.cg-scrim{margin-top:auto;padding:44px 12px 11px;border-radius:0 0 8px 8px;
+.cg-scrim{margin-top:auto;padding:44px 12px 11px;border-radius:0 0 calc(8px * var(--rk)) calc(8px * var(--rk));
   background:linear-gradient(180deg, transparent, rgba(0,0,0,.72));color:#fff}
 /* Long titles make the tile taller rather than being cut off. */
 .cg-t{font-size:14px;font-weight:650;line-height:1.25;letter-spacing:-0.005em}
 .cg-s{font-size:12px;opacity:.82;margin-top:1px}
 .cg-c{font-size:11px;opacity:.7;margin-top:3px;font-variant-numeric:tabular-nums}
-.cg-rank{position:absolute;top:8px;left:8px;min-width:26px;height:26px;padding:0 7px;border-radius:999px;background:rgba(0,0,0,.6);
+.cg-rank{position:absolute;top:8px;left:8px;min-width:26px;height:26px;padding:0 7px;border-radius:var(--pill);background:rgba(0,0,0,.6);
   color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
 .cg-below{margin-top:8px}
 .cg-below .cg-t{color:var(--text)}

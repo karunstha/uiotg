@@ -3,9 +3,13 @@ import { after, before, describe, test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { createRenderer, createServer } from '../src/index.ts';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createRenderer, createServer, ThemeStore } from '../src/index.ts';
 
-const renderer = createRenderer({ browser: { allowNetwork: false } });
+const themes = new ThemeStore(mkdtempSync(join(tmpdir(), 'uiotg-themes-')));
+const renderer = createRenderer({ browser: { allowNetwork: false }, themes });
 
 async function connect(toolMode: 'single' | 'per-template' = 'single'): Promise<Client> {
   const server = createServer({ renderer, toolMode });
@@ -27,12 +31,54 @@ describe('MCP server', () => {
 
   test('exposes the core tools with instructions', async () => {
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name).sort(), ['get_template', 'list_templates', 'render', 'visualize']);
+    assert.deepEqual(tools.map((t) => t.name).sort(), [
+      'delete_theme',
+      'get_template',
+      'list_templates',
+      'list_themes',
+      'render',
+      'save_theme',
+      'set_default_theme',
+      'visualize',
+    ]);
     const render = tools.find((t) => t.name === 'render')!;
     assert.match(render.description ?? '', /bar_chart/);
     const props = render.inputSchema.properties as Record<string, { enum?: string[] }>;
     assert.ok(props.template?.enum?.includes('album_card'));
     assert.match(client.getInstructions() ?? '', /get_template/);
+  });
+
+  test('saves a custom theme, makes it the default and deletes it', async () => {
+    const theme = { base: 'light', background: '#fff0f5', text: '#3b1d2a', accent: '#e0457b' };
+    const saved = (await client.callTool({ name: 'save_theme', arguments: { name: 'rose', theme, make_default: true } })) as CallToolResult;
+    assert.ok(!saved.isError, JSON.stringify(saved.content));
+    assert.equal(saved.content[0]!.type, 'image');
+    assert.equal(themes.getDefault(), 'rose');
+    // Renders that don't pick a theme now use it.
+    const doc = await renderer.toHtml('stats', { items: [{ label: 'A', value: 1 }] });
+    assert.match(doc.html, /--surface:#fff0f5/);
+    const list = (await client.callTool({ name: 'list_themes', arguments: {} })) as CallToolResult;
+    assert.match((list.content[0] as { text: string }).text, /Default theme: rose[\s\S]*Saved themes: rose/);
+    const del = (await client.callTool({ name: 'delete_theme', arguments: { name: 'rose' } })) as CallToolResult;
+    assert.ok(!del.isError);
+    assert.equal(themes.getDefault(), undefined);
+  });
+
+  test('rejects an unreadable theme with what to fix', async () => {
+    const res = (await client.callTool({ name: 'save_theme', arguments: { name: 'pinkpink', theme: { background: '#ffc0cb', text: '#ff69b4' } } })) as CallToolResult;
+    assert.ok(res.isError);
+    assert.match((res.content[0] as { text: string }).text, /text on background .* needs 4.5:1/);
+    assert.deepEqual(themes.names(), []);
+  });
+
+  test('read-only servers hide the theme-writing tools', async () => {
+    const server = createServer({ renderer, readOnlyThemes: true });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    const c = new Client({ name: 'test', version: '0.0.0' });
+    await Promise.all([server.connect(b), c.connect(a)]);
+    const names = (await c.listTools()).tools.map((t) => t.name);
+    assert.ok(names.includes('list_themes') && !names.includes('save_theme') && !names.includes('delete_theme'));
+    await c.close();
   });
 
   test('visualize picks a template for raw rows and explains it', async () => {
