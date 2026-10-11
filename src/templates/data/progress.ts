@@ -9,6 +9,7 @@ import { header, statusBadge } from '../../core/ui.ts';
 export const progress = defineTemplate({
   id: 'progress',
   title: 'Progress / meters',
+  summary: 'progress bars toward goals',
   category: 'data',
   photo: 'keyword',
   description:

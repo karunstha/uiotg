@@ -7,6 +7,7 @@ import { imageBackground, initials } from '../../core/ui.ts';
 export const quote = defineTemplate({
   id: 'quote',
   title: 'Quote',
+  summary: 'a quotation with attribution',
   category: 'text',
   photo: 'title',
   description: 'A pull-quote card with attribution and optional avatar. Use for testimonials, citations and memorable lines.',

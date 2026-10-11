@@ -20,6 +20,7 @@ const WHERE = { movie: 'Streaming on', show: 'Streaming on', book: 'Available at
 export const mediaCard = defineTemplate({
   id: 'media_card',
   title: 'Movie / book / show card',
+  summary: 'a movie, show, book, game or podcast',
   category: 'media',
   description:
     'A title card for a movie, TV series, book, game or podcast: poster or cover, year, creator, rating(s), runtime/pages/seasons, genres, summary, cast, where to watch, and reading or watching progress. Use for recommendations, reviews and "what is this?" answers.',

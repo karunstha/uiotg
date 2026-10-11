@@ -6,6 +6,7 @@ import { defineTemplate } from '../../core/types.ts';
 export const code = defineTemplate({
   id: 'code',
   title: 'Code snippet',
+  summary: 'code snippet with highlighting',
   category: 'text',
   description:
     'A syntax-highlighted code snippet in an editor window, with line numbers and highlighted lines. Supports every common language (ts, python, rust, go, sql, bash, diff, json, …).',

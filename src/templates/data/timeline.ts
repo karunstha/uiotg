@@ -9,6 +9,7 @@ import { header } from '../../core/ui.ts';
 export const timeline = defineTemplate({
   id: 'timeline',
   title: 'Timeline',
+  summary: 'dated history or plan',
   category: 'data',
   photo: 'keyword',
   description:

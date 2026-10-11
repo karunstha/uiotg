@@ -109,6 +109,7 @@ function conditionIcon(c: Condition, night = false): { name: string; color: stri
 export const weather = defineTemplate({
   id: 'weather',
   title: 'Weather',
+  summary: 'current weather and forecast',
   category: 'media',
   description:
     'Weather card: current conditions with a large temperature, feels-like/humidity/wind/precipitation, an hourly strip and a daily forecast with temperature range bars.',

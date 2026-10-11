@@ -17,6 +17,7 @@ const dayNum = (s: string) => {
 export const monthCalendar = defineTemplate({
   id: 'month_calendar',
   title: 'Month calendar',
+  summary: 'a month view with events',
   category: 'data',
   description:
     'A month grid with events on their days (multi-day events span their range), colored by category, with today highlighted. Use for schedules, release plans, rotas, holidays and "what does my month look like".',

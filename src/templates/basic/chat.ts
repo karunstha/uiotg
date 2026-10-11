@@ -8,6 +8,7 @@ import { imageBackground, initials } from '../../core/ui.ts';
 export const chat = defineTemplate({
   id: 'chat',
   title: 'Chat conversation',
+  summary: 'chat conversation bubbles',
   category: 'basic',
   description:
     'A messaging-app conversation: your messages as accent bubbles on the right, others on the left, consecutive messages grouped, optional sender names (group chats), times and a contact header.',

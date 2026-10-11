@@ -9,6 +9,7 @@ import { fitColumns, header } from '../../core/ui.ts';
 export const activity = defineTemplate({
   id: 'activity',
   title: 'Activity rings / health summary',
+  summary: 'fitness rings and health metrics',
   category: 'data',
   photo: 'keyword',
   description:

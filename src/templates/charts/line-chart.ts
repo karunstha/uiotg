@@ -55,6 +55,7 @@ function endLabelsCollide(
 export const lineChart = defineTemplate({
   id: 'line_chart',
   title: 'Line / area chart',
+  summary: 'trend over time',
   category: 'chart',
   description:
     'Change over time or along an ordered axis: one or more lines (up to 8), optionally as (stacked) areas, with end labels and horizontal reference lines for targets or thresholds.',

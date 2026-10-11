@@ -9,6 +9,7 @@ import { header } from '../../core/ui.ts';
 export const math = defineTemplate({
   id: 'math',
   title: 'Math / formulas',
+  summary: 'equations and formulas',
   category: 'text',
   description:
     'Typeset math (LaTeX via KaTeX): one formula, or a worked solution as a sequence of steps with a note beside each. Use for equations, derivations, proofs and calculations. (Markdown documents also support $inline$ and $$block$$ math.)',

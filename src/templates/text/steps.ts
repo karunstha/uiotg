@@ -10,6 +10,7 @@ import { header } from '../../core/ui.ts';
 export const steps = defineTemplate({
   id: 'steps',
   title: 'Steps / how-to',
+  summary: 'numbered how-to steps',
   category: 'text',
   photo: 'keyword',
   description:

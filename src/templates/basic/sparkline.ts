@@ -7,6 +7,7 @@ import { delta, sparkline as drawSparkline, textDelta } from '../../core/ui.ts';
 export const sparkline = defineTemplate({
   id: 'sparkline',
   title: 'Sparkline',
+  summary: 'tiny inline trend',
   category: 'basic',
   description:
     'A tiny trend line with an optional label, current value and change. Use when the shape of a recent trend matters more than exact values, e.g. "price over the last 30 days".',

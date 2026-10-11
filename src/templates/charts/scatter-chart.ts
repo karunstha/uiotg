@@ -50,6 +50,7 @@ function regression(points: Point[]): { slope: number; intercept: number } | nul
 export const scatterChart = defineTemplate({
   id: 'scatter_chart',
   title: 'Scatter / bubble chart',
+  summary: 'relationship between two measures',
   category: 'chart',
   description:
     'Relationship between two numeric variables, with optional bubble size, a few labeled points and per-series trend lines. Keep to ≤ 3 series so colors stay distinguishable.',

@@ -9,6 +9,7 @@ import { header, legend } from '../../core/ui.ts';
 export const agenda = defineTemplate({
   id: 'agenda',
   title: 'Agenda / schedule',
+  summary: 'a day\'s schedule',
   category: 'data',
   photo: 'keyword',
   description:

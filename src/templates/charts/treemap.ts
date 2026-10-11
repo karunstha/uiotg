@@ -15,6 +15,7 @@ const group = z.object({
 export const treemap = defineTemplate({
   id: 'treemap',
   title: 'Treemap',
+  summary: 'nested parts of a whole',
   category: 'chart',
   description:
     'Hierarchical part-to-whole as nested rectangles sized by value: top-level groups (each a color) containing leaves. Use for budgets, disk usage, market share by segment, portfolio weights.',

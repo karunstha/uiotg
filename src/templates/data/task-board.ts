@@ -23,6 +23,7 @@ function columnTone(name: string): 'success' | 'accent' | 'critical' | 'neutral'
 export const taskBoard = defineTemplate({
   id: 'task_board',
   title: 'Task board',
+  summary: 'kanban columns of tasks',
   category: 'data',
   description:
     'A kanban board: columns of cards with tags, assignee, priority, due date and progress, plus per-column counts and WIP limits. Use for sprint and project summaries, backlogs and pipelines.',

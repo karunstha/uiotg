@@ -17,6 +17,7 @@ const ITEM_STATUS = {
 export const list = defineTemplate({
   id: 'list',
   title: 'List / checklist',
+  summary: 'bullet list or checklist',
   category: 'text',
   photo: 'keyword',
   description:

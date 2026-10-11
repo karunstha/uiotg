@@ -9,6 +9,7 @@ import { label, textWidth } from './common.ts';
 export const heatmap = defineTemplate({
   id: 'heatmap',
   title: 'Heatmap',
+  summary: 'values across two categories',
   category: 'chart',
   description:
     'A matrix of values colored on a single-hue sequential scale (or a blue–red diverging scale around zero). Use for activity by day × hour, correlation matrices, cohort retention and any two-dimensional grid.',

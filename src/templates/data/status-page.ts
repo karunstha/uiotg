@@ -30,6 +30,7 @@ const days = (bad: Record<number, number>) => Array.from({ length: 60 }, (_, i) 
 export const statusPage = defineTemplate({
   id: 'status_page',
   title: 'Status page',
+  summary: 'service health and uptime',
   category: 'data',
   description:
     'A service status page: overall banner, each service with its current state, uptime and a per-day history strip, plus recent incidents. Use for system health, on-call summaries and outage reports.',

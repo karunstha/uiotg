@@ -34,6 +34,7 @@ function range(d: { values: Array<{ date: string }>; start?: string; end?: strin
 export const calendarHeatmap = defineTemplate({
   id: 'calendar_heatmap',
   title: 'Calendar heatmap',
+  summary: 'daily activity over a year',
   category: 'chart',
   description:
     'GitHub-style contribution calendar: one cell per day over up to a year, shaded by value, with totals and streaks. Use for activity, habits, commits, sales per day.',

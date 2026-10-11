@@ -63,6 +63,7 @@ function stateText(d: Device, active: boolean): string {
 export const smartHome = defineTemplate({
   id: 'smart_home',
   title: 'Smart home',
+  summary: 'home devices and their states',
   category: 'media',
   description:
     'Home Assistant–style device tiles grouped by room: lights (with brightness and color), switches, plugs, fans, thermostats, locks, doors, blinds, sensors, media and more, each showing its state. Use to report or confirm the state of a home.',

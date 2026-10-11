@@ -10,6 +10,7 @@ import { chartLayout, plotHeightSchema, plotSize, textWidth } from './common.ts'
 export const sankey = defineTemplate({
   id: 'sankey',
   title: 'Sankey / flow diagram',
+  summary: 'flows between stages',
   category: 'chart',
   description:
     'Flows between stages as weighted links (budgets, traffic sources → outcomes, energy, user journeys). Nodes are derived from the links; the graph must be acyclic.',

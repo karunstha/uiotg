@@ -68,6 +68,7 @@ function inText(minutes: number): string {
 export const alarm = defineTemplate({
   id: 'alarm',
   title: 'Alarm',
+  summary: 'alarms and their schedules',
   category: 'basic',
   photo: 'title',
   description:

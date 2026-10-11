@@ -10,6 +10,7 @@ const value = z.union([z.string().max(200), z.number(), z.boolean(), z.null()]);
 export const keyValue = defineTemplate({
   id: 'key_value',
   title: 'Key–value list',
+  summary: 'label/value rows, e.g. receipt or specs',
   category: 'basic',
   photo: 'keyword',
   description:

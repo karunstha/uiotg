@@ -18,6 +18,7 @@ function movingAverage(closes: number[], window: number): Array<number | null> {
 export const candlestick = defineTemplate({
   id: 'candlestick',
   title: 'Candlestick (OHLC)',
+  summary: 'OHLC price history',
   category: 'chart',
   description:
     'Price action as open/high/low/close candles with optional volume pane and moving averages. Use for stocks, crypto and any OHLC series.',

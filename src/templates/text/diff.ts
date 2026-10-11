@@ -55,6 +55,7 @@ function pairMarks(ops: Op[]): Map<Op, Html> {
 export const diff = defineTemplate({
   id: 'diff',
   title: 'Diff / changes',
+  summary: 'before/after changes',
   category: 'text',
   description:
     'What changed between two versions: give `before` and `after` (code, config or prose) or a unified `patch`. Shows +/− lines with changed words highlighted and unchanged stretches collapsed; short prose renders as an inline word diff.',

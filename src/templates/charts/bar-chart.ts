@@ -26,6 +26,7 @@ type Radius = [number, number, number, number];
 export const barChart = defineTemplate({
   id: 'bar_chart',
   title: 'Bar chart',
+  summary: 'compare or rank categories',
   category: 'chart',
   description:
     'Compare values across categories: vertical columns or horizontal bars, grouped or stacked, up to 8 series. Supports sorting, value labels and highlighting categories. Use for rankings, breakdowns and period comparisons.',

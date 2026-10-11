@@ -16,6 +16,7 @@ const SIZES = {
 export const badge = defineTemplate({
   id: 'badge',
   title: 'Badge',
+  summary: 'status/version pill',
   category: 'basic',
   description:
     'A single compact badge: a pill ("Beta") or a split label/value badge ("build | passing", "version | 2.4.1"). The image is sized to the badge. Use for statuses, versions and tags.',

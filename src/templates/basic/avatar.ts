@@ -17,6 +17,7 @@ const STATUS = {
 export const avatar = defineTemplate({
   id: 'avatar',
   title: 'Avatar / user chip',
+  summary: 'a person chip with name and status',
   category: 'basic',
   description:
     'A person chip: round photo (or initials on a generated color), name, optional subtitle, presence status and a role tag. Use to show who someone is, an assignee or the author of something.',

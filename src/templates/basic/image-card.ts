@@ -9,6 +9,7 @@ const RATIOS = { '16:9': 16 / 9, '3:2': 3 / 2, '4:3': 4 / 3, '1:1': 1, '4:5': 4 
 export const imageCard = defineTemplate({
   id: 'image_card',
   title: 'Image with caption',
+  summary: 'a picture with caption',
   category: 'basic',
   description:
     'A picture with an optional title, caption and credit, either below the image or overlaid on it. Use to present a photo, screenshot, product shot or illustration.',

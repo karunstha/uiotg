@@ -16,6 +16,7 @@ function columnsFor(n: number, requested?: number): number {
 export const albumGrid = defineTemplate({
   id: 'album_grid',
   title: 'Album / cover grid',
+  summary: 'grid of covers',
   category: 'media',
   description:
     'A collage of square covers (albums, books, films, podcasts, products) with titles overlaid or below, optional rank and caption such as play counts. Use for "top albums this month", watchlists and galleries.',

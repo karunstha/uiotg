@@ -13,6 +13,7 @@ const point = z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-
 export const map = defineTemplate({
   id: 'map',
   title: 'Map',
+  summary: 'places or routes on a map',
   category: 'media',
   description:
     'A street map with labeled pins and routes, automatically framed to fit them. Give coordinates (lat/lon), not addresses. Use for locations, store finders, trip plans, deliveries and "where is…" answers.',

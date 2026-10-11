@@ -9,6 +9,7 @@ import { imageBackground } from '../../core/ui.ts';
 export const notification = defineTemplate({
   id: 'notification',
   title: 'Notification',
+  summary: 'phone-style push notification',
   category: 'basic',
   photo: 'title',
   description:

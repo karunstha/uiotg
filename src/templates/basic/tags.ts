@@ -19,6 +19,7 @@ const tagSchema = z.union([
 export const tags = defineTemplate({
   id: 'tags',
   title: 'Tags / chips',
+  summary: 'chips, keywords, tag cloud',
   category: 'basic',
   photo: 'keyword',
   description:

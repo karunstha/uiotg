@@ -17,6 +17,7 @@ function niceMax(v: number): number {
 export const radarChart = defineTemplate({
   id: 'radar_chart',
   title: 'Radar chart',
+  summary: 'profile across several dimensions',
   category: 'chart',
   description:
     'Compare 1–4 profiles across 3–12 dimensions on a shared scale (skills, product attributes, scores). Each axis can have its own max.',

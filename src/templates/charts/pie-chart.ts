@@ -9,6 +9,7 @@ import { header, headerHeight } from '../../core/ui.ts';
 export const pieChart = defineTemplate({
   id: 'pie_chart',
   title: 'Donut / pie chart',
+  summary: 'parts of a whole, ≤6 slices',
   category: 'chart',
   description:
     'Part-to-whole at a glance with a donut (or pie) and a legend listing each value and share. Small slices beyond `max_slices` fold into "Other". Prefer a bar chart when values are close or there are many parts.',

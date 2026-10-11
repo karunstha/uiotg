@@ -10,6 +10,7 @@ const value = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 export const comparison = defineTemplate({
   id: 'comparison',
   title: 'Comparison matrix',
+  summary: 'options side by side, e.g. plans',
   category: 'data',
   description:
     'Side-by-side comparison of 2–5 options (plans, products, approaches) against criteria. Booleans render as check / dash icons; one option can be highlighted as recommended.',

@@ -8,6 +8,7 @@ import { imageBackground, initials } from '../../core/ui.ts';
 export const profileCard = defineTemplate({
   id: 'profile_card',
   title: 'Profile card',
+  summary: 'a person or account profile',
   category: 'media',
   photo: 'keyword',
   description:

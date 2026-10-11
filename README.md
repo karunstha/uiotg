@@ -93,7 +93,7 @@ docker compose up -d --build
 |---|---|
 | `visualize` | `{ data, title?, intent? }` → image. Send raw data (a number, text, a list, an object, or rows); uiotg picks the template and says which one and why. |
 | `render` | `{ template, data, options? }` → image. Its description carries the full template catalog. |
-| `list_templates` | Templates with descriptions, optionally filtered by `category`. |
+| `list_templates` | The compact catalog (a few words per template, about 600 tokens for all of them). Filter by `category`; `detailed: true` adds full descriptions and default sizes. The `render` description carries the same catalog, so most agents never need this call. |
 | `get_template` | One template's JSON Schema, default size and a complete example. |
 | `list_themes` | Presets, saved custom themes, the current default, and a guide to every theme field and where it shows up. |
 | `save_theme` | `{ name, theme, make_default? }` → preview image. Saves a custom theme; unreadable ones are rejected with what to fix. |
@@ -246,6 +246,7 @@ Light and dark themes are tuned separately rather than inverted (`src/core/theme
    export const badge = defineTemplate({
      id: 'badge',
      title: 'Badge',
+     summary: 'status/version pill', // a few words for the catalog
      category: 'text',
      description: 'A single pill-shaped label. Use for statuses and version tags.',
      schema: z.object({ label: z.string().max(40), value: z.string().max(40) }),

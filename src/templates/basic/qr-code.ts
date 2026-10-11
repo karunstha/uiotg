@@ -18,6 +18,7 @@ function payload(d: { value?: string; wifi?: { ssid: string; password?: string; 
 export const qrCode = defineTemplate({
   id: 'qr_code',
   title: 'QR code',
+  summary: 'QR code for a link or text',
   category: 'basic',
   description:
     'A scannable QR code for a link, text or Wi-Fi network, with a title and caption. Use to hand a URL, contact or network to someone’s phone.',

@@ -43,6 +43,8 @@ export interface Template<S extends z.ZodType = z.ZodType> {
   id: string;
   title: string;
   category: Category;
+  /** A few words on when to pick it, for the compact catalog (e.g. "trend over time"). */
+  summary: string;
   /** When to pick this template, written for the calling model. */
   description: string;
   schema: S;

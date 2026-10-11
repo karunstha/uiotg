@@ -14,6 +14,7 @@ const KINDS = {
 export const volume = defineTemplate({
   id: 'volume',
   title: 'Volume / level slider',
+  summary: 'a level or setting, e.g. volume',
   category: 'basic',
   description:
     'A level meter showing a setting: volume (with mute), brightness, temperature or any 0–max value, with the device or source it applies to. Use to show or confirm a setting the agent just changed.',

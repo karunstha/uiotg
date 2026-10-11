@@ -17,6 +17,7 @@ const TONE_COLOR = {
 export const textCard = defineTemplate({
   id: 'text_card',
   title: 'Text card',
+  summary: 'short text or answer card',
   category: 'text',
   photo: 'keyword',
   description:

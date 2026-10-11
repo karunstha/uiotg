@@ -9,6 +9,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 export const calendarDate = defineTemplate({
   id: 'calendar_date',
   title: 'Calendar date',
+  summary: 'one date/event, calendar-page style',
   category: 'basic',
   photo: 'title',
   description:

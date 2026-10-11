@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { CATEGORIES, type Category, type Template } from './core/types.ts';
 import { renderOptionsSchema, TemplateDataError, type RenderOptions, type Renderer } from './render/renderer.ts';
 import { chooseVisual, intentSchema } from './auto.ts';
+import { QUERY_FIELD } from './core/backdrop.ts';
 import { buildTheme, checkTheme, PRESETS, themeNameSchema, themeSpecSchema, type ThemeSpec } from './core/themes.ts';
 
 export const VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -67,12 +68,11 @@ function size(t: Template): string {
   return t.height ? `${w} × ${t.height}px` : `${w} wide`;
 }
 
+/** Compact catalog: one line per category, a few words per template. Full descriptions come from get_template. */
 function catalog(templates: Template[]): string {
   const groups = new Map<Category, Template[]>();
   for (const t of templates) groups.set(t.category, [...(groups.get(t.category) ?? []), t]);
-  return [...groups]
-    .map(([cat, ts]) => `${CATEGORIES[cat]}:\n${ts.map((t) => `- ${t.id}: ${t.description}`).join('\n')}`)
-    .join('\n\n');
+  return [...groups].map(([cat, ts]) => `${CATEGORIES[cat]}: ${ts.map((t) => `${t.id}: ${t.summary}`).join(' · ')}`).join('\n');
 }
 
 function errorResult(text: string): CallToolResult {
@@ -176,13 +176,16 @@ export function createServer(opts: ServerOptions): McpServer {
     'list_templates',
     {
       title: 'List templates',
-      description: 'Lists the available UI templates with what each is for. Optionally filter by category.',
-      inputSchema: { category: z.enum(Object.keys(CATEGORIES) as [Category, ...Category[]]).optional() },
+      description: 'Lists the templates in a few words each (the same catalog as in the render description). Filter by category, or set detailed for full descriptions and default sizes.',
+      inputSchema: {
+        category: z.enum(Object.keys(CATEGORIES) as [Category, ...Category[]]).optional(),
+        detailed: z.boolean().default(false).describe('Full description and default size per template (longer)'),
+      },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async ({ category }) => {
+    async ({ category, detailed }) => {
       const list = registry.list(category);
-      const text = list.map((t) => `- ${t.id} (${t.category}, ${size(t)}): ${t.description}`).join('\n');
+      const text = detailed ? list.map((t) => `- ${t.id} (${t.category}, ${size(t)}): ${t.description}`).join('\n') : catalog(list);
       return { content: [{ type: 'text', text: text || 'No templates in that category.' }] };
     },
   );
@@ -208,7 +211,8 @@ export function createServer(opts: ServerOptions): McpServer {
       title: 'Render UI image',
       description:
         `Render data into a UI image using a template. Returns the image.\n\nTemplates:\n${catalog(templates)}\n\n` +
-        'Call get_template for a template’s exact data schema and example.',
+        `Photo backgrounds (data.background_image_query_keyword): ${templates.filter((t) => QUERY_FIELD in ((registry.jsonSchema(t.id).properties as object) ?? {})).map((t) => t.id).join(', ')}.\n\n` +
+        'Call get_template for a template’s full description, exact data schema and an example before rendering it.',
       inputSchema: {
         template: z.enum(ids).describe('Template id from the catalog'),
         data: z.record(z.string(), z.unknown()).describe('Template data, matching the template’s schema (see get_template)'),

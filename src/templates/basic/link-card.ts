@@ -12,6 +12,7 @@ function domainOf(url: string): string {
 export const linkCard = defineTemplate({
   id: 'link_card',
   title: 'Link preview',
+  summary: 'URL preview card',
   category: 'basic',
   photo: 'keyword',
   description:

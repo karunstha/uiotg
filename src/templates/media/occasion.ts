@@ -59,6 +59,7 @@ function defaultTitle(occasion: string, theme: OccasionTheme | null, d: { name?:
 export const occasion = defineTemplate({
   id: 'occasion',
   title: 'Occasion card',
+  summary: 'birthday, holiday or celebration greeting',
   category: 'media',
   description:
     'A festive greeting card for any occasion: a birthday (with age), anniversary, wedding, holiday (Christmas, Diwali, Eid, Lunar New Year…) or anything else (retirement, graduation, a launch). Pass the occasion by name; the background is a matching photo when a photo API key is set, otherwise themed art.',

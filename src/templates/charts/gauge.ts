@@ -23,6 +23,7 @@ function arc(cx: number, cy: number, r: number, from: number, to: number): strin
 export const gauge = defineTemplate({
   id: 'gauge',
   title: 'Gauge',
+  summary: 'one value against a range',
   category: 'chart',
   description:
     'A single value on a min–max arc, with optional status thresholds (zones), a target marker and a status badge. Use for utilization, scores, health and progress toward a limit.',

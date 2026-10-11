@@ -32,6 +32,7 @@ function columnsFor(n: number, requested?: number): number {
 export const stats = defineTemplate({
   id: 'stats',
   title: 'KPI / stat tiles',
+  summary: 'headline numbers, KPI tiles with deltas',
   category: 'data',
   photo: 'keyword',
   description:

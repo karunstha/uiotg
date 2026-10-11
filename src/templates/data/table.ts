@@ -47,6 +47,7 @@ function valueAt(r: Row, col: { key: string; index: number }): Cell | undefined 
 export const table = defineTemplate({
   id: 'table',
   title: 'Table',
+  summary: 'rows and columns',
   category: 'data',
   description:
     'A clean data table with number formatting, right-aligned numeric columns, optional inline bars, tag/status columns, highlighted rows and a totals footer. Rows can be objects or arrays.',

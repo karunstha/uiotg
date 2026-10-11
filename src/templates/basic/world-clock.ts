@@ -29,6 +29,7 @@ function resolveStyle(d: { style: 'auto' | 'cards' | 'list' | 'analog'; cities: 
 export const worldClock = defineTemplate({
   id: 'world_clock',
   title: 'World clock',
+  summary: 'time across several cities',
   category: 'basic',
   description:
     'Current time in several cities at once, each with day/night, the day relative to home (Today / Tomorrow / Yesterday) and the hour difference. Use for distributed teams, travel and scheduling across time zones.',

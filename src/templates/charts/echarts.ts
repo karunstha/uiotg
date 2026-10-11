@@ -7,6 +7,7 @@ import { chartLayout, plotHeightSchema, plotSize } from './common.ts';
 export const echartsTemplate = defineTemplate({
   id: 'echarts',
   title: 'Custom ECharts',
+  summary: 'any custom ECharts option',
   category: 'chart',
   description:
     'Escape hatch for anything the other chart templates don’t cover (boxplot, polar, parallel, graph, sunburst, themeRiver, calendar, multi-grid…): pass a complete Apache ECharts option object. The uiotg theme (palette, fonts, axes) applies automatically; animation and tooltips are off and functions aren’t supported.',

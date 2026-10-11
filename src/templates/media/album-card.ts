@@ -21,6 +21,7 @@ function clock(total: number): string {
 export const albumCard = defineTemplate({
   id: 'album_card',
   title: 'Album / now playing',
+  summary: 'a track, album or now playing',
   category: 'media',
   description:
     'Album art card with an ambient backdrop blurred from the cover. Three layouts: "now_playing" (playback position), "track" (single track info) and "album" (cover, metadata and track list). Covers fall back to a generated gradient.',

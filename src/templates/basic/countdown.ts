@@ -10,6 +10,7 @@ const SECONDS: Record<Unit, number> = { days: 86_400, hours: 3_600, minutes: 60,
 export const countdown = defineTemplate({
   id: 'countdown',
   title: 'Countdown',
+  summary: 'time left until an event',
   category: 'basic',
   photo: 'title',
   description:

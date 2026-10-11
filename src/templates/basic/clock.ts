@@ -36,6 +36,7 @@ export function analogFace(hour: number, minute: number, second: number | null, 
 export const clock = defineTemplate({
   id: 'clock',
   title: 'Clock',
+  summary: 'time in one place',
   category: 'basic',
   photo: 'title',
   description:

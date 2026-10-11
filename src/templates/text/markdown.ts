@@ -7,6 +7,7 @@ import { defineTemplate } from '../../core/types.ts';
 export const markdown = defineTemplate({
   id: 'markdown',
   title: 'Markdown document',
+  summary: 'long formatted notes or report',
   category: 'text',
   description:
     'Renders a GitHub-flavored Markdown document (headings, lists, task lists, tables, quotes, highlighted code blocks, images). Use for notes, docs, READMEs and long-form answers.',

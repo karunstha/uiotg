@@ -14,6 +14,7 @@ function effectiveColumns(d: { columns: number; blocks: Array<{ span: number }> 
 export const dashboard = defineTemplate({
   id: 'dashboard',
   title: 'Dashboard',
+  summary: 'several templates combined in one image',
   category: 'layout',
   description:
     'Composes other templates into one image: a grid of cards, each rendering any non-layout template with its own data. Blocks can span columns. Use for reports, status pages and multi-chart summaries.',

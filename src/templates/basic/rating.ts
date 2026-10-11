@@ -19,6 +19,7 @@ function stars(score: number, max: number, size: number, color: string, track: s
 export const rating = defineTemplate({
   id: 'rating',
   title: 'Rating',
+  summary: 'star or score rating',
   category: 'basic',
   photo: 'keyword',
   description:

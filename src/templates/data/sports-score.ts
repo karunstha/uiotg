@@ -29,6 +29,7 @@ function teamColor(t: Team): string {
 export const sportsScore = defineTemplate({
   id: 'sports_score',
   title: 'Sports score',
+  summary: 'a game or match score',
   category: 'data',
   description:
     'A scoreboard for any sport: two teams with logos or initials, score, live clock or final status, venue, a period-by-period box score and key events (goals, cards, substitutions). Team colors drive the background.',

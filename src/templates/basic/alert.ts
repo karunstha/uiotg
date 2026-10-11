@@ -18,6 +18,7 @@ const DEFAULT_ICON = {
 export const alert = defineTemplate({
   id: 'alert',
   title: 'Alert / banner',
+  summary: 'one-message banner, info to critical',
   category: 'basic',
   photo: 'keyword',
   description:

@@ -7,6 +7,7 @@ import { header } from '../../core/ui.ts';
 export const funnel = defineTemplate({
   id: 'funnel',
   title: 'Funnel',
+  summary: 'conversion through stages',
   category: 'chart',
   description:
     'Ordered stages that narrow (signup → activation → purchase), with each stage’s value, share of the first stage and step conversion.',

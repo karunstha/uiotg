@@ -38,6 +38,7 @@ export function priceChart(values: number[], opts: { width: number; height: numb
 export const stockQuote = defineTemplate({
   id: 'stock_quote',
   title: 'Stock quote',
+  summary: 'one ticker with price chart',
   category: 'data',
   photo: 'keyword',
   description:
@@ -142,6 +143,7 @@ export const stockQuote = defineTemplate({
 export const watchlist = defineTemplate({
   id: 'watchlist',
   title: 'Watchlist',
+  summary: 'several tickers',
   category: 'data',
   description:
     'A list of tickers with name, mini chart, price and a green/red change pill. Use for portfolios, market overviews, crypto prices and FX rates.',
