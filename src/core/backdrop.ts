@@ -32,21 +32,25 @@ export interface Backdrop {
 export async function backdrop(opts: {
   mode: 'auto' | 'art' | 'photo' | 'none';
   url?: string;
-  query?: string;
+  /** Search terms tried in order until one finds a photo. */
+  query?: string | string[];
   art: () => Art;
   orientation?: 'landscape' | 'portrait' | 'squarish';
 }): Promise<Backdrop | null> {
   if (opts.mode === 'none') return null;
   let url = opts.url;
-  if (!url && opts.mode !== 'art' && opts.query) {
-    const photo = await findPhoto(opts.query, opts.orientation);
-    if (photo) url = photo.url;
+  const queries = [opts.query ?? []].flat();
+  if (!url && opts.mode !== 'art') {
+    for (const q of queries) {
+      url = (await findPhoto(q, opts.orientation))?.url;
+      if (url) break;
+    }
   }
   if (url) {
     return {
       photo: true,
       ink: '#ffffff',
-      layer: html`<div class="bk bg-img" style="${style({ 'background-image': imageBackground(url, opts.query ?? url) })}"></div><div class="bk-scrim"></div>`,
+      layer: html`<div class="bk bg-img" style="${style({ 'background-image': imageBackground(url, queries[0] ?? url) })}"></div><div class="bk-scrim"></div>`,
     };
   }
   const art = opts.art();

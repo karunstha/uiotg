@@ -20,11 +20,11 @@ An MCP server that turns structured data into polished UI images. A model calls 
 
 ## Templates
 
-62 templates across six categories. They are representative: they show state and results, never controls (no play buttons, toggles or slider knobs). Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
+61 templates across six categories. They are representative: they show state and results, never controls (no play buttons, toggles or slider knobs). Run `npm run gallery` to render every example in light and dark mode into `gallery/index.html`.
 
 | Category | Templates |
 |---|---|
-| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `button` · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` · `volume` (volume/brightness/level slider) · `clock` (analog/digital, any time zone) · `world_clock` · `alarm` |
+| **Basic elements** | `badge` · `alert` · `key_value` (receipts, specs) · `link_card` · `avatar` · `notification` · `chat` · `image_card` · `rating` · `sparkline` · `tags` · `countdown` · `calendar_date` · `qr_code` · `volume` (volume/brightness/level slider) · `clock` (analog/digital, any time zone) · `world_clock` · `alarm` |
 | **Text & content** | `text_card` · `quote` · `markdown` (with $math$) · `code` (Shiki, 18 themes) · `list` · `steps` (how-to with code and tips) · `diff` (line or word diff, or a git patch) · `math` (KaTeX, worked solutions) |
 | **Data & status** | `table` (formatting, inline bars, status/tag columns, totals) · `stats` (KPI tiles with deltas and sparklines) · `progress` · `timeline` · `comparison` · `agenda` · `status_page` · `task_board` · `month_calendar` · `stock_quote` · `watchlist` · `sports_score` (scoreboard, box score, key events) · `activity` (goal rings and health metrics) |
 | **Charts** | `bar_chart` · `line_chart` · `pie_chart` · `scatter_chart` · `heatmap` · `radar_chart` · `treemap` · `sankey` · `funnel` · `gauge` · `candlestick` · `calendar_heatmap` · `echarts` (raw ECharts option escape hatch) |

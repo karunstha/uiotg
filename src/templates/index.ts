@@ -20,7 +20,6 @@ import { steps } from './text/steps.ts';
 import { alert } from './basic/alert.ts';
 import { avatar } from './basic/avatar.ts';
 import { badge } from './basic/badge.ts';
-import { button } from './basic/button.ts';
 import { calendarDate } from './basic/calendar-date.ts';
 import { chat } from './basic/chat.ts';
 import { countdown } from './basic/countdown.ts';
@@ -67,7 +66,6 @@ export const builtinTemplates: Template[] = [
   badge,
   alert,
   keyValue,
-  button,
   linkCard,
   avatar,
   notification,

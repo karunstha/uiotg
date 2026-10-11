@@ -23,6 +23,23 @@ const condition = z.enum([
 ]);
 type Condition = z.infer<typeof condition>;
 
+/** How each condition reads in a photo search, e.g. "Lisbon rain". */
+const PHOTO_WORD: Record<Condition, string> = {
+  clear: 'sunny',
+  partly_cloudy: 'clouds',
+  cloudy: 'cloudy',
+  overcast: 'overcast',
+  fog: 'fog',
+  drizzle: 'rain',
+  rain: 'rain',
+  showers: 'rain',
+  thunderstorm: 'storm',
+  snow: 'snow',
+  sleet: 'snow',
+  hail: 'storm',
+  windy: 'wind',
+};
+
 const LABEL: Record<Condition, string> = {
   clear: 'Clear',
   partly_cloudy: 'Partly cloudy',
@@ -211,7 +228,8 @@ export const weather = defineTemplate({
     const bg = await backdrop({
       mode: d.background,
       url: d.background_url,
-      query: d.background_image_query_keyword ?? `${d.location} city`,
+      // The place in today's weather ("Lisbon rain"), else just the place when that finds nothing.
+      query: d.background_image_query_keyword ?? [`${d.location} ${c.is_night ? (c.condition === 'clear' ? 'night' : `${PHOTO_WORD[c.condition]} night`) : PHOTO_WORD[c.condition]}`, `${d.location} city`],
       art: () => skyArt(SKY[c.condition], c.is_night, Math.round(ctx.width), 240, d.location),
     });
     return html`<div class="wx">
