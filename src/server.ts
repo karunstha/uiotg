@@ -61,7 +61,9 @@ Full control: choose a template from the \`render\` tool description (or \`list_
 
 Themes: \`list_themes\` shows presets, saved themes and what each color does. Pass options.theme (a name or an inline theme object) per call, or save a custom theme with \`save_theme\` and make it the default. A theme can also carry \`defaults\` (width, height, padding, scale…) for a particular screen; options you pass in the call override them.
 
-Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; pass options.theme "dark" for dark mode.`;
+Options: leave \`options\` out unless the user asks for a specific size or look. The server's default theme already sets the look and, through its \`defaults\`, the size and padding for the main screen, and every option you pass (width, height, padding, scale, detail, theme) replaces it. For a different screen, pass only its theme by name (see \`list_themes\`) instead of sizes.
+
+Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; for a single value, forecast or clock use the matching template (\`gauge\`, \`weather\`, \`clock\`…) with \`render\` instead of \`visualize\`.`;
 
 function size(t: Template): string {
   const w = typeof t.width === 'number' ? `${t.width}px` : 'auto';
