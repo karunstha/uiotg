@@ -7,7 +7,7 @@ import { imageBackground } from '../core/ui.ts';
 import { fontScope, metricsFamily } from '../core/measure.ts';
 import { paddingXY, sizeOptionsSchema } from '../core/options.ts';
 import { themeVars, withAccent, type Mode, type Theme } from '../core/theme.ts';
-import { photoTheme, PRESETS, resolveTheme, themeDefaults, themeSpecSchema, ThemeStore, type ThemeSpec } from '../core/themes.ts';
+import { photoTheme, PRESETS, resolveTheme, themeDefaults, themeLock, themeSpecSchema, ThemeStore, type ThemeSpec } from '../core/themes.ts';
 import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
 import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
@@ -175,7 +175,9 @@ export class Renderer {
   #options(options: RenderOptions): RenderOptions {
     const call = Object.fromEntries(Object.entries(renderOptionsSchema.parse(options)).filter(([, v]) => v !== undefined)) as RenderOptions;
     const theme = this.#usedTheme(call.theme ?? this.defaults.theme);
-    return { ...this.defaults, ...themeDefaults(theme, this.themes), ...call };
+    const defaults = themeDefaults(theme, this.themes);
+    const locked = Object.fromEntries(themeLock(theme, this.themes).flatMap((k) => (defaults[k] !== undefined ? [[k, defaults[k]]] : [])));
+    return { ...this.defaults, ...defaults, ...call, ...locked };
   }
 
   #template(id: string): Template {

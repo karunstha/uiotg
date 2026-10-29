@@ -128,6 +128,23 @@ describe('overflow', () => {
     assert.equal(grown.capped, undefined);
   });
 
+  test('a locked default cannot be overridden by the call; unlocked ones can', async () => {
+    store.save('locked', { base: 'dark', defaults: { ...BOARD, overflow: 'cap' }, lock: ['height', 'overflow'] });
+    const res = await renderer.render('list', data, { theme: 'locked', height: 900, overflow: 'grow', width: 500 });
+    assert.equal(res.height, 466, 'height locked');
+    assert.ok(res.capped, 'overflow locked to cap');
+    assert.equal(res.width, 500, 'width not locked, the call wins');
+  });
+
+  test('lock only names options of the theme defaults, and a lock without a default does nothing', async () => {
+    assert.equal(themeSpecSchema.safeParse({ lock: ['height', 'padding'] }).success, true);
+    assert.equal(themeSpecSchema.safeParse({ lock: ['theme'] }).success, false);
+    store.save('nolockval', { base: 'dark', defaults: { width: 466 }, lock: ['height'] });
+    // The probe template has no content to grow the image, so the height is what the call asked for.
+    const res = await renderer.render('probe', {}, { theme: 'nolockval', height: 700 });
+    assert.equal(res.height, 700);
+  });
+
   test('table and key_value cap their rows', async () => {
     const rows = Array.from({ length: 30 }, (_, i) => ({ name: `Row ${i + 1}`, value: i * 10 }));
     const table = await renderer.render('table', { title: 'Rows', rows }, { ...BOARD, overflow: 'cap' });

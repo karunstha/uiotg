@@ -108,7 +108,9 @@ describe('MCP server', () => {
       assert.ok(!res.isError, JSON.stringify(res.content));
       const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
       assert.match(text, /466×466 CSS px/, call.name);
-      assert.match(text, /Content didn't fit 466×466, showed (\d+) of 12 items \(\+\d+ more\)/, call.name);
+      assert.match(text, /Fits the 466×466 screen by design: showing (\d+) of 12 items \(\+\d+ more\)/, call.name);
+      assert.match(text, /do not enlarge/, call.name);
+      assert.doesNotMatch(text, /To adjust/, call.name);
       assert.doesNotMatch(text, /image grew/, call.name);
     }
   });

@@ -61,7 +61,7 @@ Full control: choose a template from the \`render\` tool description (or \`list_
 
 Themes: \`list_themes\` shows presets, saved themes and what each color does. Pass options.theme (a name or an inline theme object) per call, or save a custom theme with \`save_theme\` and make it the default. A theme can also carry \`defaults\` (width, height, padding, scale…) for a particular screen; options you pass in the call override them.
 
-Options: leave \`options\` out unless the user asks for a specific size or look. The server's default theme already sets the look and, through its \`defaults\`, the size and padding for the main screen, and every option you pass (width, height, padding, scale, detail, theme) replaces it. For a different screen, pass only its theme by name (see \`list_themes\`) instead of sizes.
+Options: leave \`options\` out unless the user asks for a specific size or look. The server's default theme already sets the look and, through its \`defaults\`, the size and padding for the main screen, and every option you pass (width, height, padding, scale, detail, theme) replaces it. For a different screen, pass only its theme by name (see \`list_themes\`) instead of sizes. A result that says it "fits the screen by design" and shows "N of M items (+K more)" is the intended outcome on a small screen: do not re-render it larger or change its size; mention the rest in words if needed. Some themes lock their size, in which case size options in a call are ignored.
 
 Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; for a single value, forecast or clock use the matching template (\`gauge\`, \`weather\`, \`clock\`…) with \`render\` instead of \`visualize\`.`;
 
@@ -100,19 +100,28 @@ export function createServer(opts: ServerOptions): McpServer {
     example: t.example,
   });
 
-  async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string): Promise<CallToolResult> {
+  /** `hint` (how to re-render with a template) is left out when the image was deliberately capped: re-rendering would defeat the cap. */
+  async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string, hint?: string): Promise<CallToolResult> {
     try {
       const result = await renderer.render(templateId, data, options ?? {});
       const kb = (result.data.length / 1024).toFixed(0);
       const lines = [
         ...(note ? [note] : []),
+        ...(hint && !result.capped ? [hint] : []),
         `Rendered ${templateId} (${result.detail} detail): ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
       ];
       if (result.capped) {
         const { shown, total } = result.capped;
-        const w = result.adjusted?.width?.[0] ?? result.width;
-        const h = result.adjusted?.height?.[0] ?? result.height;
-        lines.push(`Content didn't fit ${w}×${h}, showed ${shown} of ${total} items (+${total - shown} more).`);
+        const more = `showing ${shown} of ${total} items (+${total - shown} more)`;
+        if (result.adjusted) {
+          const w = result.adjusted.width?.[0] ?? result.width;
+          const h = result.adjusted.height?.[0] ?? result.height;
+          lines.push(`Content didn't fit ${w}×${h}, ${more}.`);
+        } else {
+          lines.push(
+            `Fits the ${result.width}×${result.height} screen by design: ${more}. This is the intended result, not an error: do not enlarge, resize or re-render it. If the rest matters, say it aloud.`,
+          );
+        }
       }
       if (result.adjusted) {
         const parts = Object.entries(result.adjusted).map(([k, [from, to]]) => `${k} ${from}→${to}px`);
@@ -173,10 +182,9 @@ export function createServer(opts: ServerOptions): McpServer {
         return errorResult((err as Error).message);
       }
       const json = JSON.stringify(choice.data);
-      const note =
-        `Chose ${choice.template}: ${choice.reason}.` +
-        (json.length <= 1500 ? `\nTo adjust, call render with template "${choice.template}" and this data: ${json}` : `\nTo adjust, call render with template "${choice.template}".`);
-      return run(choice.template, choice.data, options, note);
+      const note = `Chose ${choice.template}: ${choice.reason}.`;
+      const hint = json.length <= 1500 ? `To adjust, call render with template "${choice.template}" and this data: ${json}` : `To adjust, call render with template "${choice.template}".`;
+      return run(choice.template, choice.data, options, note, hint);
     },
   );
 

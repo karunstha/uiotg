@@ -55,6 +55,13 @@ export const themeSpecSchema = z.object({
         'Options passed in the call always win; these beat the server defaults. Good for a theme tied to a device, e.g. a round 466 px screen: ' +
         '{"width":466,"height":466,"padding":{"x":50,"y":56},"scale":1,"overflow":"cap"}.',
     ),
+  lock: z
+    .array(z.enum(Object.keys(sizeOptionsSchema.shape) as [keyof typeof sizeOptionsSchema.shape, ...(keyof typeof sizeOptionsSchema.shape)[]]))
+    .optional()
+    .describe(
+      "Names of `defaults` options that calls cannot change: for these the theme's value always wins over what a call passes (no effect when the theme has no default for it). " +
+        'Use it for a fixed screen so an agent cannot enlarge the image, e.g. ["width","height","padding","overflow"]. For a different size, use another theme.',
+    ),
 });
 
 export type ThemeSpec = z.input<typeof themeSpecSchema>;
@@ -291,6 +298,12 @@ export function resolveTheme(input: string | ThemeSpec, store?: ThemeStore): The
 export function themeDefaults(input: string | ThemeSpec, store?: ThemeStore): SizeOptions {
   const spec = typeof input === 'string' ? (input in PRESETS ? undefined : store?.get(input)) : input;
   return spec?.defaults ? sizeOptionsSchema.strict().parse(spec.defaults) : {};
+}
+
+/** The option names a theme locks to its `defaults` (see themeSpecSchema.lock). */
+export function themeLock(input: string | ThemeSpec, store?: ThemeStore): (keyof SizeOptions)[] {
+  const spec = typeof input === 'string' ? (input in PRESETS ? undefined : store?.get(input)) : input;
+  return spec?.lock ?? [];
 }
 
 /** Text-heavy cards on a darkened photo: neutrals switch to light-on-dark, the theme's colors stay. */
