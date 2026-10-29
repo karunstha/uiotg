@@ -63,7 +63,7 @@ Themes: \`list_themes\` shows presets, saved themes and what each color does. Pa
 
 Options: leave \`options\` out unless the user asks for a specific size or look. The server's default theme already sets the look and, through its \`defaults\`, the size and padding for the main screen, and every option you pass (width, height, padding, scale, detail, theme) replaces it. For a different screen, pass only its theme by name (see \`list_themes\`) instead of sizes. A result that says it "fits the screen by design" and shows "N of M items (+K more)" is the intended outcome on a small screen: do not re-render it larger or change its size; mention the rest in words if needed. Some themes lock their size, in which case size options in a call are ignored.
 
-Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; for a single value, forecast or clock use the matching template (\`gauge\`, \`weather\`, \`clock\`…) with \`render\` instead of \`visualize\`.`;
+Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; \`visualize\` recognises forecasts, gauges, countdowns, checklists and similar from the data, title and units, and \`template\` forces one when it guesses wrong; use \`render\` only when you need exact control of a template's fields.`;
 
 function size(t: Template): string {
   const w = typeof t.width === 'number' ? `${t.width}px` : 'auto';
