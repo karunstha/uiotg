@@ -32,7 +32,7 @@ You have a new MCP server called **uiotg** ("User Interface On The Go"). Its too
    - `width` for wide data;
    - a fixed `height` only when a layout requires it;
    - `scale: 1` when image size matters;
-   - `shape: "circle"` for a round screen (rows centre and narrow to the circle, gauge/activity/weather/stats have their own round layout, other templates keep to the square inside it);
+   - `shape: "circle"` for a round screen (rows centre and narrow to the circle, gauge, activity, weather, stats, progress, status_page, world_clock, alarm, sports_score, task_board, pie_chart, table (first 3 columns only), markdown, stock_quote and profile_card have their own round layout, other templates keep to the square inside it);
    - `detail: "minimal"` for tiny inline images, `"rich"` when the user wants the takeaways; otherwise leave it on auto.
 6. **Personal themes.** When the user describes a look ("everything pink", "Dracula, blood red on black", "like a terminal"), call `list_themes` for the fields. Then call `save_theme` with a name, a `base` and at least `background`, `text` and `accent` (add `series`, `font` and `corners` to match the personality), with `make_default: true` if they want it everywhere. Show them the preview it returns. If it's rejected for contrast, adjust the colors it names and retry. Mention any warnings briefly. For a theme meant for one screen (a small or round display), add `defaults` with its `width`, `height`, `padding` (a number, or `{"x":…,"y":…}` per axis) and `scale`, plus `"overflow": "cap"` to keep that exact size and show fewer items with "+N more" (or scale the content down to fit) instead of growing the image; options passed in a call still override them.
 7. **Delivering the result.**
