@@ -38,7 +38,7 @@ describe('visualize: screen from the used theme', () => {
     const choice = choose({ data: wide, screen: round });
     assert.notEqual(choice.template, 'table');
     assert.equal(choice.template, 'key_value');
-    assert.match(choice.reason, /6 columns are too wide/);
+    assert.match(choice.reason, /6 columns are too wide.*name with mrr/);
     valid(choice.template, choice.data);
   });
 
@@ -133,6 +133,10 @@ describe('visualize: hints from words and keys', () => {
     assert.equal(choice.template, 'list', choice.reason);
     assert.equal(choice.data.style, 'check');
     assert.deepEqual((choice.data.items as Array<{ status: string }>).map((i) => i.status), ['done', 'todo', 'todo']);
+    // Short strings are tags, unless the title says they are tasks.
+    const errands = ['Email Sam', 'Book dentist', 'Pay rent', 'Buy milk', 'Fix bike', 'Water plants'];
+    assert.equal(choose({ data: errands }).template, 'tags');
+    assert.equal(choose({ data: errands, title: 'Errands' }).template, 'list');
     // A status that isn't a task state is just a column.
     assert.notEqual(choose({ data: [{ name: 'Ada', status: 'active', age: 3 }, { name: 'Bo', status: 'away', age: 4 }] }).template, 'list');
   });

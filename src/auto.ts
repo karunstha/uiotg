@@ -869,8 +869,15 @@ function taskStatus(v: unknown): string | undefined {
   return undefined;
 }
 
-/** Strict: rows of task text plus a done flag or status. Loose: also plain strings and labelled rows. */
+/** Titles that make short strings a to-do list rather than tags. */
+const TASK_WORDS = /\btasks?\b|to-?dos?|to do|checklist|reminders?|errands?|shopping|groceries|chores|agenda|\btoday\b/;
+
+/** Strict: rows of task text plus a done flag or status, or short strings under a to-do title. */
 const listBuilder: Builder = (data, input, h, loose) => {
+  if (!loose && Array.isArray(data) && data.length >= 2 && data.length <= 60 && data.every((v) => typeof v === 'string' && v.trim()) && TASK_WORDS.test(h.text)) {
+    const word = h.text.match(TASK_WORDS)![0];
+    return { data: { items: (data as string[]).map((text) => ({ text: text.slice(0, 400) })) }, reason: `${data.length} items under a “${word}” title read as a list` };
+  }
   const rows = rowsOf(data);
   if (rows && rows.length <= 60) {
     const keys = h.keys;
@@ -1248,6 +1255,9 @@ export function describeScreen(s: Screen): string {
 
 const screenName = (s: Screen) => (s.shape === 'circle' ? `${s.width ?? s.height ?? ''} px round screen`.trim() : `${s.width ?? 'auto'}×${s.height ?? 'auto'} screen`);
 
+/** Row ids and ranks: numbers, but never the value worth showing. */
+const ID_KEY = /^(id|#|no|num|index|idx|rank|row)$|[_ -]id$|[a-z]Id$/i;
+
 /** Tables wider than this become label/value rows on a small screen. */
 const SMALL_TABLE_COLUMNS = 3;
 
@@ -1264,7 +1274,7 @@ function fitScreen(choice: Choice, screen: Screen, exclude: string[]): Choice {
     if (keys.length <= SMALL_TABLE_COLUMNS || !rows.length) return choice;
     const cols = analyze(rows.map((r) => Object.fromEntries(keys.map((k) => [k, r[k]]))));
     const label = cols.find((c) => c.kind === 'category' && c.distinct >= rows.length * 0.8) ?? cols.find((c) => c.kind === 'category');
-    const value = cols.find((c) => c.kind === 'number' && c !== label);
+    const value = cols.find((c) => c.kind === 'number' && c !== label && !ID_KEY.test(c.key));
     const labelOf = (key: string) => given?.find((c) => c.key === key)?.label ?? humanize(key);
     if (label && value && !exclude.includes('key_value')) {
       return {
