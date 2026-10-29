@@ -3,7 +3,7 @@ import { imageUrlSchema } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { imageBackground, initials } from '../../core/ui.ts';
+import { circleRow, imageBackground, initials } from '../../core/ui.ts';
 
 export const profileCard = defineTemplate({
   id: 'profile_card',
@@ -66,6 +66,36 @@ export const profileCard = defineTemplate({
 .pf-sv{font-size:20px;font-weight:650;letter-spacing:-0.015em;color:var(--text)}
 .pf-sl{font-size:13px;color:var(--text-2);margin-top:1px}
 `,
+  circleCss: /* css */ `
+.pf-r{display:flex;flex-direction:column;align-items:center}
+.pf-r .pf-avatar{width:96px;height:96px;margin-top:0;border:0;font-size:32px}
+.pf-r .pf-name{justify-content:center;margin-top:12px;font-size:22px}
+.pf-r .pf-name span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-r .pf-name .icon{flex:none}
+.pf-r .pf-handle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-r .pf-headline{margin-top:8px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-r .pf-stats{justify-content:center;gap:28px;margin-top:14px;padding-top:12px}
+.pf-r .pf-sv{font-size:19px}
+.pf-r .pf-sl{font-size:12px;white-space:nowrap}
+.pf-r .pf-tags{justify-content:center;flex-wrap:nowrap;margin-top:12px}
+`,
+  renderCircle(d) {
+    // Avatar, name, handle and headline centred; then two stats (or two tags). Banner, bio, meta and the rest are left out.
+    const stats = d.stats?.slice(0, 2);
+    const tags = stats?.length ? null : d.tags?.slice(0, 2);
+    return html`<div class="pf-r">
+      <div class="${circleRow('pf-avatar bg-img')}" style="${style({ 'background-image': imageBackground(d.avatar_url, d.name) })}">${d.avatar_url ? '' : initials(d.name)}</div>
+      <div class="${circleRow('pf-name')}"><span>${d.name}</span>${d.verified ? icon('badge-check', { size: 20 }) : null}</div>
+      ${d.handle ? html`<div class="${circleRow('pf-handle')}">${d.handle}</div>` : null}
+      ${d.headline ? html`<div class="${circleRow('pf-headline')}">${d.headline}</div>` : null}
+      ${stats?.length
+        ? html`<div class="${circleRow('pf-stats')}">${stats.map(
+            (s) => html`<div><div class="pf-sv">${typeof s.value === 'number' ? s.value.toLocaleString('en-US') : s.value}</div><div class="pf-sl">${s.label}</div></div>`,
+          )}</div>`
+        : null}
+      ${tags?.length ? html`<div class="${circleRow('pf-tags')}">${tags.map((t) => html`<span class="tag">${t}</span>`)}</div>` : null}
+    </div>`;
+  },
   render(d) {
     const banner = imageBackground(d.banner_url, `${d.name} banner`);
     return html`<div class="pf">
