@@ -5,6 +5,7 @@ import { icon } from '../../core/icons.ts';
 import { seriesColor } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header, legend } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 export const agenda = defineTemplate({
   id: 'agenda',
@@ -60,12 +61,14 @@ export const agenda = defineTemplate({
 .ag-meta{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--text-2)}
 .ag-meta span{display:inline-flex;align-items:center;gap:5px}
 .ag-meta .icon{color:var(--muted)}
+.ag-more{padding-left:90px;font-size:13px;color:var(--muted)}
 .ag-desc{margin-top:4px;font-size:13px;color:var(--text-2)}
 .ag-ev.tentative .ag-bar{opacity:.45}
 .ag-ev.cancelled .ag-name{text-decoration:line-through;color:var(--muted)}
 .ag-ev.cancelled .ag-bar{background:var(--axis)!important}
 .ag-ev.allday .ag-start{font-size:12px;color:var(--text-2)}
 `,
+  truncate: (d, keep) => keepFirst(d, 'events', keep),
   render(d, ctx) {
     const categories = [...new Set(d.events.map((e) => e.category).filter((c): c is string => !!c))];
     const colorOf = (c?: string) => (c ? seriesColor(ctx.theme, categories.indexOf(c)) : ctx.theme.accent);
@@ -88,6 +91,6 @@ export const agenda = defineTemplate({
           ${e.description ? html`<div class="ag-desc">${e.description}</div>` : null}
         </div>
       </div>`,
-    )}</div>`;
+    )}${hiddenCount(d) ? html`<div class="ag-more">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
   },
 });

@@ -6,6 +6,7 @@ import { icon } from '../../core/icons.ts';
 import { renderInline } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 export const steps = defineTemplate({
   id: 'steps',
@@ -47,6 +48,7 @@ export const steps = defineTemplate({
   width: 720,
   css: /* css */ `
 .stp-list{display:flex;flex-direction:column}
+.stp-more{padding-left:48px;font-size:14px;color:var(--muted)}
 .stp-step{display:grid;grid-template-columns:32px 1fr;column-gap:16px}
 .stp-rail{display:flex;flex-direction:column;align-items:center}
 .stp-num{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;
@@ -67,6 +69,7 @@ export const steps = defineTemplate({
   background:color-mix(in srgb, var(--warning) 12%, var(--surface));color:var(--text)}
 .stp-tip .icon{color:var(--warning);margin-top:1px}
 `,
+  truncate: (d, keep) => keepFirst(d, 'steps', keep),
   async render(d, ctx) {
     const theme = defaultCodeTheme(ctx.theme.mode);
     const blocks = await Promise.all(d.steps.map((s) => (s.code ? highlight(s.code, s.language, { theme }) : null)));
@@ -82,6 +85,6 @@ export const steps = defineTemplate({
           ${s.tip ? html`<div class="stp-tip">${icon('lightbulb', { size: 15 })}<span>${s.tip}</span></div>` : null}
         </div>
       </div>`;
-    })}</div>`;
+    })}${hiddenCount(d) ? html`<div class="stp-more">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
   },
 });

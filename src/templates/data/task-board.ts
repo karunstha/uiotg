@@ -4,6 +4,7 @@ import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { fitColumns, header, imageBackground, initials, toneColor } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const PRIORITY = {
   urgent: { icon: 'flame', color: 'var(--critical)', label: 'Urgent' },
@@ -105,14 +106,21 @@ export const taskBoard = defineTemplate({
   font-size:10px;font-weight:700}
 .kb-empty{font-size:12.5px;color:var(--muted);text-align:center;padding:12px 0}
 `,
+  // Caps the cards per column; each column says how many it hides.
+  truncate(d, keep) {
+    const columns = d.columns.map((col) => keepFirst(col, 'cards', keep));
+    const sum = (k: 'total' | 'shown') => columns.reduce((n, c) => n + c[k], 0);
+    return { data: { ...d, columns: columns.map((c) => c.data) }, total: sum('total'), shown: sum('shown') };
+  },
   render(d, ctx) {
     const cols = fitColumns(d.columns.length, ctx.width, 210, 14);
     return html`${header(d)}<div class="kb-board" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.columns.map((col) => {
-      const over = col.limit != null && col.cards.length > col.limit;
+      const count = col.cards.length + hiddenCount(col);
+      const over = col.limit != null && count > col.limit;
       const tone = col.tone ?? columnTone(col.name);
       const done = tone === 'success';
       return html`<div class="kb-col">
-        <div class="kb-colhead"><span class="kb-dot" style="${style({ background: toneColor(ctx.theme, tone) })}"></span>${col.name}<span class="${`kb-count${over ? ' kb-over' : ''}`}">${col.cards.length}${col.limit ? ` / ${col.limit}` : ''}</span></div>
+        <div class="kb-colhead"><span class="kb-dot" style="${style({ background: toneColor(ctx.theme, tone) })}"></span>${col.name}<span class="${`kb-count${over ? ' kb-over' : ''}`}">${count}${col.limit ? ` / ${col.limit}` : ''}</span></div>
         <div class="kb-cards">${col.cards.length
           ? col.cards.map((c) => {
               const p = c.priority && !done ? PRIORITY[c.priority] : null;
@@ -131,7 +139,7 @@ export const taskBoard = defineTemplate({
                   : null}
               </div>`;
             })
-          : html`<div class="kb-empty">No cards</div>`}</div>
+          : html`<div class="kb-empty">No cards</div>`}${hiddenCount(col) ? html`<div class="kb-empty">${moreLabel(hiddenCount(col))}</div>` : null}</div>
       </div>`;
     })}</div>`;
   },

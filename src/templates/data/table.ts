@@ -5,6 +5,7 @@ import { icon } from '../../core/icons.ts';
 import { humanize, inferFormat } from '../../auto.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header, statusBadge } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const cell = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const row = z.union([z.record(z.string(), cell), z.array(cell)]);
@@ -113,7 +114,9 @@ export const table = defineTemplate({
 .tb-bar-track{flex:none;width:110px;height:8px;display:flex;justify-content:flex-start}
 .tb-bar-fill{height:8px;border-radius:0 calc(4px * var(--rk)) calc(4px * var(--rk)) 0;background:var(--accent)}
 .tb-caption{margin-top:12px;font-size:12px;color:var(--muted)}
+.tb tr.tb-more td{color:var(--muted)}
 `,
+  truncate: (d, keep) => keepFirst(d, 'rows', keep),
   render(d, ctx) {
     const first = d.rows[0];
     const specs = (d.columns ?? (Array.isArray(first) ? first.map((_, i) => `Column ${i + 1}`) : Object.keys(first ?? {}))).map((c) =>
@@ -165,7 +168,7 @@ export const table = defineTemplate({
       )}</tr></thead>
       <tbody>${d.rows.map(
         (r, i) => html`<tr class="${highlighted.has(i) ? 'tb-hl' : ''}">${cols.map((c) => renderCell(c, valueAt(r, c)))}</tr>`,
-      )}</tbody>
+      )}${hiddenCount(d) ? html`<tr class="tb-more"><td colspan="${cols.length}">${moreLabel(hiddenCount(d))}</td></tr>` : null}</tbody>
       ${d.footer ? html`<tfoot><tr>${cols.map((c) => renderCell(c, valueAt(d.footer!, c), true))}</tr></tfoot>` : null}
     </table>
     ${d.caption && !minimal ? html`<div class="tb-caption">${d.caption}</div>` : null}`;

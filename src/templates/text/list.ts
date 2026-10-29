@@ -4,6 +4,7 @@ import { html } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { renderInline } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 import { header } from '../../core/ui.ts';
 
 const ITEM_STATUS = {
@@ -70,7 +71,9 @@ export const list = defineTemplate({
 .ls-meta{font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .ls-main{min-width:0}
 .ls-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ls-item.ls-more .ls-text{color:var(--muted);font-size:14px}
 `,
+  truncate: (d, keep) => keepFirst(d, 'items', keep),
   render(d) {
     const showStatus = d.style === 'check' || d.items.some((i) => i.status);
     return html`${header(d)}<div class="ls">${d.items.map((item, i) => {
@@ -91,6 +94,8 @@ export const list = defineTemplate({
           ${item.meta ? html`<span class="ls-meta">${item.meta}</span>` : null}
         </div>
       </div>`;
-    })}</div>`;
+    })}${hiddenCount(d)
+      ? html`<div class="ls-item ls-more"><div class="ls-mark"></div><div class="ls-main"><div class="ls-text">${moreLabel(hiddenCount(d))}</div></div></div>`
+      : null}</div>`;
   },
 });

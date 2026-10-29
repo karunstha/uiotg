@@ -5,6 +5,7 @@ import { fitFontSize } from '../../core/measure.ts';
 import type { Theme } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { fitColumns, header } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const currency = z.string().length(3).default('USD').describe('ISO 4217 code');
 
@@ -181,6 +182,7 @@ export const watchlist = defineTemplate({
 .wl{display:grid;grid-template-columns:minmax(0, 1fr) auto auto auto}
 .wl.nospark{grid-template-columns:minmax(0, 1fr) auto auto}
 .wl-row{display:contents}
+.wl-more{grid-column:1/-1;padding-top:10px;border-top:1px solid var(--grid);font-size:13px;color:var(--muted)}
 .wl-row > *{padding:11px 0;display:flex;flex-direction:column;justify-content:center}
 .wl-row > * + *{padding-left:16px}
 .wl-row + .wl-row > *{border-top:1px solid var(--grid)}
@@ -190,6 +192,7 @@ export const watchlist = defineTemplate({
 .wl-price{font-size:15px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .wl-pill{font-size:13px;font-weight:650;color:#fff;border-radius:calc(7px * var(--rk));padding:4px 8px;text-align:right;min-width:72px;font-variant-numeric:tabular-nums;white-space:nowrap}
 `,
+  truncate: (d, keep) => keepFirst(d, 'quotes', keep),
   render(d, ctx) {
     const { theme } = ctx;
     const spark = ctx.width >= 420;
@@ -202,6 +205,6 @@ export const watchlist = defineTemplate({
         <div class="wl-price">${fmt(q.price)}</div>
         <div class="wl-pc"><span class="wl-pill" style="${style({ background: up ? theme.status.good : theme.status.critical })}">${`${up ? '+' : '−'}${Math.abs(q.change_percent).toFixed(2)}%`}</span></div>
       </div>`;
-    })}</div>`;
+    })}${hiddenCount(d) ? html`<div class="wl-more">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
   },
 });

@@ -4,6 +4,7 @@ import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const value = z.union([z.string().max(200), z.number(), z.boolean(), z.null()]);
 
@@ -62,6 +63,7 @@ export const keyValue = defineTemplate({
 .kv-total .kv-v{font-weight:700;font-variant-numeric:tabular-nums}
 .kv-yes{color:var(--good)}.kv-no{color:var(--muted)}
 `,
+  truncate: (d, keep) => keepFirst(d, 'items', keep),
   render(d) {
     const cell = (v: z.infer<typeof value>, fmt: ReturnType<typeof makeFormatter>) => {
       if (v === true) return html`<span class="kv-yes">${icon('check', { size: 16, strokeWidth: 2.5 })}</span>`;
@@ -74,7 +76,7 @@ export const keyValue = defineTemplate({
         <span class="kv-k">${icon(it.icon, { size: 15 })}${it.label}</span>
         <span class="${`kv-v${typeof it.value === 'number' ? ' kv-n' : ''}`}">${cell(it.value, makeFormatter(it.format))}</span>
       </div>`,
-    )}</div>
+    )}${hiddenCount(d) ? html`<div class="kv-row mu"><span class="kv-k">${moreLabel(hiddenCount(d))}</span></div>` : null}</div>
     ${d.total
       ? html`<div class="kv-total"><span>${d.total.label}</span><span class="kv-v">${cell(d.total.value, makeFormatter(d.total.format))}</span></div>`
       : null}`;
