@@ -131,7 +131,7 @@ Text in uiotg never overflows, gets truncated with an ellipsis, or is hidden. La
 - Tile grids (stats, covers, devices, task columns) reflow to fewer columns instead of squeezing.
 - Chart labels wrap. When they still don't fit around a chart, they become numbered markers with a key (radar axes, sankey nodes, heatmap columns).
 - Category labels are angled rather than skipped.
-- If content still doesn't fit, the image grows to show all of it, and the tool result says so.
+- If content still doesn't fit, the image grows to show all of it, and the tool result says so. With `overflow: "cap"` and a fixed height, list-like templates (list, table, key_value, agenda, timeline, watchlist, steps, tags, task_board) instead keep the exact size and show their first items plus a "+N more" line; the tool result says how many were shown.
 
 This is enforced by `npm run audit` and the test suite. Each one renders every template with its example, with stress data (very long text and huge numbers), and at a narrow width, then checks in the browser for clipped, truncated, out-of-bounds, overlapping or broken text.
 
@@ -145,7 +145,8 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 | `scale` | `2` | Device pixel ratio (1–3) |
 | `format` | `png` | `png` or `jpeg` (`quality` 1–100) |
 | `transparent` | `false` | Transparent background (png) |
-| `padding` | per template | Outer padding in px |
+| `padding` | per template | Outer padding in px: a number for all sides, or `{ "x": 50, "y": 56 }` for left/right and top/bottom |
+| `overflow` | `grow` | With a fixed `height`: `grow` the image to fit everything, or `cap` it at the exact size and show fewer items with "+N more" (list-like templates; others grow) |
 | `accent` | palette blue | UI accent color (progress, links, highlights) |
 | `detail` | `auto` | `minimal`, `standard` or `rich` |
 
@@ -164,10 +165,10 @@ Agents can also design their own: an all-pink theme, a blood-red-on-black one, a
 
 Saving checks readability. Text without enough contrast (4.5:1 for body text) is rejected with the exact ratios. Look-alike chart colors and faint accents come back as warnings next to a preview image. The same object works inline as `options.theme` to try a theme before saving it. Saved themes and the default live in `UIOTG_THEMES_DIR`. The default chain is: the call's theme, then the saved default, then `UIOTG_THEME`, then `light`. On a server several people share, set `UIOTG_THEMES_READONLY=1` to keep themes usable but not editable.
 
-A theme can also carry `defaults`: render options (`width`, `height`, `padding`, `scale`, `format`, `quality`, `detail`, same limits as the [render options](#render-options)) that apply whenever the theme is used. That suits a theme made for one screen, such as a round 466 px display:
+A theme can also carry `defaults`: render options (`width`, `height`, `padding`, `scale`, `format`, `quality`, `detail`, `overflow`, same limits as the [render options](#render-options)) that apply whenever the theme is used. That suits a theme made for one screen, such as a round 466 px display:
 
 ```jsonc
-{ "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "padding": 60, "scale": 1 } } }
+{ "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "padding": { "x": 50, "y": 56 }, "scale": 1, "overflow": "cap" } } }
 ```
 
 For each option, the value in the call wins, then the theme's `defaults`, then the server defaults (`UIOTG_SCALE`, `UIOTG_FORMAT`), then the template's own. Presets have no defaults. The `save_theme` preview ignores them and renders at the usual size.
