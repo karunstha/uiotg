@@ -222,9 +222,10 @@ describe('circle centring', () => {
     assert.ok(ink.left <= 14 && ink.top <= 16, `top-left as before: ${JSON.stringify(ink)}`);
   });
 
+  // progress used to be the example here; it now has its own round layout (circle-layouts.test.ts).
   test('content too big for the square shrinks into it, centred', async () => {
-    const t = renderer.registry.get('progress')!;
-    const res = await renderer.render('progress', t.example, ROUND);
+    const t = renderer.registry.get('code')!;
+    const res = await renderer.render('code', t.example, ROUND);
     assert.deepEqual([res.width, res.height, res.adjusted], [466, 466, undefined]);
     assert.ok(res.scaled && res.scaled >= SCALE_FLOOR && res.scaled < 1, `scaled ${res.scaled}`);
     // Inscribed square 318 plus padding 12: the content box is [86, 380] on both axes.

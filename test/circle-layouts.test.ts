@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
 import { z } from 'zod';
-import { createRenderer, defaultRegistry, html, ThemeStore } from '../src/index.ts';
-import { defineTemplate, type RenderContext } from '../src/core/types.ts';
+import { buildTheme, createRenderer, defaultRegistry, html, PRESETS, ThemeStore } from '../src/index.ts';
+import { defineTemplate, type RenderContext, type Template } from '../src/core/types.ts';
 import { inkOutsideCircle } from './ink.ts';
 
 // Reports the context each layout gets; used by these tests only.
@@ -57,6 +57,47 @@ const CASES: Array<[string, string, unknown]> = [
   ['stats', '1 tile', { items: [tile('Revenue', 4210)] }],
   ['stats', '6 tiles', { title: 'Ops', items: Array.from({ length: 6 }, (_, i) => tile(`Metric ${i + 1}`, 1000 * (i + 1))) }],
 ];
+
+// Stage B: everyday templates. Each has an example, a smaller case and (where it has items to cut) a long one.
+const zones = ['America/Los_Angeles', 'America/New_York', 'Europe/London', 'Europe/Berlin', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney', 'Asia/Dubai', 'America/Chicago', 'Europe/Paris'];
+const MORE: Array<[string, string, unknown]> = [
+  ['progress', 'small', { items: [{ label: 'Reading', value: 12, max: 20, target: 15 }, { label: 'Savings', value: 840, max: 1000, format: { prefix: '$' }, status: 'good' }] }],
+  ['status_page', 'small', { services: [{ name: 'API', status: 'operational', uptime: 99.99 }, { name: 'Database', status: 'partial_outage' }] }],
+  ['world_clock', 'small', { at: '2026-10-09T14:30:00Z', cities: [{ name: 'Chicago', timezone: 'America/Chicago' }, { name: 'Kathmandu', timezone: 'Asia/Kathmandu' }] }],
+  ['alarm', 'small', { timezone: 'Europe/London', now: '2026-10-09T22:48:00Z', alarms: [{ time: '06:45', label: 'Gym', repeat: 'weekdays', sound: 'Radar' }] }],
+  ['sports_score', 'small', { league: 'NBA', status: 'final', home: { name: 'Lakers', short: 'LAL', score: 112 }, away: { name: 'Celtics', short: 'BOS', score: 108 } }],
+  ['task_board', 'small', { columns: [{ name: 'To do', cards: [{ title: 'Buy milk' }, { title: 'Call the bank', priority: 'high' }] }, { name: 'Done', cards: [{ title: 'Laundry' }] }] }],
+  ['pie_chart', 'small', { slices: [{ label: 'Rent', value: 1200 }, { label: 'Food', value: 450 }, { label: 'Fun', value: 200 }], format: { prefix: '$' } }],
+  ['table', 'small', { columns: ['name', 'score'], rows: [{ name: 'Ada', score: 92 }, { name: 'Lin', score: 87 }, { name: 'Sam', score: 75 }] }],
+  ['markdown', 'small', { markdown: '## Groceries\nFor the weekend.\n- Eggs\n- Bread\n- Coffee' }],
+  ['stock_quote', 'small', { symbol: 'BTC', currency: 'USD', price: 81340, change_percent: -2.41 }],
+  ['profile_card', 'small', { name: 'Sam Lee', handle: '@sam', tags: ['Go', 'Kubernetes'] }],
+  ['progress', 'long', { title: 'Sprint 42', items: Array.from({ length: 12 }, (_, i) => ({ label: `Goal number ${i + 1}`, value: 10 + i * 7, caption: 'A caption' })) }],
+  ['status_page', 'long', { title: 'Platform', updated: 'Updated just now', services: Array.from({ length: 14 }, (_, i) => ({ name: `Service ${i + 1}`, status: i === 3 ? 'degraded' : 'operational', uptime: 99.9, history: Array.from({ length: 30 }, () => 100) })) }],
+  ['world_clock', 'long', { title: 'Offices', at: '2026-10-09T14:30:00Z', cities: zones.map((z) => ({ name: z.split('/')[1]!.replace('_', ' '), timezone: z })) }],
+  ['alarm', 'long', { title: 'Alarms', timezone: 'UTC', now: '2026-10-09T22:48:00Z', alarms: Array.from({ length: 9 }, (_, i) => ({ time: `0${i}:30`, label: `Alarm ${i + 1}`, repeat: 'daily', enabled: i % 3 !== 0 })) }],
+  ['task_board', 'long', { title: 'Backlog', columns: ['To do', 'In progress', 'Review', 'Done'].map((name, j) => ({ name, cards: Array.from({ length: 6 }, (_, i) => ({ title: `Task ${j + 1}.${i + 1} with a longer title`, assignee: 'Lena Park', priority: 'medium' })) })) }],
+  ['table', 'long', { title: 'Inventory', rows: Array.from({ length: 30 }, (_, i) => ({ item: `Item ${i + 1}`, stock: i * 3, price: 9.5 + i, supplier: 'Acme', region: 'EU' })) }],
+];
+const STAGE_B = ['progress', 'status_page', 'world_clock', 'alarm', 'sports_score', 'task_board', 'pie_chart', 'table', 'markdown', 'stock_quote', 'profile_card'];
+CASES.push(...STAGE_B.map((id): [string, string, unknown] => [id, 'example', example(id)]), ...MORE);
+const LONG = MORE.filter(([, name]) => name === 'long');
+
+/** The round layout's markup after its truncate kept `keep` items. */
+async function roundMarkup(id: string, data: unknown, keep: number): Promise<string> {
+  const t = renderer.registry.get(id) as Template;
+  const cut = (t.truncateCircle ?? t.truncate)!(t.schema.parse(data), keep);
+  const ctx = {
+    width: 450,
+    height: 450,
+    circle: { diameter: 466, safe: 450 },
+    theme: buildTheme(PRESETS.dark!, 'dark'),
+    detail: 'standard' as const,
+    renderBlock: async () => html``,
+    include: async () => html``,
+  };
+  return (await t.renderCircle!(cut.data, ctx)).value;
+}
 
 describe('round layouts (Template.renderCircle)', () => {
   test('renderCircle runs with shape circle and gets the circle; render gets none on a rectangle', async () => {
@@ -110,12 +151,43 @@ describe('round layouts (Template.renderCircle)', () => {
     assert.match(doc.html, />Healthy<|>Good</);
   });
 
-  for (const id of ['gauge', 'activity', 'weather', 'stats']) {
+  for (const id of ['gauge', 'activity', 'weather', 'stats', ...STAGE_B]) {
     test(`${id}: a rectangle uses the usual layout and none of the round CSS`, async () => {
       const opts = { width: 466, height: 466, scale: 1, overflow: 'cap', theme: 'dark' } as const;
       const plain = await renderer.toHtml(id, example(id), opts);
-      assert.equal((await renderer.toHtml(id, example(id), { ...opts, shape: 'rect' })).html, plain.html);
+      // stock_quote numbers its chart gradients per process; the rest must match byte for byte.
+      const same = (h: string) => h.replace(/\bpc\d+\b/g, 'pc');
+      assert.equal(same((await renderer.toHtml(id, example(id), { ...opts, shape: 'rect' })).html), same(plain.html));
       assert.doesNotMatch(plain.html, /circle-own|gg-round|at-rings|wx-rhead|st-rhead/);
     });
   }
+
+  for (const [id, , data] of LONG) {
+    test(`${id}: a long list shows what fits on the circle and a "+N more" line`, async () => {
+      const res = await renderer.render(id, data, ROUND);
+      assert.ok(res.capped && res.capped.shown < res.capped.total, JSON.stringify(res.capped));
+      const markup = await roundMarkup(id, data, res.capped.shown);
+      assert.match(markup, /class="[^"]*circle-row[^"]*"[^>]*>\+\d+ more</);
+    });
+  }
+
+  test('table keeps the label and two value columns; markdown turns tables and code into one line', async () => {
+    const table = await renderer.toHtml('table', example('table'), ROUND);
+    assert.match(table.html, />Region</);
+    assert.match(table.html, />YoY</);
+    assert.doesNotMatch(table.html, />Customers<|>Health</);
+    const md = await renderer.toHtml('markdown', example('markdown'), ROUND);
+    assert.match(md.html, /table · 2 rows/);
+    assert.match(md.html, /code · 1 line/);
+    assert.doesNotMatch(md.html, /<table/);
+  });
+
+  test('status page drops the day strips; pie chart keeps every slice in the donut', async () => {
+    const status = await renderer.toHtml('status_page', example('status_page'), ROUND);
+    assert.doesNotMatch(status.html, /class="ss-bars"/);
+    const pie = await roundMarkup('pie_chart', example('pie_chart'), 2);
+    assert.equal(pie.match(/class="pie-row circle-row"/g)?.length, 2);
+    assert.match(pie, /\+4 more/);
+    assert.equal(pie.match(/<path /g)!.length >= 6, true);
+  });
 });
