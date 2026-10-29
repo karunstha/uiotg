@@ -174,6 +174,8 @@ A theme can also carry `defaults`: render options (`width`, `height`, `padding`,
 
 `shape: "circle"` lays the image out for a round screen, where everything outside the circle is invisible. List-like templates (list, key_value, agenda, steps, text_card) become a centred column, and each row is narrowed to the circle's width at its height, so rows near the top and bottom are shorter and fewer rows fit than in a rectangle (with `overflow: "cap"` the "+N more" line lands where rows stop fitting). Every other template keeps to the square inside the circle, and content smaller than that square is centred in it (so in the middle of the circle). An 8 px rim is always kept; `padding` (default 0 with a circle) adds to it.
 
+`gauge`, `activity`, `weather` and `stats` have a dedicated round layout instead (`Template.renderCircle`): the gauge becomes a 270° ring around the whole circle with the value, label and status in the middle; activity rings are drawn large and centred with a short legend line per ring (and a metric or two when they fit); weather centres the temperature with up to 5 hours, 3 details and the next days as space allows; stats stack their values in centred rows, with "+N more" under `overflow: "cap"` when they don't all fit. They choose what to show; the data is the same.
+
 For each option, the value in the call wins, then the theme's `defaults`, then the server defaults (`UIOTG_SCALE`, `UIOTG_FORMAT`), then the template's own. Presets have no defaults. The `save_theme` preview ignores them and renders at the usual size.
 
 Run `npm run gallery:themes` to render every template in every preset.
