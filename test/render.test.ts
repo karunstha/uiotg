@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
-import { createRenderer } from '../src/index.ts';
+import { createRenderer, ThemeStore } from '../src/index.ts';
 
 // Keep tests hermetic: remote images fall back to generated placeholders.
 process.env.UIOTG_OFFLINE = '1';
@@ -49,5 +52,36 @@ describe('render', () => {
       assert.equal(size.width, r.width, id);
       assert.ok(size.height > 30, `${id} rendered suspiciously short (${size.height}px)`);
     }
+  });
+});
+
+describe('theme defaults', () => {
+  const themed = createRenderer({ browser: renderer.browser, themes: new ThemeStore(mkdtempSync(join(tmpdir(), 'uiotg-themes-'))) });
+  const round = { base: 'dark' as const, background: '#000000', defaults: { width: 466, height: 466, padding: 60, scale: 1 } };
+  const data = { items: [{ label: 'Users', value: 1200 }] };
+  themed.themes.save('round', round);
+  themed.themes.save('plain', { base: 'dark', background: '#000000' });
+
+  test('a saved theme sets the image size', async () => {
+    const r = await themed.render('stats', data, { theme: 'round' });
+    assert.deepEqual([r.width, r.height, r.scale], [466, 466, 1]);
+    assert.deepEqual(pngSize(r.data), { width: 466, height: 466 });
+  });
+
+  test('call options override the theme defaults', async () => {
+    const r = await themed.render('stats', data, { theme: 'round', width: 640, scale: 2 });
+    assert.deepEqual([r.width, r.height, r.scale], [640, 466, 2]);
+    assert.deepEqual(pngSize(r.data), { width: 1280, height: 932 });
+  });
+
+  test('an inline theme object brings its defaults', async () => {
+    const r = await themed.render('stats', data, { theme: round });
+    assert.deepEqual(pngSize(r.data), { width: 466, height: 466 });
+  });
+
+  test('a theme without defaults renders as before', async () => {
+    const [plain, preset] = await Promise.all([themed.render('stats', data, { theme: 'plain' }), themed.render('stats', data, { theme: 'dark' })]);
+    assert.deepEqual([plain.width, plain.height, plain.scale], [preset.width, preset.height, preset.scale]);
+    assert.notEqual(plain.width, 466);
   });
 });

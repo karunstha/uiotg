@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
-import { buildTheme, checkTheme, createRenderer, PRESETS, resolveTheme, ThemeStore } from '../src/index.ts';
+import { buildTheme, checkTheme, createRenderer, PRESETS, resolveTheme, ThemeStore, themeSpecSchema } from '../src/index.ts';
 import { contrast } from '../src/core/theme.ts';
 
 const store = new ThemeStore(mkdtempSync(join(tmpdir(), 'uiotg-themes-')));
@@ -70,5 +70,34 @@ describe('themes', () => {
     assert.equal(doc.theme, 'dark');
     assert.match(doc.html, /--text:#ffffff/);
     assert.match(doc.html, /--accent:#268bd2/);
+  });
+
+  test('defaults accept render options with the same limits, and nothing else', () => {
+    const ok = themeSpecSchema.safeParse({ defaults: { width: 466, height: 466, padding: 60, scale: 1, format: 'jpeg', quality: 80, detail: 'minimal' } });
+    assert.ok(ok.success);
+    assert.equal(themeSpecSchema.safeParse({ defaults: { theme: 'dark' } }).success, false, 'theme is not a default');
+    assert.equal(themeSpecSchema.safeParse({ defaults: { accent: '#ff0000' } }).success, false, 'accent is not a default');
+    assert.equal(themeSpecSchema.safeParse({ defaults: { transparent: true } }).success, false, 'transparent is not a default');
+    assert.equal(themeSpecSchema.safeParse({ defaults: { padding: 500 } }).success, false, 'padding over 160');
+    assert.equal(themeSpecSchema.safeParse({ defaults: { width: 100 } }).success, false, 'width under 160');
+  });
+
+  test('the saved default theme brings its defaults; call options win', async () => {
+    store.save('round', { base: 'dark', background: '#000000', defaults: { width: 466, height: 466, padding: 60, detail: 'minimal' } });
+    store.setDefault('round');
+    try {
+      const data = { items: [{ label: 'A', value: 1 }] };
+      const doc = await renderer.toHtml('stats', data);
+      assert.deepEqual([doc.width, doc.height, doc.detail], [466, 466, 'minimal']);
+      assert.match(doc.html, /padding:60px/);
+      const own = await renderer.toHtml('stats', data, { width: 600, padding: 10 });
+      assert.deepEqual([own.width, own.height], [600, 466]);
+      assert.match(own.html, /padding:10px/);
+      const preset = await renderer.toHtml('stats', data, { theme: 'dark' });
+      assert.notEqual(preset.width, 466, 'presets have no defaults');
+      assert.equal(preset.height, undefined);
+    } finally {
+      store.setDefault(undefined);
+    }
   });
 });
