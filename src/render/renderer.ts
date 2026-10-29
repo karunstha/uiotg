@@ -14,6 +14,7 @@ import { BASE_CSS } from './base-css.ts';
 import { BrowserPool, type BrowserOptions } from './browser.ts';
 import { auditOverflow, growToFit, type OverflowIssue } from './audit.ts';
 import { circleBox, circleLayout, CIRCLE_CSS } from './circle.ts';
+import { measureFit, scaleContent, SCALE_FLOOR } from './shrink.ts';
 import type { Page } from 'playwright';
 
 const size = sizeOptionsSchema.shape;
@@ -52,6 +53,8 @@ export interface RenderResult {
   adjusted?: { width?: [number, number]; height?: [number, number] };
   /** Set when overflow "cap" cut items to keep a fixed height: items shown of total. */
   capped?: { shown: number; total: number };
+  /** Set when overflow "cap" shrank the content to keep the fixed size: the factor, below 1. */
+  scaled?: number;
 }
 
 export interface HtmlResult {
@@ -121,6 +124,8 @@ const MAX_AUTO_HEIGHT = 7900;
 const IMAGE_TIMEOUT_MS = 10_000;
 /** Most re-renders overflow "cap" tries while looking for how many items fit. */
 const MAX_CAP_TRIES = 10;
+/** Most factors overflow "cap" tries while looking for how far to shrink the content. */
+const MAX_SCALE_TRIES = 6;
 
 export interface RendererOptions {
   registry: Registry;
@@ -300,7 +305,7 @@ export class Renderer {
     fn: (
       page: Page,
       doc: HtmlResult,
-      size: { width: number; height: number; adjusted?: RenderResult['adjusted']; capped?: RenderResult['capped'] },
+      size: { width: number; height: number; adjusted?: RenderResult['adjusted']; capped?: RenderResult['capped']; scaled?: number },
     ) => Promise<T>,
   ): Promise<T> {
     const opts = this.#options(options);
@@ -357,6 +362,17 @@ export class Renderer {
           fit = best.fit;
         }
       }
+      let scaled: number | undefined;
+      if ((fit.tooTall || fit.grewWidth) && opts.overflow === 'cap' && doc.height != null) {
+        // Still too big (no truncate, or one item is): shrink the content to fit (see shrink.ts).
+        scaled = await this.#shrink(page, doc, () => show(doc.html));
+        if (scaled) fit = await settle();
+        else {
+          // Not even at the floor: grow as before, from a fresh page.
+          await show(doc.html);
+          fit = await settle();
+        }
+      }
       const width = Math.min(MAX_PIXELS, fit.width);
       const height = Math.min(MAX_AUTO_HEIGHT, Math.max(1, fit.height));
       const adjusted =
@@ -364,8 +380,41 @@ export class Renderer {
           ? { ...(fit.grewWidth ? { width: [doc.width, width] as [number, number] } : {}), ...(fit.grewHeight ? { height: [doc.height!, height] as [number, number] } : {}) }
           : undefined;
       await page.setViewportSize({ width, height });
-      return fn(page, doc, { width, height, adjusted, capped: doc.capped });
+      return fn(page, doc, { width, height, adjusted, capped: doc.capped, scaled: scaled && scaled < 1 ? scaled : undefined });
     });
+  }
+
+  /**
+   * Finds the largest factor (SCALE_FLOOR to 1) at which the page's content
+   * fits its fixed box, and leaves the page shrunk to it. Undefined when even
+   * the floor overflows. `reload` restores the unshrunk page.
+   */
+  async #shrink(page: Page, doc: HtmlResult & { circle?: boolean }, reload: () => Promise<void>): Promise<number | undefined> {
+    await reload();
+    const measure = async (s: number) => {
+      await page.evaluate(scaleContent, s);
+      const round = doc.circle ? await page.evaluate(circleLayout) : { fits: true };
+      const m = await page.evaluate(measureFit);
+      return { ...m, fits: !m.over && round.fits };
+    };
+    // Largest factor known to fit, smallest known not to.
+    let lo = 0;
+    let hi = 1;
+    let s = 1;
+    for (let tries = 0; tries < MAX_SCALE_TRIES; tries++) {
+      const m = await measure(s);
+      if (m.fits) lo = s;
+      else hi = s;
+      if (hi - lo < 0.01 || (!m.fits && s <= SCALE_FLOOR)) break;
+      // Content scales with the factor (plus some re-wrapping): aim at the box, staying between the bounds.
+      const aim = s * Math.min(m.boxW / m.needW, m.boxH / m.needH) * (m.fits ? 1 : 0.99);
+      const next = Math.round(Math.max(SCALE_FLOOR, Math.min(1, aim)) * 1000) / 1000;
+      s = next > lo && next < hi ? next : Math.round(((Math.max(lo, SCALE_FLOOR) + hi) / 2) * 1000) / 1000;
+    }
+    if (!lo) return undefined;
+    // The page shows the last factor tried; go back to the best one.
+    if (s !== lo) await measure(lo);
+    return lo;
   }
 
   /** Renders a template to an image. */
@@ -395,6 +444,7 @@ export class Renderer {
         detail: doc.detail,
         adjusted: size.adjusted,
         capped: size.capped,
+        ...(size.scaled ? { scaled: size.scaled } : {}),
       };
     });
   }

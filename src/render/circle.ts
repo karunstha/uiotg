@@ -87,10 +87,12 @@ export function circleLayout(): { passes: number; fits: boolean } {
       if (g.dy >= r) continue;
       const half = Math.sqrt(r * r - g.dy * g.dy);
       const want = Math.max(0, Math.floor(2 * (half - padX - GAP - g.dx)));
-      const cur = row.style.maxWidth ? parseFloat(row.style.maxWidth) : Infinity;
+      // Rows inside shrunk content (shrink.ts) measure in image px but size in their own zoomed px.
+      const zoom = (row as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom ?? 1;
+      const cur = row.style.maxWidth ? parseFloat(row.style.maxWidth) * zoom : Infinity;
       // Only ever narrower, so the passes settle.
       if (want < cur - 0.5) {
-        row.style.maxWidth = `${want}px`;
+        row.style.maxWidth = `${want / zoom}px`;
         changed = true;
       }
     }
