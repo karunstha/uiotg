@@ -179,9 +179,10 @@ describe('circle square', () => {
   // Inscribed square: side 318 centred, plus 12 padding: content within [86, 380].
   const lo = (466 - 318) / 2 + 12;
   const hi = 466 - lo;
+  // gauge and stats used to be the examples here; they now have their own round layout (circle-layouts.test.ts).
   for (const [id, data] of [
-    ['gauge', { title: 'CPU', value: 64, unit: '%' }],
-    ['stats', { items: [{ label: 'Users', value: 1284 }, { label: 'Uptime', value: '99.9%' }] }],
+    ['rating', { label: 'Service', score: 4.2 }],
+    ['sparkline', { label: 'Users', value: 1284, values: [3, 5, 4, 6, 8, 7, 9] }],
   ] as const) {
     test(`${id} keeps to the square inside the circle`, async () => {
       const page = await inPage(id, data, ROUND, true);
