@@ -164,6 +164,14 @@ Agents can also design their own: an all-pink theme, a blood-red-on-black one, a
 
 Saving checks readability. Text without enough contrast (4.5:1 for body text) is rejected with the exact ratios. Look-alike chart colors and faint accents come back as warnings next to a preview image. The same object works inline as `options.theme` to try a theme before saving it. Saved themes and the default live in `UIOTG_THEMES_DIR`. The default chain is: the call's theme, then the saved default, then `UIOTG_THEME`, then `light`. On a server several people share, set `UIOTG_THEMES_READONLY=1` to keep themes usable but not editable.
 
+A theme can also carry `defaults`: render options (`width`, `height`, `padding`, `scale`, `format`, `quality`, `detail`, same limits as the [render options](#render-options)) that apply whenever the theme is used. That suits a theme made for one screen, such as a round 466 px display:
+
+```jsonc
+{ "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "padding": 60, "scale": 1 } } }
+```
+
+For each option, the value in the call wins, then the theme's `defaults`, then the server defaults (`UIOTG_SCALE`, `UIOTG_FORMAT`), then the template's own. Presets have no defaults. The `save_theme` preview ignores them and renders at the usual size.
+
 Run `npm run gallery:themes` to render every template in every preset.
 
 ### Environment
