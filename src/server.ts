@@ -100,14 +100,14 @@ export function createServer(opts: ServerOptions): McpServer {
     example: t.example,
   });
 
-  /** `hint` (how to re-render with a template) is left out when the image was deliberately capped: re-rendering would defeat the cap. */
+  /** `hint` (how to re-render with a template) is left out when the image was deliberately capped or scaled: re-rendering would defeat it. */
   async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string, hint?: string): Promise<CallToolResult> {
     try {
       const result = await renderer.render(templateId, data, options ?? {});
       const kb = (result.data.length / 1024).toFixed(0);
       const lines = [
         ...(note ? [note] : []),
-        ...(hint && !result.capped ? [hint] : []),
+        ...(hint && !result.capped && !result.scaled ? [hint] : []),
         `Rendered ${templateId} (${result.detail} detail): ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
       ];
       if (result.capped) {
@@ -122,6 +122,11 @@ export function createServer(opts: ServerOptions): McpServer {
             `Fits the ${result.width}×${result.height} screen by design: ${more}. This is the intended result, not an error: do not enlarge, resize or re-render it. If the rest matters, say it aloud.`,
           );
         }
+      }
+      if (result.scaled) {
+        lines.push(
+          `Scaled to ${result.scaled.toFixed(2)} to fit the ${result.width}×${result.height} screen by design. This is the intended result, not an error: do not enlarge, resize or re-render it.`,
+        );
       }
       if (result.adjusted) {
         const parts = Object.entries(result.adjusted).map(([k, [from, to]]) => `${k} ${from}→${to}px`);
