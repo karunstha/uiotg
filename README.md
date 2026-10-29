@@ -147,6 +147,7 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 | `transparent` | `false` | Transparent background (png) |
 | `padding` | per template | Outer padding in px: a number for all sides, or `{ "x": 50, "y": 56 }` for left/right and top/bottom |
 | `overflow` | `grow` | With a fixed `height`: `grow` the image to fit everything, or `cap` it at the exact size and show fewer items with "+N more" (list-like templates; others grow) |
+| `shape` | `rect` | `circle` for a round screen (diameter = the smaller of `width` and `height`; `height` defaults to `width`): see [Themes](#themes) |
 | `accent` | palette blue | UI accent color (progress, links, highlights) |
 | `detail` | `auto` | `minimal`, `standard` or `rich` |
 
@@ -165,11 +166,13 @@ Agents can also design their own: an all-pink theme, a blood-red-on-black one, a
 
 Saving checks readability. Text without enough contrast (4.5:1 for body text) is rejected with the exact ratios. Look-alike chart colors and faint accents come back as warnings next to a preview image. The same object works inline as `options.theme` to try a theme before saving it. Saved themes and the default live in `UIOTG_THEMES_DIR`. The default chain is: the call's theme, then the saved default, then `UIOTG_THEME`, then `light`. On a server several people share, set `UIOTG_THEMES_READONLY=1` to keep themes usable but not editable.
 
-A theme can also carry `defaults`: render options (`width`, `height`, `padding`, `scale`, `format`, `quality`, `detail`, `overflow`, same limits as the [render options](#render-options)) that apply whenever the theme is used. That suits a theme made for one screen, such as a round 466 px display:
+A theme can also carry `defaults`: render options (`width`, `height`, `padding`, `scale`, `format`, `quality`, `detail`, `overflow`, `shape`, same limits as the [render options](#render-options)) that apply whenever the theme is used. That suits a theme made for one screen, such as a round 466 px display:
 
 ```jsonc
-{ "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "padding": { "x": 50, "y": 56 }, "scale": 1, "overflow": "cap" } } }
+{ "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "shape": "circle", "padding": 12, "scale": 1, "overflow": "cap" } } }
 ```
+
+`shape: "circle"` lays the image out for a round screen, where everything outside the circle is invisible. List-like templates (list, key_value, agenda, steps, text_card) become a centred column, and each row is narrowed to the circle's width at its height, so rows near the top and bottom are shorter and fewer rows fit than in a rectangle (with `overflow: "cap"` the "+N more" line lands where rows stop fitting). Every other template keeps to the square inside the circle. An 8 px rim is always kept; `padding` (default 0 with a circle) adds to it.
 
 For each option, the value in the call wins, then the theme's `defaults`, then the server defaults (`UIOTG_SCALE`, `UIOTG_FORMAT`), then the template's own. Presets have no defaults. The `save_theme` preview ignores them and renders at the usual size.
 
