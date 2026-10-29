@@ -1413,6 +1413,62 @@ export function adaptTo(template: string, input: VisualizeInput, registry: Regis
   return finish(adapt(template, input, registry), input, registry);
 }
 
+/** Second choices per template, tried in order when the rules have no other branch for the data. */
+const ALTERNATIVES: Partial<Record<string, string[]>> = {
+  line_chart: ['bar_chart', 'table'],
+  bar_chart: ['pie_chart', 'table'],
+  pie_chart: ['bar_chart'],
+  stats: ['key_value', 'bar_chart'],
+  key_value: ['table'],
+  table: ['key_value', 'list'],
+  list: ['tags', 'table'],
+  tags: ['list'],
+  scatter_chart: ['table'],
+  map: ['table'],
+  markdown: ['text_card'],
+  text_card: ['markdown'],
+  badge: ['text_card'],
+  weather: ['line_chart', 'table'],
+  gauge: ['stats'],
+  countdown: ['text_card'],
+  progress: ['bar_chart', 'table'],
+  activity: ['progress'],
+  dashboard: ['table'],
+  world_clock: ['table'],
+  candlestick: ['line_chart', 'table'],
+  stock_quote: ['key_value'],
+};
+
+export interface Alternative {
+  template: string;
+  reason: string;
+}
+
+/**
+ * The second-best template for the same input: the rules run again with the
+ * first choice excluded (hints and screen swaps then fall back to the plain
+ * shape rules), else the first alternative the data can be shaped for.
+ */
+export function runnerUp(input: VisualizeInput, first: Choice, registry: Registry): Alternative | null {
+  if (!first.reason.startsWith('the data already matches')) {
+    try {
+      const alt = choose(input, registry, { exclude: [first.template] });
+      if (alt.template !== first.template) return { template: alt.template, reason: alt.reason };
+    } catch {
+      // no other branch
+    }
+  }
+  for (const template of ALTERNATIVES[first.template] ?? []) {
+    try {
+      const alt = adaptTo(template, input, registry);
+      return { template, reason: alt.reason };
+    } catch {
+      // try the next
+    }
+  }
+  return null;
+}
+
 function choose(input: VisualizeInput, registry: Registry, ctx: ChooseContext): Choice {
   let choice = shapeChoice(input, registry, ctx);
   if (input.screen?.small) choice = fitScreen(choice, input.screen, ctx.exclude);

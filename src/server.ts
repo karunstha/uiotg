@@ -7,7 +7,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { CATEGORIES, type Category, type Template } from './core/types.ts';
 import { renderOptionsSchema, TemplateDataError, type RenderOptions, type Renderer } from './render/renderer.ts';
-import { AdaptError, adaptTo, chooseVisual, intentSchema, screenFrom, type Screen } from './auto.ts';
+import { AdaptError, adaptTo, chooseVisual, describeScreen, intentSchema, runnerUp, screenFrom, type Screen } from './auto.ts';
 import { QUERY_FIELD } from './core/backdrop.ts';
 import { buildTheme, checkTheme, PRESETS, themeNameSchema, themeSpecSchema, type ThemeSpec } from './core/themes.ts';
 
@@ -178,8 +178,12 @@ export function createServer(opts: ServerOptions): McpServer {
       description:
         'Turn raw data into the right UI image automatically. Send what you have: a number, text, a list, an object, or rows ' +
         '(array of objects, e.g. query results). uiotg infers the shape (time series → line chart, ranked categories → bars, ' +
-        'parts of a whole → donut, a few numbers → stat tiles, a record → key/value list, mixed rows → table, two measures → scatter) ' +
-        'and the level of detail, renders it, and reports which template it used. Use render instead to pick a template yourself.',
+        'parts of a whole → donut, a few numbers → stat tiles, a record → key/value list, mixed rows → table, two measures → scatter), ' +
+        'reads the title and key names (forecast rows → weather, "CPU usage" 72% → gauge, tasks with done flags → checklist, ' +
+        'a future date "until …" → countdown, value/goal pairs → progress) and fits the screen of the theme in use (a small or round ' +
+        'screen gets compact layouts and long lists cut to what fits). It renders the result and reports which template it used and ' +
+        'what else would fit. Pass template to force a template (the data is still shaped for it); pass preview to check the choice ' +
+        'without rendering.',
       inputSchema: {
         data: z.unknown().describe('Raw data: number, string, array, object or array of row objects'),
         title: z.string().max(200).optional(),
@@ -189,11 +193,15 @@ export function createServer(opts: ServerOptions): McpServer {
           .enum(ids)
           .optional()
           .describe('Force this template instead of the automatic choice; the data is still shaped for it (e.g. forecast rows → weather, a number → gauge). Leave out to let uiotg choose.'),
+        preview: z
+          .boolean()
+          .optional()
+          .describe('Check without rendering: returns the template it would use and why, the screen, the runner-up and the data, but no image.'),
         options: renderOptionsSchema.optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ data, title, subtitle, intent, template, options }) => {
+    async ({ data, title, subtitle, intent, template, preview, options }) => {
       let choice;
       const input = { data, title, subtitle, intent, screen: screenOf(options) };
       try {
@@ -210,7 +218,21 @@ export function createServer(opts: ServerOptions): McpServer {
       }
       const json = JSON.stringify(choice.data);
       const note = `${template ? 'Used' : 'Chose'} ${choice.template}: ${choice.reason}.`;
-      const hint = json.length <= 1500 ? `To adjust, call render with template "${choice.template}" and this data: ${json}` : `To adjust, call render with template "${choice.template}".`;
+      const alt = template ? null : runnerUp(input, choice, registry);
+      if (preview) {
+        const lines = [
+          'Preview only: nothing was rendered.',
+          `Would ${template ? 'use' : 'choose'} ${choice.template}: ${choice.reason}.`,
+          `Screen: ${input.screen ? describeScreen(input.screen) : 'unknown'}.`,
+          template ? 'Runner-up: none (template was forced).' : alt ? `Runner-up: ${alt.template} (${alt.reason}).` : 'Runner-up: none.',
+          `Data: ${json.length <= 1500 ? json : `${json.slice(0, 1500)}… (${json.length} characters)`}`,
+        ];
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      }
+      const hint = [
+        ...(alt ? [`Also fits: ${alt.template} (${alt.reason}). Pass template to choose it.`] : []),
+        json.length <= 1500 ? `To adjust, call render with template "${choice.template}" and this data: ${json}` : `To adjust, call render with template "${choice.template}".`,
+      ].join('\n');
       return run(choice.template, choice.data, options, note, hint);
     },
   );

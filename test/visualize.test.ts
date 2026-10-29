@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
-import { AdaptError, adaptTo, chooseVisual, createRenderer, screenFrom, ThemeStore, type VisualizeInput } from '../src/index.ts';
+import { AdaptError, adaptTo, chooseVisual, createRenderer, runnerUp, screenFrom, ThemeStore, type VisualizeInput } from '../src/index.ts';
 
 const themes = new ThemeStore(mkdtempSync(join(tmpdir(), 'uiotg-themes-')));
 themes.save('round', { base: 'dark', defaults: { width: 466, height: 466, shape: 'circle', overflow: 'cap' } });
@@ -252,5 +252,21 @@ describe('visualize: size on a small screen', () => {
     assert.equal(choice.template, 'line_chart');
     assert.equal((choice.data.x as string[]).length, 12);
     assert.equal(choice.data.subtitle, 'Last 12 of 30');
+  });
+});
+
+describe('visualize: runner-up', () => {
+  const second = (input: VisualizeInput) => runnerUp(input, choose(input), renderer.registry);
+
+  test('names the plain choice behind a hint or a screen swap', () => {
+    assert.equal(second({ data: [{ hour: '6am', temp: 18 }, { hour: '9am', temp: 21 }], title: 'Forecast' })?.template, 'line_chart');
+    const wideRound = second({ data: wide, screen: round });
+    assert.equal(wideRound?.template, 'table');
+    assert.match(wideRound!.reason, /kept 3 of 6 columns/);
+  });
+
+  test('falls back to a short list per template, or none', () => {
+    assert.equal(second({ data: { Chrome: 64, Safari: 19, Edge: 5, Firefox: 3, Other: 9 } })?.template, 'bar_chart');
+    assert.equal(second({ data: 42, title: 'Open tickets' }), null);
   });
 });

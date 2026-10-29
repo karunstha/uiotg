@@ -93,7 +93,28 @@ describe('MCP server', () => {
     assert.ok(!res.isError, JSON.stringify(res.content));
     const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
     assert.match(text, /Chose line_chart/);
+    assert.match(text, /Also fits: bar_chart \(.+\)\. Pass template to choose it\./);
     assert.ok(res.content.some((c) => c.type === 'image'));
+  });
+
+  test('visualize preview reports the choice, screen and runner-up without rendering', async () => {
+    themes.save('round_test', { base: 'dark', defaults: { width: 466, height: 466, shape: 'circle', overflow: 'cap' } });
+    try {
+      const res = (await client.callTool({
+        name: 'visualize',
+        arguments: { data: [{ hour: '6am', tempF: 65 }, { hour: '9am', tempF: 70 }], title: 'Forecast', preview: true, options: { theme: 'round_test' } },
+      })) as CallToolResult;
+      assert.ok(!res.isError, JSON.stringify(res.content));
+      assert.ok(res.content.every((c) => c.type === 'text'), 'no image');
+      const text = (res.content[0] as { text: string }).text;
+      assert.match(text, /^Preview only: nothing was rendered\./);
+      assert.match(text, /Would choose weather: /);
+      assert.match(text, /Screen: round 466×466, small\./);
+      assert.match(text, /Runner-up: line_chart \(/);
+      assert.match(text, /Data: \{"location":"Forecast"/);
+    } finally {
+      themes.delete('round_test');
+    }
   });
 
   test('visualize with a template shapes the data for it, or explains why it cannot', async () => {
@@ -132,7 +153,7 @@ describe('MCP server', () => {
       assert.match(text, /466×466 CSS px/, call.name);
       assert.match(text, /Fits the 466×466 screen by design: showing (\d+) of 12 items \(\+\d+ more\)/, call.name);
       assert.match(text, /do not enlarge/, call.name);
-      assert.doesNotMatch(text, /To adjust/, call.name);
+      assert.doesNotMatch(text, /To adjust|Also fits/, call.name);
       assert.doesNotMatch(text, /image grew/, call.name);
     }
   });
