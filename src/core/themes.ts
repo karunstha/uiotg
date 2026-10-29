@@ -51,9 +51,9 @@ export const themeSpecSchema = z.object({
     .optional()
     .describe(
       'Render options used whenever this theme is used and the call leaves them out: width, height, padding (a number, or {"x":…,"y":…} per axis), scale, format, quality, detail, ' +
-        'overflow ("cap" keeps the fixed size and shows fewer items with "+N more" instead of growing) (same limits as render options). ' +
+        'overflow ("cap" keeps the fixed size and shows fewer items with "+N more" instead of growing), shape ("circle" for a round screen) (same limits as render options). ' +
         'Options passed in the call always win; these beat the server defaults. Good for a theme tied to a device, e.g. a round 466 px screen: ' +
-        '{"width":466,"height":466,"padding":{"x":50,"y":56},"scale":1,"overflow":"cap"}.',
+        '{"width":466,"height":466,"shape":"circle","padding":12,"scale":1,"overflow":"cap"}.',
     ),
   lock: z
     .array(z.enum(Object.keys(sizeOptionsSchema.shape) as [keyof typeof sizeOptionsSchema.shape, ...(keyof typeof sizeOptionsSchema.shape)[]]))

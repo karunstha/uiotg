@@ -13,6 +13,7 @@ import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
 import { BrowserPool, type BrowserOptions } from './browser.ts';
 import { auditOverflow, growToFit, type OverflowIssue } from './audit.ts';
+import { circleBox, circleLayout, CIRCLE_CSS } from './circle.ts';
 import type { Page } from 'playwright';
 
 const size = sizeOptionsSchema.shape;
@@ -32,6 +33,7 @@ export const renderOptionsSchema = z.object({
   accent: colorSchema.optional().describe('Override the UI accent color (progress, highlights, links)'),
   detail: size.detail,
   overflow: size.overflow,
+  shape: size.shape,
 });
 
 export type RenderOptions = z.input<typeof renderOptionsSchema>;
@@ -237,7 +239,12 @@ export class Renderer {
   }
 
   /** toHtml, optionally keeping only the first `keep` items (Template.truncate). */
-  async #html(templateId: string, data: unknown, options: RenderOptions, keep?: number): Promise<HtmlResult & { capped?: RenderResult['capped'] }> {
+  async #html(
+    templateId: string,
+    data: unknown,
+    options: RenderOptions,
+    keep?: number,
+  ): Promise<HtmlResult & { capped?: RenderResult['capped']; circle?: boolean }> {
     const opts = this.#options(options);
     const t = this.#template(templateId);
     const full = this.#validate(t, data, '');
@@ -250,32 +257,39 @@ export class Renderer {
     const theme = photo ? photoTheme(chosen) : chosen;
     const mode: Mode = theme.mode;
     const width = opts.width ?? (typeof t.width === 'function' ? t.width(full as never) : t.width);
-    const height = opts.height ?? t.height;
-    const pad = paddingXY(opts.padding ?? t.padding ?? DEFAULT_PADDING);
-    const padding = pad.x === pad.y ? pad.x : `${pad.y}px ${pad.x}px`;
+    const round = opts.shape === 'circle';
+    // A round screen needs a fixed square-ish frame: no height means a square.
+    const height = opts.height ?? t.height ?? (round ? width : undefined);
+    // On a circle the rim is the margin, so padding is only what the call or theme asks for, on top of it.
+    const pad = paddingXY(opts.padding ?? (round ? 0 : (t.padding ?? DEFAULT_PADDING)));
+    const circle = round ? circleBox(width, height!, pad, t.circle === 'rows') : null;
+    const inset = circle?.inset ?? pad;
+    const padding = inset.x === inset.y ? inset.x : `${inset.y}px ${inset.x}px`;
+    const inner = circle ? { width: circle.width, height: circle.height } : { width: width - pad.x * 2, height: height ? height - pad.y * 2 : undefined };
     const used = new Set<Template>([t]);
     const requested = opts.detail ?? 'auto';
-    const detail = resolveDetail(requested, t, parsed, width - pad.x * 2);
-    const ctx = this.#context(theme, used, { width: width - pad.x * 2, height: height ? height - pad.y * 2 : undefined }, 0, detail, requested);
+    const detail = resolveDetail(requested, t, parsed, inner.width);
+    const ctx = this.#context(theme, used, inner, 0, detail, requested);
     const body = await fontScope.run(metricsFamily(theme.fontSans) ?? 'Inter', () => t.render(parsed, ctx));
     const css = [...used].map((u) => u.css ?? '').join('\n');
     // Shrink-wrapping templates size to their content, between minWidth and the default width.
     const fit = t.fit === 'content' && opts.width == null && !height;
     const rootStyle = fit
       ? style({ width: 'fit-content', 'min-width': `${Math.min(width, t.minWidth ?? 280)}px`, 'max-width': `${width}px`, padding })
-      : style({ width, height, padding });
-    const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}${photo ? ' on-bk photo' : ''}`;
+      : style({ width, height, padding, '--circle': circle?.vars });
+    const shapeClass = circle ? ` shape-circle ${t.circle === 'rows' ? 'circle-rows' : 'circle-square'}` : '';
+    const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}${photo ? ' on-bk photo' : ''}${shapeClass}`;
     const photoLayer = photo ? html`<div class="bk bg-img" style="${style({ 'background-image': imageBackground(photo, t.title) })}"></div><div class="bk-scrim"></div>` : null;
     const doc = html`<!doctype html>
 <html lang="en" data-theme="${mode}">
 <head>
 <meta charset="utf-8">
 <style>${raw(fontFaceCss())}</style>
-<style>:root{${raw(themeVars(theme))};color-scheme:${mode}}${raw(BASE_CSS)}${raw(css)}</style>
+<style>:root{${raw(themeVars(theme))};color-scheme:${mode}}${raw(BASE_CSS)}${raw(circle ? CIRCLE_CSS : '')}${raw(css)}</style>
 </head>
 <body><div id="root" class="${rootClass}" style="${rootStyle}">${photoLayer}${body}</div></body>
 </html>`;
-    return { html: doc.value, detail, width, height, theme: mode, capped };
+    return { html: doc.value, detail, width, height, theme: mode, capped, circle: !!circle };
   }
 
   /** Loads the document in a fresh page, waits for fonts and images, and grows the root to fit its content. */
@@ -301,18 +315,25 @@ export class Renderer {
         }
         await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
       };
+      // Shape "circle": fit the rows to the circle first (see circle.ts), then check for overflow.
+      // Rows that can't fit their chord count as too tall, so overflow "cap" shows fewer.
+      const settle = async () => {
+        const round = doc.circle ? await page.evaluate(circleLayout) : { fits: true };
+        const fit = await page.evaluate(growToFit);
+        return { ...fit, tooTall: fit.grewHeight || !round.fits };
+      };
       await show(doc.html);
       // Never clip: content wider than the image (or taller than a fixed height) grows it.
       if (doc.width < MAX_PIXELS) await page.setViewportSize({ width: MAX_PIXELS, height: doc.height ?? 600 });
-      let fit = await page.evaluate(growToFit);
+      let fit = await settle();
       const t = this.#template(templateId);
-      if (fit.grewHeight && opts.overflow === 'cap' && t.truncate) {
+      if (fit.tooTall && opts.overflow === 'cap' && t.truncate) {
         // Keep the fixed height: find the most items that fit (at least one).
         const total = t.truncate(this.#validate(t, data, '') as never, Number.MAX_SAFE_INTEGER).total;
         const attempt = async (keep: number) => {
           const d = await this.#html(templateId, data, opts, keep);
           await show(d.html);
-          return { doc: d, fit: await page.evaluate(growToFit), keep };
+          return { doc: d, fit: await settle(), keep };
         };
         type Attempt = Awaited<ReturnType<typeof attempt>>;
         let best: Attempt | null = null;
@@ -321,7 +342,7 @@ export class Renderer {
         let hi = total - 1;
         for (let tries = 0; lo <= hi && tries < MAX_CAP_TRIES; tries++) {
           last = await attempt(Math.floor((lo + hi + 1) / 2));
-          if (last.fit.grewHeight) hi = last.keep - 1;
+          if (last.fit.tooTall) hi = last.keep - 1;
           else {
             best = last;
             lo = last.keep + 1;

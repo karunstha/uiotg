@@ -91,6 +91,13 @@ export interface Template<S extends z.ZodType = z.ZodType> {
    * fixed height; templates without it grow instead.
    */
   truncate?(data: z.output<S>, keep: number): { data: z.output<S>; total: number; shown: number };
+  /**
+   * "rows": the template marks its header lines and repeated rows with
+   * CIRCLE_ROW (ui.ts), so with shape "circle" the renderer centres them and
+   * narrows each to the circle's width at its height. Without it, shape
+   * "circle" lays the template out in the square inside the circle.
+   */
+  circle?: 'rows';
   /** Stylesheet included once per document when the template is used. */
   css?: string;
   render(data: z.output<S>, ctx: RenderContext): Html | Promise<Html>;
