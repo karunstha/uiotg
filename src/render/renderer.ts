@@ -238,6 +238,12 @@ export class Renderer {
     };
   }
 
+  /** The template's Template.truncate for this shape: its own round layout may cut differently. */
+  #truncate(t: Template, round: boolean): Template['truncate'] {
+    const fn = round && t.renderCircle ? (t.truncateCircle ?? t.truncate) : t.truncate;
+    return fn?.bind(t);
+  }
+
   /** Validates `data` and builds the self-contained HTML document for a template. */
   async toHtml(templateId: string, data: unknown, options: RenderOptions = {}): Promise<HtmlResult> {
     return this.#html(templateId, data, options);
@@ -253,7 +259,9 @@ export class Renderer {
     const opts = this.#options(options);
     const t = this.#template(templateId);
     const full = this.#validate(t, data, '');
-    const cut = keep != null && t.truncate ? t.truncate(full as never, keep) : null;
+    const round = opts.shape === 'circle';
+    const truncate = this.#truncate(t, round);
+    const cut = keep != null && truncate ? truncate(full as never, keep) : null;
     const parsed: unknown = cut ? cut.data : full;
     const capped = cut && cut.shown < cut.total ? { shown: cut.shown, total: cut.total } : undefined;
     const photo = t.photo ? await this.#photo(t, data) : null;
@@ -262,12 +270,14 @@ export class Renderer {
     const theme = photo ? photoTheme(chosen) : chosen;
     const mode: Mode = theme.mode;
     const width = opts.width ?? (typeof t.width === 'function' ? t.width(full as never) : t.width);
-    const round = opts.shape === 'circle';
     // A round screen needs a fixed square-ish frame: no height means a square.
     const height = opts.height ?? t.height ?? (round ? width : undefined);
     // On a circle the rim is the margin, so padding is only what the call or theme asks for, on top of it.
     const pad = paddingXY(opts.padding ?? (round ? 0 : (t.padding ?? DEFAULT_PADDING)));
-    const circle = round ? circleBox(width, height!, pad, t.circle === 'rows') : null;
+    // A template's own round layout gets the rows box: the full safe circle, rows narrowed to their chords.
+    const own = round && !!t.renderCircle;
+    const rows = t.circle === 'rows' || own;
+    const circle = round ? circleBox(width, height!, pad, rows) : null;
     const inset = circle?.inset ?? pad;
     const padding = inset.x === inset.y ? inset.x : `${inset.y}px ${inset.x}px`;
     const inner = circle ? { width: circle.width, height: circle.height } : { width: width - pad.x * 2, height: height ? height - pad.y * 2 : undefined };
@@ -275,14 +285,17 @@ export class Renderer {
     const requested = opts.detail ?? 'auto';
     const detail = resolveDetail(requested, t, parsed, inner.width);
     const ctx = this.#context(theme, used, inner, 0, detail, requested);
-    const body = await fontScope.run(metricsFamily(theme.fontSans) ?? 'Inter', () => t.render(parsed, ctx));
+    const geometry = circle ? { diameter: Math.min(width, height!), safe: Math.min(circle.width, circle.height) } : null;
+    const body = await fontScope.run(metricsFamily(theme.fontSans) ?? 'Inter', () =>
+      own && geometry ? t.renderCircle!(parsed, { ...ctx, circle: geometry }) : t.render(parsed, geometry ? { ...ctx, circle: geometry } : ctx),
+    );
     const css = [...used].map((u) => u.css ?? '').join('\n');
     // Shrink-wrapping templates size to their content, between minWidth and the default width.
     const fit = t.fit === 'content' && opts.width == null && !height;
     const rootStyle = fit
       ? style({ width: 'fit-content', 'min-width': `${Math.min(width, t.minWidth ?? 280)}px`, 'max-width': `${width}px`, padding })
       : style({ width, height, padding, '--circle': circle?.vars });
-    const shapeClass = circle ? ` shape-circle ${t.circle === 'rows' ? 'circle-rows' : 'circle-square'}` : '';
+    const shapeClass = circle ? ` shape-circle ${rows ? 'circle-rows' : 'circle-square'}${own ? ' circle-own' : ''}` : '';
     const rootClass = `frame-${t.background ?? 'surface'} tpl-${t.id}${opts.transparent ? ' transparent' : ''}${photo ? ' on-bk photo' : ''}${shapeClass}`;
     const photoLayer = photo ? html`<div class="bk bg-img" style="${style({ 'background-image': imageBackground(photo, t.title) })}"></div><div class="bk-scrim"></div>` : null;
     const doc = html`<!doctype html>
@@ -332,9 +345,10 @@ export class Renderer {
       if (doc.width < MAX_PIXELS) await page.setViewportSize({ width: MAX_PIXELS, height: doc.height ?? 600 });
       let fit = await settle();
       const t = this.#template(templateId);
-      if (fit.tooTall && opts.overflow === 'cap' && t.truncate) {
+      const truncate = this.#truncate(t, opts.shape === 'circle');
+      if (fit.tooTall && opts.overflow === 'cap' && truncate) {
         // Keep the fixed height: find the most items that fit (at least one).
-        const total = t.truncate(this.#validate(t, data, '') as never, Number.MAX_SAFE_INTEGER).total;
+        const total = truncate(this.#validate(t, data, '') as never, Number.MAX_SAFE_INTEGER).total;
         const attempt = async (keep: number) => {
           const d = await this.#html(templateId, data, opts, keep);
           await show(d.html);
