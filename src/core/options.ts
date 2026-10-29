@@ -5,17 +5,36 @@
  */
 import { z } from 'zod';
 
+const paddingPx = z.number().int().min(0).max(160);
+
 export const sizeOptionsSchema = z.object({
   width: z.number().int().min(160).max(2400).optional().describe('Image width in CSS px; defaults to the template’s preferred width'),
   height: z.number().int().min(80).max(4000).optional().describe('Fixed image height in CSS px; omit to fit the content'),
   scale: z.number().min(1).max(3).optional().describe('Device pixel ratio; 2 (default) gives crisp images'),
   format: z.enum(['png', 'jpeg']).optional().describe('Image format (default png)'),
   quality: z.number().int().min(1).max(100).optional().describe('JPEG quality (default 90)'),
-  padding: z.number().int().min(0).max(160).optional().describe('Outer padding in CSS px'),
+  padding: z
+    .union([paddingPx, z.object({ x: paddingPx.describe('Left and right padding in CSS px'), y: paddingPx.describe('Top and bottom padding in CSS px') }).strict()])
+    .optional()
+    .describe('Outer padding in CSS px: one number for all sides, or {"x":…,"y":…} for left/right and top/bottom'),
   detail: z
     .enum(['auto', 'minimal', 'standard', 'rich'])
     .optional()
     .describe('Level of detail. "auto" (default) picks from the data and image size: minimal when small, rich (summary stats, extremes) when there is room and enough data'),
+  overflow: z
+    .enum(['grow', 'cap'])
+    .optional()
+    .describe(
+      'What happens when the content is taller than a fixed height. "grow" (default): the image grows to show everything. ' +
+        '"cap": the image keeps the exact size and list-like templates show fewer items plus a "+N more" line (templates without that fall back to grow). Only matters when a height is set',
+    ),
 });
 
 export type SizeOptions = z.input<typeof sizeOptionsSchema>;
+
+export type Padding = NonNullable<SizeOptions['padding']>;
+
+/** A padding option as per-axis pixels (a number means both axes). */
+export function paddingXY(padding: Padding): { x: number; y: number } {
+  return typeof padding === 'number' ? { x: padding, y: padding } : padding;
+}

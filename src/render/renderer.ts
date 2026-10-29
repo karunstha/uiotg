@@ -5,7 +5,7 @@ import { fontFaceCss } from '../core/fonts.ts';
 import { html, raw, style, type Html } from '../core/html.ts';
 import { imageBackground } from '../core/ui.ts';
 import { fontScope, metricsFamily } from '../core/measure.ts';
-import { sizeOptionsSchema } from '../core/options.ts';
+import { paddingXY, sizeOptionsSchema } from '../core/options.ts';
 import { themeVars, withAccent, type Mode, type Theme } from '../core/theme.ts';
 import { photoTheme, PRESETS, resolveTheme, themeDefaults, themeSpecSchema, ThemeStore, type ThemeSpec } from '../core/themes.ts';
 import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
@@ -31,6 +31,7 @@ export const renderOptionsSchema = z.object({
   padding: size.padding,
   accent: colorSchema.optional().describe('Override the UI accent color (progress, highlights, links)'),
   detail: size.detail,
+  overflow: size.overflow,
 });
 
 export type RenderOptions = z.input<typeof renderOptionsSchema>;
@@ -236,11 +237,12 @@ export class Renderer {
     const mode: Mode = theme.mode;
     const width = opts.width ?? (typeof t.width === 'function' ? t.width(parsed as never) : t.width);
     const height = opts.height ?? t.height;
-    const padding = opts.padding ?? t.padding ?? DEFAULT_PADDING;
+    const pad = paddingXY(opts.padding ?? t.padding ?? DEFAULT_PADDING);
+    const padding = pad.x === pad.y ? pad.x : `${pad.y}px ${pad.x}px`;
     const used = new Set<Template>([t]);
     const requested = opts.detail ?? 'auto';
-    const detail = resolveDetail(requested, t, parsed, width - padding * 2);
-    const ctx = this.#context(theme, used, { width: width - padding * 2, height: height ? height - padding * 2 : undefined }, 0, detail, requested);
+    const detail = resolveDetail(requested, t, parsed, width - pad.x * 2);
+    const ctx = this.#context(theme, used, { width: width - pad.x * 2, height: height ? height - pad.y * 2 : undefined }, 0, detail, requested);
     const body = await fontScope.run(metricsFamily(theme.fontSans) ?? 'Inter', () => t.render(parsed, ctx));
     const css = [...used].map((u) => u.css ?? '').join('\n');
     // Shrink-wrapping templates size to their content, between minWidth and the default width.
