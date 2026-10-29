@@ -7,7 +7,7 @@ import { icon } from '../../core/icons.ts';
 import { fitFontSize } from '../../core/measure.ts';
 import { hashHue } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { imageBackground, initials } from '../../core/ui.ts';
+import { circleRow, imageBackground, initials } from '../../core/ui.ts';
 
 const team = z.object({
   name: z.string().min(1).max(60),
@@ -24,6 +24,40 @@ const EVENT_ICONS: Record<string, string> = { goal: 'circle-dot', score: 'circle
 /** A team's color: given, or a stable deep tone from its name. */
 function teamColor(t: Team): string {
   return t.color ?? `hsl(${hashHue(t.name)} 55% 34%)`;
+}
+
+/** Whether there is a score, the match status and its label, and who lost a decided game. */
+function matchState(d: { home: Team; away: Team; status?: 'scheduled' | 'live' | 'halftime' | 'final' | 'postponed'; clock?: string }) {
+  const hasScore = d.home.score != null || d.away.score != null;
+  const status = d.status ?? (hasScore ? 'final' : 'scheduled');
+  const final = status === 'final';
+  const hs = Number(d.home.score);
+  const as = Number(d.away.score);
+  const decided = final && Number.isFinite(hs) && Number.isFinite(as) && hs !== as;
+  const statusText = { scheduled: d.clock ?? 'Upcoming', live: d.clock ? `Live · ${d.clock}` : 'Live', halftime: 'Half-time', final: 'Final', postponed: 'Postponed' }[status];
+  return { hasScore, status, hs, as, decided, statusText };
+}
+
+/** A team's logo, or its initials on its color. */
+function teamLogo(t: Team, color: string): Html {
+  return html`<span class="sc-logo bg-img" style="${style({ 'background-image': t.logo_url ? imageBackground(t.logo_url, t.name) : undefined, background: t.logo_url ? undefined : color })}">${t.logo_url ? '' : (t.short ?? initials(t.name))}</span>`;
+}
+
+type Event = { time: string; team: 'home' | 'away'; text: string; kind: string };
+
+/** An event's icon (or card) and text. */
+function eventLabel(e: Event): Html {
+  const glyph = html`<span style="${style({ color: e.kind === 'red_card' ? 'var(--critical)' : e.kind === 'yellow_card' ? 'var(--warning)' : 'var(--text-2)', display: 'inline-flex' })}">${icon(EVENT_ICONS[e.kind] ?? 'info', { size: 13, strokeWidth: e.kind.endsWith('card') ? 0 : 2.5 })}</span>`;
+  return html`${e.kind.endsWith('card') ? html`<span style="${style({ display: 'inline-block', width: 9, height: 12, 'border-radius': 2, margin: '0 5px', 'vertical-align': -1, background: e.kind === 'red_card' ? 'var(--critical)' : 'var(--warning)' })}"></span>` : glyph}${e.text}`;
+}
+
+/** Events a round screen shows at most. */
+const CIRCLE_EVENTS = 3;
+
+/** The scoring events when there are any (else every event), most recent last. */
+function scorers<E extends Event>(events: E[]): E[] {
+  const goals = events.filter((e) => e.kind === 'goal' || e.kind === 'score');
+  return goals.length ? goals : events;
 }
 
 export const sportsScore = defineTemplate({
@@ -105,6 +139,47 @@ export const sportsScore = defineTemplate({
 .sc-ev-time{font-size:12px;font-weight:650;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .sc-ev .icon{vertical-align:-2px;margin:0 4px}
 `,
+  circleCss: /* css */ `
+.sc-rtop{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--text-2)}
+.sc-rtop .sc-status{background:var(--subtle);color:var(--text)}
+.sc-rboard{display:grid;grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr);align-items:center;gap:10px;margin-top:14px}
+.sc-rboard .sc-team{gap:6px}
+.sc-rboard .sc-logo{width:56px;height:56px;font-size:17px;box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+.sc-rboard .sc-name{font-size:15px;text-shadow:none;color:var(--text);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-rboard .sc-score{text-shadow:none;color:var(--text)}
+.sc-rmeta{font-size:12.5px;color:var(--text-2);margin-top:10px}
+.sc-rev{display:grid;grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr);column-gap:10px;font-size:13.5px;color:var(--text)}
+.sc-rev:first-of-type{margin-top:12px}
+.sc-rev > *{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-rev .icon{vertical-align:-2px;margin:0 4px}
+`,
+  // Events past the score lines are cut first (a round screen shows a few scorers at most).
+  truncateCircle(d, keep) {
+    const events = scorers(d.events ?? []);
+    const shown = Math.min(events.length, Math.max(1, Math.floor(keep)));
+    return { data: { ...d, events: events.slice(0, shown) }, total: events.length, shown };
+  },
+  renderCircle(d, ctx) {
+    // No backdrop card: the teams and score centred on the screen, then the venue and a few events.
+    const [hc, ac] = [teamColor(d.home), teamColor(d.away)];
+    const { hasScore, status, hs, as, decided, statusText } = matchState(d);
+    const scoreSize = fitFontSize(`${d.home.score ?? ''} – ${d.away.score ?? ''}`, ctx.circle.safe * 0.36, 60, 24);
+    const team = (t: Team, color: string, lost: boolean) =>
+      html`<div class="${`sc-team${lost ? ' sc-lose' : ''}`}">${teamLogo(t, color)}<div class="sc-name">${t.short && t.name.length > 12 ? t.short : t.name}</div></div>`;
+    const events = scorers(d.events ?? []).slice(0, CIRCLE_EVENTS);
+    return html`<div class="${circleRow('sc-rtop')}">${d.league ? html`<span>${d.league}</span>` : null}<span class="sc-status">${status === 'live' ? html`<i></i>` : null}${statusText}</span></div>
+      <div class="${circleRow('sc-rboard')}">
+        ${team(d.home, hc, decided && hs < as)}
+        <div class="sc-score" style="${`font-size:${scoreSize}px`}">${hasScore
+          ? html`<span class="${decided && hs < as ? 'sc-lose' : ''}">${d.home.score ?? 0}</span><span class="sc-dash">–</span><span class="${decided && as < hs ? 'sc-lose' : ''}">${d.away.score ?? 0}</span>`
+          : html`<span class="sc-dash" style="font-size:.5em">vs</span>`}</div>
+        ${team(d.away, ac, decided && as < hs)}
+      </div>
+      ${d.venue || d.date ? html`<div class="${circleRow('sc-rmeta')}">${[d.venue, d.date].filter(Boolean).join(' · ')}</div>` : null}
+      ${events.map(
+        (e) => html`<div class="${circleRow('sc-rev')}"><div class="sc-ev-l">${e.team === 'home' ? eventLabel(e) : ''}</div><div class="sc-ev-time">${e.time}</div><div>${e.team === 'away' ? eventLabel(e) : ''}</div></div>`,
+      )}`;
+  },
   async render(d, ctx) {
     const [hc, ac] = [teamColor(d.home), teamColor(d.away)];
     const bg = await backdrop({
@@ -113,15 +188,8 @@ export const sportsScore = defineTemplate({
       query: d.background_image_query_keyword ?? (d.sport ? `${d.sport} stadium` : 'stadium lights'),
       art: () => teamArt(hc, ac, Math.round(ctx.width), 260),
     });
-    const hasScore = d.home.score != null || d.away.score != null;
-    const status = d.status ?? (hasScore ? 'final' : 'scheduled');
-    const final = status === 'final';
-    const hs = Number(d.home.score);
-    const as = Number(d.away.score);
-    const decided = final && Number.isFinite(hs) && Number.isFinite(as) && hs !== as;
-    const statusText = { scheduled: d.clock ?? 'Upcoming', live: d.clock ? `Live · ${d.clock}` : 'Live', halftime: 'Half-time', final: 'Final', postponed: 'Postponed' }[status];
-    const logo = (t: Team, color: string): Html =>
-      html`<span class="sc-logo bg-img" style="${style({ 'background-image': t.logo_url ? imageBackground(t.logo_url, t.name) : undefined, background: t.logo_url ? undefined : color })}">${t.logo_url ? '' : (t.short ?? initials(t.name))}</span>`;
+    const { hasScore, status, hs, as, decided, statusText } = matchState(d);
+    const logo = teamLogo;
     const scoreSize = fitFontSize(`${d.home.score ?? ''} – ${d.away.score ?? ''}`, ctx.width * 0.38, 56, 24);
 
     const box = d.periods
@@ -148,8 +216,7 @@ export const sportsScore = defineTemplate({
       ${box}
       ${d.events?.length
         ? html`<div class="sc-ev">${d.events.map((e) => {
-            const glyph = html`<span style="${style({ color: e.kind === 'red_card' ? 'var(--critical)' : e.kind === 'yellow_card' ? 'var(--warning)' : 'var(--text-2)', display: 'inline-flex' })}">${icon(EVENT_ICONS[e.kind] ?? 'info', { size: 13, strokeWidth: e.kind.endsWith('card') ? 0 : 2.5 })}</span>`;
-            const label = html`${e.kind.endsWith('card') ? html`<span style="${style({ display: 'inline-block', width: 9, height: 12, 'border-radius': 2, margin: '0 5px', 'vertical-align': -1, background: e.kind === 'red_card' ? 'var(--critical)' : 'var(--warning)' })}"></span>` : glyph}${e.text}`;
+            const label = eventLabel(e);
             return html`<div class="sc-ev-l">${e.team === 'home' ? label : ''}</div><div class="sc-ev-time">${e.time}</div><div>${e.team === 'away' ? label : ''}</div>`;
           })}</div>`
         : null}`;
