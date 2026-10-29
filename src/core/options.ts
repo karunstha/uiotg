@@ -25,8 +25,9 @@ export const sizeOptionsSchema = z.object({
     .enum(['grow', 'cap'])
     .optional()
     .describe(
-      'What happens when the content is taller than a fixed height. "grow" (default): the image grows to show everything. ' +
-        '"cap": the image keeps the exact size and list-like templates show fewer items plus a "+N more" line (templates without that fall back to grow). Only matters when a height is set',
+      'What happens when the content is taller (or wider) than a fixed size. "grow" (default): the image grows to show everything. ' +
+        '"cap": the image keeps the exact size; list-like templates show fewer items plus a "+N more" line, and other content (or one item still too big) is scaled down to fit, ' +
+        'down to 0.6 (below that the image grows). Only matters when a height is set',
     ),
   shape: z
     .enum(['rect', 'circle'])

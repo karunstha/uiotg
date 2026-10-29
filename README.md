@@ -131,7 +131,7 @@ Text in uiotg never overflows, gets truncated with an ellipsis, or is hidden. La
 - Tile grids (stats, covers, devices, task columns) reflow to fewer columns instead of squeezing.
 - Chart labels wrap. When they still don't fit around a chart, they become numbered markers with a key (radar axes, sankey nodes, heatmap columns).
 - Category labels are angled rather than skipped.
-- If content still doesn't fit, the image grows to show all of it, and the tool result says so. With `overflow: "cap"` and a fixed height, list-like templates (list, table, key_value, agenda, timeline, watchlist, steps, tags, task_board) instead keep the exact size and show their first items plus a "+N more" line; the tool result says how many were shown.
+- If content still doesn't fit, the image grows to show all of it, and the tool result says so. With `overflow: "cap"` and a fixed height, list-like templates (list, table, key_value, agenda, timeline, watchlist, steps, tags, task_board) instead keep the exact size and show their first items plus a "+N more" line; the tool result says how many were shown. Other templates (and a single item that is still too big) are scaled down uniformly to fit the box instead, laid out on a proportionally wider canvas so text re-wraps, down to a factor of 0.6; the result reports it as `scaled` and the tool result says "Scaled to 0.72 …". Content that would need less than 0.6 grows the image as before. (Before this, `cap` let those templates grow.)
 
 This is enforced by `npm run audit` and the test suite. Each one renders every template with its example, with stress data (very long text and huge numbers), and at a narrow width, then checks in the browser for clipped, truncated, out-of-bounds, overlapping or broken text.
 
@@ -146,7 +146,7 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 | `format` | `png` | `png` or `jpeg` (`quality` 1–100) |
 | `transparent` | `false` | Transparent background (png) |
 | `padding` | per template | Outer padding in px: a number for all sides, or `{ "x": 50, "y": 56 }` for left/right and top/bottom |
-| `overflow` | `grow` | With a fixed `height`: `grow` the image to fit everything, or `cap` it at the exact size and show fewer items with "+N more" (list-like templates; others grow) |
+| `overflow` | `grow` | With a fixed `height`: `grow` the image to fit everything, or `cap` it at the exact size and show fewer items with "+N more" (list-like templates; others shrink to fit, down to 0.6, then grow) |
 | `shape` | `rect` | `circle` for a round screen (diameter = the smaller of `width` and `height`; `height` defaults to `width`): see [Themes](#themes) |
 | `accent` | palette blue | UI accent color (progress, links, highlights) |
 | `detail` | `auto` | `minimal`, `standard` or `rich` |
@@ -172,7 +172,7 @@ A theme can also carry `defaults`: render options (`width`, `height`, `padding`,
 { "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "shape": "circle", "padding": 12, "scale": 1, "overflow": "cap" } } }
 ```
 
-`shape: "circle"` lays the image out for a round screen, where everything outside the circle is invisible. List-like templates (list, key_value, agenda, steps, text_card) become a centred column, and each row is narrowed to the circle's width at its height, so rows near the top and bottom are shorter and fewer rows fit than in a rectangle (with `overflow: "cap"` the "+N more" line lands where rows stop fitting). Every other template keeps to the square inside the circle. An 8 px rim is always kept; `padding` (default 0 with a circle) adds to it.
+`shape: "circle"` lays the image out for a round screen, where everything outside the circle is invisible. List-like templates (list, key_value, agenda, steps, text_card) become a centred column, and each row is narrowed to the circle's width at its height, so rows near the top and bottom are shorter and fewer rows fit than in a rectangle (with `overflow: "cap"` the "+N more" line lands where rows stop fitting). Every other template keeps to the square inside the circle, and content smaller than that square is centred in it (so in the middle of the circle). An 8 px rim is always kept; `padding` (default 0 with a circle) adds to it.
 
 For each option, the value in the call wins, then the theme's `defaults`, then the server defaults (`UIOTG_SCALE`, `UIOTG_FORMAT`), then the template's own. Presets have no defaults. The `save_theme` preview ignores them and renders at the usual size.
 
