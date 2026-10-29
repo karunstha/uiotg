@@ -120,6 +120,8 @@ export interface Template<S extends z.ZodType = z.ZodType> {
   truncateCircle?(data: z.output<S>, keep: number): { data: z.output<S>; total: number; shown: number };
   /** Stylesheet included once per document when the template is used. */
   css?: string;
+  /** Extra stylesheet for `renderCircle`, included only with shape "circle". */
+  circleCss?: string;
   render(data: z.output<S>, ctx: RenderContext): Html | Promise<Html>;
 }
 

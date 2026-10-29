@@ -289,7 +289,7 @@ export class Renderer {
     const body = await fontScope.run(metricsFamily(theme.fontSans) ?? 'Inter', () =>
       own && geometry ? t.renderCircle!(parsed, { ...ctx, circle: geometry }) : t.render(parsed, geometry ? { ...ctx, circle: geometry } : ctx),
     );
-    const css = [...used].map((u) => u.css ?? '').join('\n');
+    const css = [...used].map((u) => u.css ?? '').join('\n') + (own && t.circleCss ? `\n${t.circleCss}` : '');
     // Shrink-wrapping templates size to their content, between minWidth and the default width.
     const fit = t.fit === 'content' && opts.width == null && !height;
     const rootStyle = fit
