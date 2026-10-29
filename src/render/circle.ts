@@ -106,3 +106,73 @@ export function circleLayout(): { passes: number; fits: boolean } {
   });
   return { passes, fits };
 }
+
+/**
+ * In-page. For a `circle-square` root, moves the content so what it paints
+ * (text, images, SVG, filled or bordered boxes, clipped by their ancestors)
+ * sits in the middle of the inscribed square, which is the middle of the
+ * circle. Only along an axis where it is smaller than the square ("safe"
+ * centring: overflowing content keeps its start edge). Layout is untouched:
+ * the content is wrapped (as shrink.ts does) and the wrapper translated.
+ */
+export function centreContent(): { dx: number; dy: number } {
+  const root = document.getElementById('root');
+  if (!root || !root.classList.contains('circle-square')) return { dx: 0, dy: 0 };
+  let wrap = root.querySelector<HTMLElement>(':scope > .fit-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'fit-wrap';
+    for (const n of [...root.childNodes]) if (!(n instanceof Element && n.matches('.bk, .bk-scrim'))) wrap.append(n);
+    root.append(wrap);
+  }
+  const cs = getComputedStyle(root);
+  const rb = root.getBoundingClientRect();
+  const left = rb.left + root.clientLeft + parseFloat(cs.paddingLeft);
+  const top = rb.top + root.clientTop + parseFloat(cs.paddingTop);
+  const right = rb.left + root.clientLeft + root.clientWidth - parseFloat(cs.paddingRight);
+  const bottom = rb.top + root.clientTop + root.clientHeight - parseFloat(cs.paddingBottom);
+  const ink = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  // Clip a rect by every ancestor (up to the wrapper) that hides overflow.
+  const add = (el: Element, r: DOMRect) => {
+    let [l, t, rr, b] = [r.left, r.top, r.right, r.bottom];
+    for (let a = el.parentElement; a && a !== wrap; a = a.parentElement) {
+      const s = getComputedStyle(a);
+      if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+      const c = a.getBoundingClientRect();
+      [l, t, rr, b] = [Math.max(l, c.left), Math.max(t, c.top), Math.min(rr, c.right), Math.min(b, c.bottom)];
+    }
+    if (rr - l < 0.5 || b - t < 0.5) return;
+    ink.left = Math.min(ink.left, l);
+    ink.top = Math.min(ink.top, t);
+    ink.right = Math.max(ink.right, rr);
+    ink.bottom = Math.max(ink.bottom, b);
+  };
+  const range = document.createRange();
+  const sides = ['Top', 'Right', 'Bottom', 'Left'] as const;
+  for (const el of wrap.querySelectorAll('*')) {
+    const tag = el.tagName.toLowerCase();
+    if (tag !== 'svg' && el.closest('svg')) continue;
+    const s = getComputedStyle(el);
+    if (s.visibility === 'hidden' || s.opacity === '0') continue;
+    const painted =
+      ['svg', 'img', 'canvas', 'video', 'picture', 'iframe'].includes(tag) ||
+      !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(s.backgroundColor) ||
+      s.backgroundImage !== 'none' ||
+      s.boxShadow !== 'none' ||
+      sides.some((side) => parseFloat(s[`border${side}Width`]) > 0 && s[`border${side}Style`] !== 'none');
+    if (painted) add(el, el.getBoundingClientRect());
+    for (const n of el.childNodes) {
+      if (n.nodeType !== Node.TEXT_NODE || !n.textContent!.trim()) continue;
+      range.selectNodeContents(n);
+      add(el, range.getBoundingClientRect());
+    }
+  }
+  if (ink.left > ink.right) return { dx: 0, dy: 0 };
+  const shift = (lo: number, hi: number, a: number, b: number) => (b - a <= hi - lo + 0.5 ? (lo + hi) / 2 - (a + b) / 2 : 0);
+  const dx = Math.round(shift(left, right, ink.left, ink.right) * 2) / 2;
+  const dy = Math.round(shift(top, bottom, ink.top, ink.bottom) * 2) / 2;
+  // A translate is in the wrapper's own (possibly zoomed) px.
+  const zoom = (wrap as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom ?? 1;
+  if (dx || dy) wrap.style.translate = `${dx / zoom}px ${dy / zoom}px`;
+  return { dx, dy };
+}

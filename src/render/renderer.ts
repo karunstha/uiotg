@@ -13,7 +13,7 @@ import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
 import { BrowserPool, type BrowserOptions } from './browser.ts';
 import { auditOverflow, growToFit, type OverflowIssue } from './audit.ts';
-import { circleBox, circleLayout, CIRCLE_CSS } from './circle.ts';
+import { centreContent, circleBox, circleLayout, CIRCLE_CSS } from './circle.ts';
 import { measureFit, scaleContent, SCALE_FLOOR } from './shrink.ts';
 import type { Page } from 'playwright';
 
@@ -379,6 +379,8 @@ export class Renderer {
         fit.grewWidth || fit.grewHeight
           ? { ...(fit.grewWidth ? { width: [doc.width, width] as [number, number] } : {}), ...(fit.grewHeight ? { height: [doc.height!, height] as [number, number] } : {}) }
           : undefined;
+      // A round screen: content smaller than the inscribed square sits in its middle.
+      if (doc.circle && !adjusted) await page.evaluate(centreContent);
       await page.setViewportSize({ width, height });
       return fn(page, doc, { width, height, adjusted, capped: doc.capped, scaled: scaled && scaled < 1 ? scaled : undefined });
     });
