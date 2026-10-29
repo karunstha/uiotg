@@ -5,7 +5,7 @@ import { html, raw, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { renderInline } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header } from '../../core/ui.ts';
+import { circleRow, header } from '../../core/ui.ts';
 import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 export const steps = defineTemplate({
@@ -49,6 +49,7 @@ export const steps = defineTemplate({
   css: /* css */ `
 .stp-list{display:flex;flex-direction:column}
 .stp-more{padding-left:48px;font-size:14px;color:var(--muted)}
+.circle-rows .stp-more{padding-left:0}
 .stp-step{display:grid;grid-template-columns:32px 1fr;column-gap:16px}
 .stp-rail{display:flex;flex-direction:column;align-items:center}
 .stp-num{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;
@@ -70,13 +71,14 @@ export const steps = defineTemplate({
 .stp-tip .icon{color:var(--warning);margin-top:1px}
 `,
   truncate: (d, keep) => keepFirst(d, 'steps', keep),
+  circle: 'rows',
   async render(d, ctx) {
     const theme = defaultCodeTheme(ctx.theme.mode);
     const blocks = await Promise.all(d.steps.map((s) => (s.code ? highlight(s.code, s.language, { theme }) : null)));
     return html`${header(d)}<div class="stp-list">${d.steps.map((s, i) => {
       const code = blocks[i];
       const mark = s.icon ? icon(s.icon, { size: 15 }) : s.status === 'done' ? icon('check', { size: 15, strokeWidth: 3 }) : i + 1;
-      return html`<div class="${`stp-step${s.status ? ` stp-${s.status}` : ''}`}">
+      return html`<div class="${circleRow(`stp-step${s.status ? ` stp-${s.status}` : ''}`)}">
         <div class="stp-rail"><span class="stp-num">${mark}</span><span class="stp-line"></span></div>
         <div class="stp-body">
           <div class="stp-title">${s.title}</div>
@@ -85,6 +87,6 @@ export const steps = defineTemplate({
           ${s.tip ? html`<div class="stp-tip">${icon('lightbulb', { size: 15 })}<span>${s.tip}</span></div>` : null}
         </div>
       </div>`;
-    })}${hiddenCount(d) ? html`<div class="stp-more">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
+    })}${hiddenCount(d) ? html`<div class="${circleRow('stp-more')}">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
   },
 });

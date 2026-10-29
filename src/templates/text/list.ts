@@ -5,7 +5,7 @@ import { icon } from '../../core/icons.ts';
 import { renderInline } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
-import { header } from '../../core/ui.ts';
+import { circleRow, header } from '../../core/ui.ts';
 
 const ITEM_STATUS = {
   done: { icon: 'circle-check', color: 'var(--good)', label: 'Done' },
@@ -74,6 +74,7 @@ export const list = defineTemplate({
 .ls-item.ls-more .ls-text{color:var(--muted);font-size:14px}
 `,
   truncate: (d, keep) => keepFirst(d, 'items', keep),
+  circle: 'rows',
   render(d) {
     const showStatus = d.style === 'check' || d.items.some((i) => i.status);
     return html`${header(d)}<div class="ls">${d.items.map((item, i) => {
@@ -83,7 +84,7 @@ export const list = defineTemplate({
       else if (st) mark = html`<span style="${`color:${st.color}`}">${icon(st.icon, { size: 18 })}</span>`;
       else if (d.style === 'numbered') mark = html`<span class="ls-num">${i + 1}</span>`;
       else if (d.style === 'bullet') mark = html`<span class="ls-bullet"></span>`;
-      return html`<div class="${`ls-item${item.status ? ` ls-${item.status}` : ''}`}">
+      return html`<div class="${circleRow(`ls-item${item.status ? ` ls-${item.status}` : ''}`)}">
         <div class="ls-mark">${mark}</div>
         <div class="ls-main">
           <div class="ls-text">${renderInline(item.text)}</div>
@@ -95,7 +96,7 @@ export const list = defineTemplate({
         </div>
       </div>`;
     })}${hiddenCount(d)
-      ? html`<div class="ls-item ls-more"><div class="ls-mark"></div><div class="ls-main"><div class="ls-text">${moreLabel(hiddenCount(d))}</div></div></div>`
+      ? html`<div class="${circleRow('ls-item ls-more')}"><div class="ls-mark"></div><div class="ls-main"><div class="ls-text">${moreLabel(hiddenCount(d))}</div></div></div>`
       : null}</div>`;
   },
 });

@@ -4,6 +4,7 @@ import { html } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { renderMarkdown } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
+import { circleRow } from '../../core/ui.ts';
 
 const TONE_COLOR = {
   neutral: 'var(--text-2)',
@@ -48,6 +49,7 @@ export const textCard = defineTemplate({
   fit: 'content',
   minWidth: 320,
   width: 720,
+  circle: 'rows',
   css: /* css */ `
 .tc{display:flex;flex-direction:column;gap:12px}
 .tc.center{align-items:center;text-align:center}
@@ -63,16 +65,18 @@ export const textCard = defineTemplate({
 .tc.sm .tc-title{font-size:22px}.tc.sm .tc-text{font-size:14px}
 .tc.md .tc-title{font-size:30px}.tc.md .tc-text{font-size:16px}
 .tc.lg .tc-title{font-size:46px}.tc.lg .tc-text{font-size:19px}
+.circle-rows .tc{align-items:stretch;text-align:center}
+.circle-rows .tc.toned{border:0;padding:0}
 `,
   async render(d, ctx) {
     const body = d.text ? await renderMarkdown(d.text, ctx.theme.mode) : null;
     const toned = d.tone !== 'neutral';
     return html`<div class="${`tc ${d.size} ${d.align}${toned ? ' toned' : ''}`}" style="${`--tone:${TONE_COLOR[d.tone]}`}">
-      ${d.icon ? html`<div class="tc-icon">${icon(d.icon, { size: 22 })}</div>` : null}
-      ${d.eyebrow ? html`<div class="tc-eyebrow">${d.eyebrow}</div>` : null}
-      ${d.title ? html`<div class="tc-title">${d.title}</div>` : null}
-      ${body ? html`<div class="prose tc-text">${body}</div>` : null}
-      ${d.footer ? html`<div class="tc-footer">${d.footer}</div>` : null}
+      ${d.icon ? html`<div class="${circleRow('tc-icon')}">${icon(d.icon, { size: 22 })}</div>` : null}
+      ${d.eyebrow ? html`<div class="${circleRow('tc-eyebrow')}">${d.eyebrow}</div>` : null}
+      ${d.title ? html`<div class="${circleRow('tc-title')}">${d.title}</div>` : null}
+      ${body ? html`<div class="${circleRow('prose tc-text')}">${body}</div>` : null}
+      ${d.footer ? html`<div class="${circleRow('tc-footer')}">${d.footer}</div>` : null}
     </div>`;
   },
 });

@@ -3,7 +3,7 @@ import { display, formatSchema, iconSchema, makeFormatter, titleFields } from '.
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header } from '../../core/ui.ts';
+import { circleRow, header } from '../../core/ui.ts';
 import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const value = z.union([z.string().max(200), z.number(), z.boolean(), z.null()]);
@@ -51,6 +51,7 @@ export const keyValue = defineTemplate({
   width: (d) => (d.columns === 2 ? 760 : 460),
   css: /* css */ `
 .kv-grid{display:grid;column-gap:32px}
+.circle-rows .kv-grid{grid-template-columns:minmax(0, 1fr)!important}
 .kv-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--grid);font-size:14px}
 .kv-k{display:flex;align-items:center;gap:7px;color:var(--text-2);min-width:0}
 .kv-k .icon{color:var(--muted)}
@@ -64,6 +65,7 @@ export const keyValue = defineTemplate({
 .kv-yes{color:var(--good)}.kv-no{color:var(--muted)}
 `,
   truncate: (d, keep) => keepFirst(d, 'items', keep),
+  circle: 'rows',
   render(d) {
     const cell = (v: z.infer<typeof value>, fmt: ReturnType<typeof makeFormatter>) => {
       if (v === true) return html`<span class="kv-yes">${icon('check', { size: 16, strokeWidth: 2.5 })}</span>`;
@@ -72,13 +74,13 @@ export const keyValue = defineTemplate({
     };
     return html`${header(d)}
     <div class="kv-grid" style="${style({ 'grid-template-columns': `repeat(${d.columns}, minmax(0, 1fr))` })}">${d.items.map(
-      (it) => html`<div class="${`kv-row${it.emphasis ? ' em' : ''}${it.muted ? ' mu' : ''}`}">
+      (it) => html`<div class="${circleRow(`kv-row${it.emphasis ? ' em' : ''}${it.muted ? ' mu' : ''}`)}">
         <span class="kv-k">${icon(it.icon, { size: 15 })}${it.label}</span>
         <span class="${`kv-v${typeof it.value === 'number' ? ' kv-n' : ''}`}">${cell(it.value, makeFormatter(it.format))}</span>
       </div>`,
-    )}${hiddenCount(d) ? html`<div class="kv-row mu"><span class="kv-k">${moreLabel(hiddenCount(d))}</span></div>` : null}</div>
+    )}${hiddenCount(d) ? html`<div class="${circleRow('kv-row mu')}"><span class="kv-k">${moreLabel(hiddenCount(d))}</span></div>` : null}</div>
     ${d.total
-      ? html`<div class="kv-total"><span>${d.total.label}</span><span class="kv-v">${cell(d.total.value, makeFormatter(d.total.format))}</span></div>`
+      ? html`<div class="${circleRow('kv-total')}"><span>${d.total.label}</span><span class="kv-v">${cell(d.total.value, makeFormatter(d.total.format))}</span></div>`
       : null}`;
   },
 });
