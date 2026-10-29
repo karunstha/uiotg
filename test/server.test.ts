@@ -96,6 +96,23 @@ describe('MCP server', () => {
     assert.ok(res.content.some((c) => c.type === 'image'));
   });
 
+  test('render and visualize say when overflow cap cut items', async () => {
+    const options = { width: 466, height: 466, padding: { x: 50, y: 56 }, scale: 1, overflow: 'cap' };
+    const items = Array.from({ length: 12 }, (_, i) => `Item ${i + 1}: a fairly long line of text that wraps onto a second line here`);
+    const calls = [
+      { name: 'render', arguments: { template: 'list', data: { items: items.map((text) => ({ text })) }, options } },
+      { name: 'visualize', arguments: { data: items, options } },
+    ];
+    for (const call of calls) {
+      const res = (await client.callTool(call)) as CallToolResult;
+      assert.ok(!res.isError, JSON.stringify(res.content));
+      const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+      assert.match(text, /466×466 CSS px/, call.name);
+      assert.match(text, /Content didn't fit 466×466, showed (\d+) of 12 items \(\+\d+ more\)/, call.name);
+      assert.doesNotMatch(text, /image grew/, call.name);
+    }
+  });
+
   test('list_templates filters by category', async () => {
     const res = (await client.callTool({ name: 'list_templates', arguments: { category: 'media' } })) as CallToolResult;
     const text = (res.content[0] as { text: string }).text;
