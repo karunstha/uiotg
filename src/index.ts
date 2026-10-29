@@ -8,7 +8,7 @@ export type { HtmlResult, RenderOptions, RenderResult, RendererOptions } from '.
 export { BrowserPool, type BrowserOptions } from './render/browser.ts';
 export { createServer, type ServerOptions } from './server.ts';
 export { startHttpServer, type HttpOptions } from './http.ts';
-export { chooseVisual, screenFrom, type Choice, type Intent, type Screen, type VisualizeInput } from './auto.ts';
+export { AdaptError, adaptTo, chooseVisual, screenFrom, type Choice, type Intent, type Screen, type VisualizeInput } from './auto.ts';
 export { builtinTemplates } from './templates/index.ts';
 export { defineTemplate, CATEGORIES, type Category, type RenderContext, type Template } from './core/types.ts';
 export { html, raw, style, Html } from './core/html.ts';

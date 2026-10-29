@@ -321,8 +321,12 @@ function fromRows(rows: Row[], intent: Intent | undefined, title?: string): Choi
     }
   }
 
-  // Everything else is a table, with an inline bar on the first measure.
-  const firstNum = nums[0]?.key;
+  return tableChoice(rows, cols);
+}
+
+/** Everything else is a table, with an inline bar on the first measure. */
+function tableChoice(rows: Row[], cols: Column[]): Choice {
+  const firstNum = cols.find((c) => c.kind === 'number')?.key;
   return {
     template: 'table',
     data: {
@@ -1018,6 +1022,208 @@ function hintChoice(data: unknown, input: VisualizeInput, registry: Registry, ex
   return null;
 }
 
+// --- forced templates ------------------------------------------------------------
+
+/** A label column (text, else time) and the measures of some rows. */
+function labelled(rows: Row[]) {
+  const cols = analyze(rows);
+  const cats = cols.filter((c) => c.kind === 'category');
+  const label = cats.find((c) => c.distinct >= rows.length * 0.8) ?? cats[0] ?? cols.find((c) => c.kind === 'time');
+  return { cols, label, nums: cols.filter((c) => c.kind === 'number' && c !== label) };
+}
+
+const scalar = (v: unknown) => (v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? (typeof v === 'string' ? v.slice(0, 200) : v) : JSON.stringify(v).slice(0, 200));
+const numberList = (data: unknown) => (Array.isArray(data) && data.length && data.every((v) => toNumber(v) != null) ? data.map((v) => toNumber(v)!) : null);
+const numberRecord = (data: unknown) => {
+  if (!isRow(data)) return null;
+  const entries = Object.entries(data).map(([k, v]) => [k, toNumber(v)] as const);
+  return entries.length && entries.every(([, n]) => n != null) ? (entries as Array<readonly [string, number]>) : null;
+};
+
+const looseList: Builder = (data, input, h, loose) => {
+  const tasks = listBuilder(data, input, h, loose);
+  if (tasks || !loose) return tasks;
+  if (Array.isArray(data) && data.every((v) => typeof v === 'string' || typeof v === 'number')) {
+    return { data: { items: data.slice(0, 60).map((v) => ({ text: String(v).slice(0, 400) || '—' })) }, reason: `${data.length} items` };
+  }
+  const rows = rowsOf(data);
+  if (rows) {
+    const { cols, label } = labelled(rows);
+    if (!label) return null;
+    const meta = cols.find((c) => c !== label);
+    const items = rows.slice(0, 60).map((r) => ({ text: String(r[label.key] ?? '').slice(0, 400) || '—', meta: meta && r[meta.key] != null ? String(scalar(r[meta.key])).slice(0, 60) : undefined }));
+    return { data: { items }, reason: `${label.label.toLowerCase()} per row${meta ? `, ${meta.label.toLowerCase()} on the right` : ''}` };
+  }
+  if (isRow(data)) {
+    return { data: { items: Object.entries(data).slice(0, 60).map(([k, v]) => ({ text: humanize(k), meta: String(scalar(v)).slice(0, 60) })) }, reason: 'one item per key' };
+  }
+  return null;
+};
+
+const keyValue: Builder = (data) => {
+  const rows = rowsOf(data);
+  const rec = isRow(data) ? data : rows?.length === 1 ? rows[0]! : null;
+  if (rec) {
+    return {
+      data: { items: Object.entries(rec).slice(0, 40).map(([k, v]) => ({ label: humanize(k).slice(0, 80) || '—', value: scalar(v), format: typeof v === 'number' ? inferFormat(k, [v], [v]) : undefined })) },
+      reason: 'labelled values',
+    };
+  }
+  if (!rows) return null;
+  const { cols, label, nums } = labelled(rows);
+  const value = nums[0] ?? cols.find((c) => c !== label);
+  if (!label || !value) return null;
+  return {
+    data: { items: rows.slice(0, 40).map((r) => ({ label: String(r[label.key] ?? '').slice(0, 80) || '—', value: scalar(r[value.key]), format: value.format })) },
+    reason: `${label.label.toLowerCase()} with ${value.label.toLowerCase()} per row`,
+  };
+};
+
+const table: Builder = (data) => {
+  const rows = rowsOf(data) ?? (Array.isArray(data) && data.length ? data.map((v) => ({ item: v })) : isRow(data) ? Object.entries(data).map(([k, v]) => ({ label: humanize(k), value: scalar(v) })) : null);
+  if (!rows) return null;
+  const choice = tableChoice(rows, analyze(rows));
+  return { data: choice.data, reason: choice.reason };
+};
+
+const stats: Builder = (data, input) => {
+  const one = singleNumber(data);
+  if (one) return { data: { items: [{ label: (input.title ?? (one.key ? humanize(one.key) : 'Value')).slice(0, 80), value: one.value }] }, reason: 'a single number' };
+  const rec = numberRecord(data);
+  if (rec && rec.length <= 12) return { data: { items: rec.map(([k, n]) => ({ label: humanize(k).slice(0, 80), value: n, format: inferFormat(k, [n], [n]) })) }, reason: `${rec.length} named numbers` };
+  const list = numberList(data);
+  if (list && list.length <= 12) return { data: { items: list.map((n, i) => ({ label: `#${i + 1}`, value: n })) }, reason: `${list.length} numbers` };
+  const rows = rowsOf(data);
+  if (!rows || rows.length > 12) return null;
+  const { label, nums } = labelled(rows);
+  if (!label || !nums[0]) return null;
+  return { data: { items: rows.map((r, i) => ({ label: String(r[label.key] ?? '').slice(0, 80) || '—', value: nums[0]!.nums[i] ?? 0, format: nums[0]!.format })) }, reason: `${nums[0].label.toLowerCase()} per ${label.label.toLowerCase()}` };
+};
+
+/** Categories with one or more number series, for bars and lines. */
+function series(data: unknown, title?: string): { x: string[]; series: Array<{ name: string; values: Array<number | null> }>; format?: FormatSpec; reason: string } | null {
+  const rec = numberRecord(data);
+  if (rec) return { x: rec.map(([k]) => humanize(k)), series: [{ name: title ?? 'Value', values: rec.map(([, n]) => n) }], reason: `${rec.length} named values` };
+  const list = numberList(data);
+  if (list) return { x: list.map((_, i) => String(i + 1)), series: [{ name: title ?? 'Value', values: list }], reason: `${list.length} values` };
+  if (isRow(data)) {
+    const arrays = Object.entries(data).filter(([, v]) => Array.isArray(v) && v.every((n) => toNumber(n) != null));
+    const len = (arrays[0]?.[1] as unknown[] | undefined)?.length ?? 0;
+    if (!arrays.length || arrays.length > 8 || !arrays.every(([, v]) => (v as unknown[]).length === len)) return null;
+    return { x: Array.from({ length: len }, (_, i) => String(i + 1)), series: arrays.map(([k, v]) => ({ name: humanize(k), values: (v as unknown[]).map(toNumber) })), reason: 'named number sequences' };
+  }
+  const rows = rowsOf(data);
+  if (!rows) return null;
+  const { label, nums } = labelled(rows);
+  if (!label || !nums.length) return null;
+  const used = nums.slice(0, 8);
+  const x = label.kind === 'time' ? formatTimeLabels(rows.map((r) => String(r[label.key]))) : rows.map((r) => String(r[label.key] ?? ''));
+  return { x, series: used.map((c) => ({ name: c.label, values: clean(c.nums) })), format: used[0]!.format, reason: `${used.map((c) => c.label.toLowerCase()).join(', ')} per ${label.label.toLowerCase()}` };
+}
+
+const barChart: Builder = (data, input) => {
+  const s = series(data, input.title);
+  return s && { data: { categories: s.x.slice(0, 100), series: s.series.map((x) => ({ ...x, values: x.values.slice(0, 100) })), format: s.format }, reason: s.reason };
+};
+
+const lineChart: Builder = (data, input) => {
+  const s = series(data, input.title);
+  return s && s.x.length >= 2 ? { data: { x: s.x, series: s.series, format: s.format }, reason: s.reason } : null;
+};
+
+const pieChart: Builder = (data) => {
+  const rec = numberRecord(data);
+  if (rec) return { data: pieData(rec.map(([k]) => humanize(k)), rec.map(([, n]) => n)), reason: `${rec.length} parts` };
+  const rows = rowsOf(data);
+  if (!rows) return null;
+  const { label, nums } = labelled(rows);
+  if (!label || !nums[0]) return null;
+  return { data: pieData(rows.map((r) => String(r[label.key] ?? '').slice(0, 80) || '—'), nums[0].nums, nums[0].format), reason: `${nums[0].label.toLowerCase()} per ${label.label.toLowerCase()}` };
+};
+
+const tags: Builder = (data) => {
+  if (Array.isArray(data) && data.length && data.every((v) => typeof v === 'string' || typeof v === 'number')) return { data: { tags: data.slice(0, 120).map(String) }, reason: `${data.length} labels` };
+  const rows = rowsOf(data);
+  const label = rows && labelled(rows).label;
+  return rows && label ? { data: { tags: rows.slice(0, 120).map((r) => String(r[label.key] ?? '')) }, reason: `${label.label.toLowerCase()} per row` } : null;
+};
+
+/** Text, a list of strings as bullets, or a record as bold labels. */
+function asText(data: unknown): string | null {
+  if (typeof data === 'string' || typeof data === 'number' || typeof data === 'boolean') return String(data);
+  if (Array.isArray(data) && data.every((v) => typeof v === 'string' || typeof v === 'number')) return data.map((v) => `- ${v}`).join('\n');
+  if (isRow(data) && Object.values(data).every((v) => v == null || typeof v !== 'object')) return Object.entries(data).map(([k, v]) => `**${humanize(k)}:** ${v}`).join('\n');
+  return null;
+}
+
+const textCard: Builder = (data) => {
+  const text = asText(data);
+  return text ? { data: { text: text.slice(0, 10_000) }, reason: 'text' } : null;
+};
+
+const markdown: Builder = (data, input) => {
+  const text = asText(data);
+  return text ? { data: { markdown: input.title ? `# ${input.title}\n\n${text}` : text }, reason: 'text' } : null;
+};
+
+const timeline: Builder = (data) => {
+  const rows = rowsOf(data);
+  if (!rows) return null;
+  const cols = analyze(rows);
+  const time = cols.find((c) => c.kind === 'time');
+  const text = cols.find((c) => c.kind === 'category' && c !== time);
+  if (!time || !text) return null;
+  return { data: { events: rows.slice(0, 40).map((r) => ({ date: String(r[time.key] ?? '').slice(0, 40), title: String(r[text.key] ?? '').slice(0, 200) || '—' })) }, reason: `${text.label.toLowerCase()} by ${time.label.toLowerCase()}` };
+};
+
+/** Builders per template for a forced `template`: the hinted ones run loose, plus the common shapes. */
+const ADAPTERS: Partial<Record<string, Builder>> = {
+  ...Object.fromEntries(HINTED),
+  list: looseList,
+  key_value: keyValue,
+  table,
+  stats,
+  bar_chart: barChart,
+  line_chart: lineChart,
+  pie_chart: pieChart,
+  tags,
+  text_card: textCard,
+  markdown,
+  timeline,
+};
+
+/** The caller's data can't be shaped for the template they forced. */
+export class AdaptError extends Error {
+  readonly template: string;
+  constructor(template: string, detail: string) {
+    super(`Can't turn this data into ${template}: ${detail}`);
+    this.name = 'AdaptError';
+    this.template = template;
+  }
+}
+
+/**
+ * Shapes the data for a template the caller chose: data already valid for it
+ * is kept, else the template's adapter (or the automatic choice, when it lands
+ * on the same template) builds it. Throws AdaptError when nothing fits.
+ */
+function adapt(template: string, input: VisualizeInput, registry: Registry): Choice {
+  const t = registry.get(template);
+  if (!t) throw new Error(`Unknown template "${template}". Available: ${registry.ids().join(', ')}`);
+  const data = parseData(input.data);
+  if (isRow(data) && t.schema.safeParse(data).success) return { template, data: { ...data }, reason: `the data already matches ${template}` };
+  const build = ADAPTERS[template];
+  const built = build ? accept(registry, template, build(data, input, hintsOf(input, data), true)) : null;
+  if (built) return built;
+  try {
+    const auto = shapeChoice({ ...input, screen: undefined }, registry, { exclude: [] });
+    if (auto.template === template) return auto;
+  } catch {
+    // fall through to the error
+  }
+  throw new AdaptError(template, build ? `the data doesn't have the shape ${template} needs` : `${template} has no adapter, so the data must already match its schema`);
+}
+
 // --- screen ---------------------------------------------------------------------
 
 /** The screen a render will land on, from the effective render options (call, theme, server). */
@@ -1137,6 +1343,14 @@ function parseData(data: unknown): unknown {
 
 export function chooseVisual(input: VisualizeInput, registry: Registry): Choice {
   return choose(input, registry, { exclude: [] });
+}
+
+/**
+ * Like chooseVisual for a template the caller picked: skips the choice but
+ * still shapes the data for it (see `adapt`). Throws AdaptError when it can't.
+ */
+export function adaptTo(template: string, input: VisualizeInput, registry: Registry): Choice {
+  return finish(adapt(template, input, registry), input, registry);
 }
 
 function choose(input: VisualizeInput, registry: Registry, ctx: ChooseContext): Choice {

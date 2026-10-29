@@ -7,7 +7,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { CATEGORIES, type Category, type Template } from './core/types.ts';
 import { renderOptionsSchema, TemplateDataError, type RenderOptions, type Renderer } from './render/renderer.ts';
-import { chooseVisual, intentSchema, screenFrom, type Screen } from './auto.ts';
+import { AdaptError, adaptTo, chooseVisual, intentSchema, screenFrom, type Screen } from './auto.ts';
 import { QUERY_FIELD } from './core/backdrop.ts';
 import { buildTheme, checkTheme, PRESETS, themeNameSchema, themeSpecSchema, type ThemeSpec } from './core/themes.ts';
 
@@ -185,19 +185,31 @@ export function createServer(opts: ServerOptions): McpServer {
         title: z.string().max(200).optional(),
         subtitle: z.string().max(400).optional(),
         intent: intentSchema.optional(),
+        template: z
+          .enum(ids)
+          .optional()
+          .describe('Force this template instead of the automatic choice; the data is still shaped for it (e.g. forecast rows → weather, a number → gauge). Leave out to let uiotg choose.'),
         options: renderOptionsSchema.optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ data, title, subtitle, intent, options }) => {
+    async ({ data, title, subtitle, intent, template, options }) => {
       let choice;
+      const input = { data, title, subtitle, intent, screen: screenOf(options) };
       try {
-        choice = chooseVisual({ data, title, subtitle, intent, screen: screenOf(options) }, registry);
+        choice = template ? adaptTo(template, input, registry) : chooseVisual(input, registry);
       } catch (err) {
+        if (err instanceof AdaptError) {
+          return errorResult(
+            `${err.message}.\n\nSend data like this example for "${err.template}", or leave template out to let uiotg choose:\n` +
+              JSON.stringify(registry.get(err.template)?.example ?? {}, null, 2) +
+              `\n\nCall get_template("${err.template}") for the full JSON schema.`,
+          );
+        }
         return errorResult((err as Error).message);
       }
       const json = JSON.stringify(choice.data);
-      const note = `Chose ${choice.template}: ${choice.reason}.`;
+      const note = `${template ? 'Used' : 'Chose'} ${choice.template}: ${choice.reason}.`;
       const hint = json.length <= 1500 ? `To adjust, call render with template "${choice.template}" and this data: ${json}` : `To adjust, call render with template "${choice.template}".`;
       return run(choice.template, choice.data, options, note, hint);
     },

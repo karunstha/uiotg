@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, test } from 'node:test';
-import { chooseVisual, createRenderer, screenFrom, ThemeStore, type VisualizeInput } from '../src/index.ts';
+import { AdaptError, adaptTo, chooseVisual, createRenderer, screenFrom, ThemeStore, type VisualizeInput } from '../src/index.ts';
 
 const themes = new ThemeStore(mkdtempSync(join(tmpdir(), 'uiotg-themes-')));
 themes.save('round', { base: 'dark', defaults: { width: 466, height: 466, shape: 'circle', overflow: 'cap' } });
@@ -168,5 +168,49 @@ describe('visualize: hints from words and keys', () => {
     const candles = [{ date: '2026-10-01', open: 1, high: 3, low: 0.5, close: 2 }, { date: '2026-10-02', open: 2, high: 4, low: 1, close: 3 }];
     assert.equal(choose({ data: candles }).template, 'candlestick');
     assert.equal(choose({ data: { ticker: 'aapl', price: 231.4, change: 1.2 } }).template, 'stock_quote');
+  });
+});
+
+describe('visualize: a forced template', () => {
+  const adapt = (template: string, input: VisualizeInput) => adaptTo(template, input, renderer.registry);
+
+  test('shapes the data for the forced template', () => {
+    // Weak evidence (ISO times, no weather word) is enough once weather is forced.
+    const log = Array.from({ length: 4 }, (_, i) => ({ time: `2026-10-29T0${i}:00`, temperature: 10 + i }));
+    const weather = adapt('weather', { data: log, title: 'Lisbon' });
+    valid('weather', weather.data);
+    assert.deepEqual((weather.data.hourly as Array<{ time: string }>).map((x) => x.time), ['00:00', '01:00', '02:00', '03:00']);
+    const gauge = adapt('gauge', { data: 42 });
+    valid('gauge', gauge.data);
+    assert.equal(gauge.data.value, 42);
+    const list = adapt('list', { data: [{ name: 'Ada', role: 'eng' }, { name: 'Bo', role: 'pm' }] });
+    valid('list', list.data);
+    assert.deepEqual(list.data.items, [{ text: 'Ada', meta: 'eng' }, { text: 'Bo', meta: 'pm' }]);
+    const table = adapt('table', { data: ['a', 'b'] });
+    valid('table', table.data);
+    for (const [template, data] of [
+      ['bar_chart', { a: 1, b: 2 }],
+      ['line_chart', [3, 4, 5]],
+      ['pie_chart', [{ k: 'a', v: 1 }, { k: 'b', v: 3 }]],
+      ['stats', [{ k: 'a', v: 1 }, { k: 'b', v: 3 }]],
+      ['key_value', { a: 1, b: 'x' }],
+      ['tags', ['x', 'y']],
+      ['text_card', ['one', 'two']],
+      ['progress', [{ name: 'a', value: 3 }]],
+      ['countdown', '2099-01-01'],
+      ['timeline', [{ date: '2026-01-01', what: 'Kickoff' }, { date: '2026-02-01', what: 'Beta' }]],
+    ] as const) {
+      const choice = adapt(template, { data });
+      assert.equal(choice.template, template);
+      valid(template, choice.data);
+    }
+  });
+
+  test('keeps data that already matches and refuses data that cannot fit', () => {
+    const example = renderer.registry.get('activity')!.example;
+    assert.deepEqual(adapt('activity', { data: example }).data, JSON.parse(JSON.stringify(example)));
+    assert.throws(() => adapt('gauge', { data: ['a', 'b'] }), (err: unknown) => err instanceof AdaptError && err.template === 'gauge');
+    assert.throws(() => adapt('sankey', { data: [1, 2, 3] }), AdaptError);
+    assert.throws(() => adapt('nope', { data: 1 }), /Unknown template "nope". Available: .*gauge/);
   });
 });

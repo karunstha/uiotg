@@ -96,6 +96,28 @@ describe('MCP server', () => {
     assert.ok(res.content.some((c) => c.type === 'image'));
   });
 
+  test('visualize with a template shapes the data for it, or explains why it cannot', async () => {
+    const forced = (await client.callTool({
+      name: 'visualize',
+      arguments: { data: [{ hour: '6am', temp: 18 }, { hour: '9am', temp: 21 }], template: 'weather', title: 'Lisbon', options: { scale: 1 } },
+    })) as CallToolResult;
+    assert.ok(!forced.isError, JSON.stringify(forced.content));
+    const text = forced.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+    assert.match(text, /Used weather/);
+    const bad = (await client.callTool({ name: 'visualize', arguments: { data: ['a', 'b'], template: 'gauge' } })) as CallToolResult;
+    assert.ok(bad.isError);
+    assert.match((bad.content[0] as { text: string }).text, /Can't turn this data into gauge[\s\S]*"value"[\s\S]*get_template\("gauge"\)/);
+    let message = '';
+    try {
+      const res = (await client.callTool({ name: 'visualize', arguments: { data: 1, template: 'nope' } })) as CallToolResult;
+      message = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    assert.match(message, /gauge/);
+    assert.match(message, /weather/);
+  });
+
   test('render and visualize say when overflow cap cut items', async () => {
     const options = { width: 466, height: 466, padding: { x: 50, y: 56 }, scale: 1, overflow: 'cap' };
     const items = Array.from({ length: 12 }, (_, i) => `Item ${i + 1}: a fairly long line of text that wraps onto a second line here`);
