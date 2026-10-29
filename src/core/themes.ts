@@ -10,6 +10,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { sizeOptionsSchema, type SizeOptions } from './options.ts';
 import { contrast, DARK, FONT_MONO, FONT_SANS, inkOn, LIGHT, mix, parseHex, type Theme } from './theme.ts';
 
 const hex = z.string().regex(/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/, 'Expected a hex color like #ff79c6');
@@ -45,6 +46,14 @@ export const themeSpecSchema = z.object({
     .describe('Status dots, alerts, badges, uptime bars. Change with care: people read these as green/amber/red.'),
   font: z.enum(['sans', 'serif', 'mono', 'rounded']).default('sans').describe('sans (Inter), serif (Source Serif), mono (JetBrains Mono, terminal look), rounded (Nunito, friendly).'),
   corners: z.enum(['sharp', 'small', 'default', 'round']).default('default').describe('Corner rounding of cards, tiles and bars; "sharp" squares off pills too.'),
+  defaults: sizeOptionsSchema
+    .strict()
+    .optional()
+    .describe(
+      'Render options used whenever this theme is used and the call leaves them out: width, height, padding, scale, format, quality, detail (same limits as render options). ' +
+        'Options passed in the call always win; these beat the server defaults. Good for a theme tied to a device, e.g. a round 466 px screen: ' +
+        '{"width":466,"height":466,"padding":60,"scale":1}.',
+    ),
 });
 
 export type ThemeSpec = z.input<typeof themeSpecSchema>;
@@ -275,6 +284,12 @@ export function resolveTheme(input: string | ThemeSpec, store?: ThemeStore): The
   const saved = store?.get(input);
   if (saved) return buildTheme(saved, input);
   throw new UnknownThemeError(input, [...Object.keys(PRESETS), ...(store?.names() ?? [])]);
+}
+
+/** A theme's own render defaults (saved or inline themes; presets have none). */
+export function themeDefaults(input: string | ThemeSpec, store?: ThemeStore): SizeOptions {
+  const spec = typeof input === 'string' ? (input in PRESETS ? undefined : store?.get(input)) : input;
+  return spec?.defaults ? sizeOptionsSchema.strict().parse(spec.defaults) : {};
 }
 
 /** Text-heavy cards on a darkened photo: neutrals switch to light-on-dark, the theme's colors stay. */

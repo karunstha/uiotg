@@ -59,7 +59,7 @@ Fastest path: call \`visualize\` with the raw data you have (a number, text, a l
 
 Full control: choose a template from the \`render\` tool description (or \`list_templates\`), call \`get_template\` for its schema and an example, then call \`render\` with { template, data }. Invalid data returns the problems plus an example so you can fix it and retry.
 
-Themes: \`list_themes\` shows presets, saved themes and what each color does. Pass options.theme (a name or an inline theme object) per call, or save a custom theme with \`save_theme\` and make it the default.
+Themes: \`list_themes\` shows presets, saved themes and what each color does. Pass options.theme (a name or an inline theme object) per call, or save a custom theme with \`save_theme\` and make it the default. A theme can also carry \`defaults\` (width, height, padding, scale…) for a particular screen; options you pass in the call override them.
 
 Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; pass options.theme "dark" for dark mode.`;
 
@@ -233,7 +233,10 @@ export function createServer(opts: ServerOptions): McpServer {
       .join('\n');
 
   async function preview(spec: ThemeSpec | string, lines: string[]): Promise<CallToolResult> {
-    const r = await renderer.render('dashboard', PREVIEW, { theme: spec as never });
+    // Preview at the usual size: drop the theme's own defaults (e.g. a small round screen).
+    const saved = typeof spec === 'string' ? (themeStore.get(spec) ?? spec) : spec;
+    const theme = typeof saved === 'string' ? saved : { ...saved, defaults: undefined };
+    const r = await renderer.render('dashboard', PREVIEW, { theme: theme as never });
     return { content: [{ type: 'image', data: r.data.toString('base64'), mimeType: r.mimeType }, { type: 'text', text: lines.join('\n') }] };
   }
 

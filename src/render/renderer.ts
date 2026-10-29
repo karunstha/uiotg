@@ -5,8 +5,9 @@ import { fontFaceCss } from '../core/fonts.ts';
 import { html, raw, style, type Html } from '../core/html.ts';
 import { imageBackground } from '../core/ui.ts';
 import { fontScope, metricsFamily } from '../core/measure.ts';
+import { sizeOptionsSchema } from '../core/options.ts';
 import { themeVars, withAccent, type Mode, type Theme } from '../core/theme.ts';
-import { photoTheme, PRESETS, resolveTheme, themeSpecSchema, ThemeStore } from '../core/themes.ts';
+import { photoTheme, PRESETS, resolveTheme, themeDefaults, themeSpecSchema, ThemeStore, type ThemeSpec } from '../core/themes.ts';
 import type { Detail, RenderContext, Size, Template } from '../core/types.ts';
 import type { Registry } from '../registry.ts';
 import { BASE_CSS } from './base-css.ts';
@@ -14,23 +15,22 @@ import { BrowserPool, type BrowserOptions } from './browser.ts';
 import { auditOverflow, growToFit, type OverflowIssue } from './audit.ts';
 import type { Page } from 'playwright';
 
+const size = sizeOptionsSchema.shape;
+
 export const renderOptionsSchema = z.object({
-  width: z.number().int().min(160).max(2400).optional().describe('Image width in CSS px; defaults to the template’s preferred width'),
-  height: z.number().int().min(80).max(4000).optional().describe('Fixed image height in CSS px; omit to fit the content'),
+  width: size.width,
+  height: size.height,
   theme: z
     .union([z.string().min(1).max(40), themeSpecSchema])
     .optional()
-    .describe(`Theme: a preset (${Object.keys(PRESETS).join(', ')}), a saved custom theme's name, or an inline theme object (see list_themes). Defaults to the saved default theme, else light`),
-  scale: z.number().min(1).max(3).optional().describe('Device pixel ratio; 2 (default) gives crisp images'),
-  format: z.enum(['png', 'jpeg']).optional().describe('Image format (default png)'),
-  quality: z.number().int().min(1).max(100).optional().describe('JPEG quality (default 90)'),
+    .describe(`Theme: a preset (${Object.keys(PRESETS).join(', ')}), a saved custom theme's name, or an inline theme object (see list_themes). Defaults to the saved default theme, else light. The theme's own defaults (size, padding, ...) fill in options you leave out`),
+  scale: size.scale,
+  format: size.format,
+  quality: size.quality,
   transparent: z.boolean().optional().describe('Transparent background instead of the theme surface (png only)'),
-  padding: z.number().int().min(0).max(160).optional().describe('Outer padding in CSS px'),
+  padding: size.padding,
   accent: colorSchema.optional().describe('Override the UI accent color (progress, highlights, links)'),
-  detail: z
-    .enum(['auto', 'minimal', 'standard', 'rich'])
-    .optional()
-    .describe('Level of detail. "auto" (default) picks from the data and image size: minimal when small, rich (summary stats, extremes) when there is room and enough data'),
+  detail: size.detail,
 });
 
 export type RenderOptions = z.input<typeof renderOptionsSchema>;
@@ -145,16 +145,32 @@ export class Renderer {
    * UIOTG_THEME, else light. A default that no longer exists falls through.
    */
   #theme(requested: RenderOptions['theme']): Theme {
-    if (requested) return resolveTheme(requested as string, this.themes);
+    return resolveTheme(this.#usedTheme(requested), this.themes);
+  }
+
+  /** Which theme a render uses, as a name or inline spec (see #theme). */
+  #usedTheme(requested: RenderOptions['theme']): string | ThemeSpec {
+    if (requested) return requested;
     for (const name of [this.themes.getDefault(), process.env.UIOTG_THEME]) {
       if (!name) continue;
       try {
-        return resolveTheme(name, this.themes);
+        resolveTheme(name, this.themes);
+        return name;
       } catch {
         // Deleted or misspelled default: try the next one.
       }
     }
-    return resolveTheme('light');
+    return 'light';
+  }
+
+  /**
+   * Effective options, highest first: the call's, the used theme's `defaults`,
+   * then this.defaults. Idempotent, so entry points can each apply it.
+   */
+  #options(options: RenderOptions): RenderOptions {
+    const call = Object.fromEntries(Object.entries(renderOptionsSchema.parse(options)).filter(([, v]) => v !== undefined)) as RenderOptions;
+    const theme = this.#usedTheme(call.theme ?? this.defaults.theme);
+    return { ...this.defaults, ...themeDefaults(theme, this.themes), ...call };
   }
 
   #template(id: string): Template {
@@ -210,7 +226,7 @@ export class Renderer {
 
   /** Validates `data` and builds the self-contained HTML document for a template. */
   async toHtml(templateId: string, data: unknown, options: RenderOptions = {}): Promise<HtmlResult> {
-    const opts = { ...this.defaults, ...renderOptionsSchema.parse(options) };
+    const opts = this.#options(options);
     const t = this.#template(templateId);
     const parsed = this.#validate(t, data, '');
     const photo = t.photo ? await this.#photo(t, data) : null;
@@ -253,7 +269,7 @@ export class Renderer {
     options: RenderOptions,
     fn: (page: Page, doc: HtmlResult, size: { width: number; height: number; adjusted?: RenderResult['adjusted'] }) => Promise<T>,
   ): Promise<T> {
-    const opts = { ...this.defaults, ...renderOptionsSchema.parse(options) };
+    const opts = this.#options(options);
     const doc = await this.toHtml(templateId, data, opts);
     return this.browser.withPage({ width: doc.width, height: doc.height ?? 600, scale: opts.scale ?? 2, colorScheme: doc.theme }, async (page) => {
       try {
@@ -279,7 +295,7 @@ export class Renderer {
 
   /** Renders a template to an image. */
   async render(templateId: string, data: unknown, options: RenderOptions = {}): Promise<RenderResult> {
-    const opts = { ...this.defaults, ...renderOptionsSchema.parse(options) };
+    const opts = this.#options(options);
     const format = opts.format ?? 'png';
     const scale = opts.scale ?? 2;
     return this.#load(templateId, data, opts, async (page, doc, size) => {
