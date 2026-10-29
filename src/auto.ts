@@ -19,6 +19,8 @@ export interface VisualizeInput {
   title?: string;
   subtitle?: string;
   intent?: Intent;
+  /** The screen the result will be rendered on; a small one gets compact layouts. */
+  screen?: Screen;
 }
 
 export interface Choice {
@@ -483,21 +485,151 @@ const SIGNATURES: Array<[string, string[]]> = [
   ['table', ['rows']],
 ];
 
-export function chooseVisual(input: VisualizeInput, registry: Registry): Choice {
-  let data = input.data;
-  if (typeof data === 'string') {
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed && typeof parsed === 'object') data = parsed;
-    } catch {
-      // plain text
-    }
-  }
+// --- screen ---------------------------------------------------------------------
 
+/** The screen a render will land on, from the effective render options (call, theme, server). */
+export interface Screen {
+  shape: 'rect' | 'circle';
+  width?: number;
+  height?: number;
+  /** A fixed side of 600 px or less, or a round screen: dense layouts don't fit. */
+  small: boolean;
+}
+
+export function screenFrom(opts: { width?: number; height?: number; shape?: string }): Screen {
+  const shape = opts.shape === 'circle' ? 'circle' : 'rect';
+  const small = shape === 'circle' || (opts.width != null && opts.width <= 600) || (opts.height != null && opts.height <= 600);
+  return { shape, ...(opts.width != null ? { width: opts.width } : {}), ...(opts.height != null ? { height: opts.height } : {}), small };
+}
+
+export function describeScreen(s: Screen): string {
+  const size = s.width || s.height ? `${s.width ?? 'auto'}×${s.height ?? 'auto'}` : 'template default size';
+  return `${s.shape === 'circle' ? 'round' : 'rectangular'} ${size}${s.small ? ', small' : ''}`;
+}
+
+const screenName = (s: Screen) => (s.shape === 'circle' ? `${s.width ?? s.height ?? ''} px round screen`.trim() : `${s.width ?? 'auto'}×${s.height ?? 'auto'} screen`);
+
+/** Tables wider than this become label/value rows on a small screen. */
+const SMALL_TABLE_COLUMNS = 3;
+
+/**
+ * On a small screen, swaps layouts that can't adapt (wide tables, multi-chart
+ * dashboards) for ones that can. Not applied when the caller forced a template.
+ */
+function fitScreen(choice: Choice, screen: Screen, exclude: string[]): Choice {
+  const where = screenName(screen);
+  if (choice.template === 'table') {
+    const rows = (choice.data.rows as Row[] | undefined) ?? [];
+    const given = choice.data.columns as Array<{ key: string; label?: string; format?: FormatSpec }> | undefined;
+    const keys = given?.map((c) => c.key) ?? analyze(rows).map((c) => c.key);
+    if (keys.length <= SMALL_TABLE_COLUMNS || !rows.length) return choice;
+    const cols = analyze(rows.map((r) => Object.fromEntries(keys.map((k) => [k, r[k]]))));
+    const label = cols.find((c) => c.kind === 'category' && c.distinct >= rows.length * 0.8) ?? cols.find((c) => c.kind === 'category');
+    const value = cols.find((c) => c.kind === 'number' && c !== label);
+    const labelOf = (key: string) => given?.find((c) => c.key === key)?.label ?? humanize(key);
+    if (label && value && !exclude.includes('key_value')) {
+      return {
+        template: 'key_value',
+        data: {
+          items: rows.slice(0, 40).map((r) => ({
+            label: String(r[label.key] ?? '').slice(0, 80) || '—',
+            value: (r[value.key] as never) ?? null,
+            format: given?.find((c) => c.key === value.key)?.format ?? value.format,
+          })),
+        },
+        reason: `${keys.length} columns are too wide for the ${where}, so ${labelOf(label.key).toLowerCase()} with ${labelOf(value.key).toLowerCase()} as label/value rows`,
+      };
+    }
+    const keep = [label?.key, ...keys.filter((k) => k !== label?.key)].filter((k): k is string => !!k).slice(0, SMALL_TABLE_COLUMNS);
+    return {
+      template: 'table',
+      data: {
+        ...choice.data,
+        columns: keep.map((k) => given?.find((c) => c.key === k) ?? { key: k, label: humanize(k) }),
+        rows: rows.map((r) => Object.fromEntries(keep.map((k) => [k, r[k]]))),
+      },
+      reason: `${choice.reason}; kept ${keep.length} of ${keys.length} columns (${keep.map(labelOf).join(', ')}) for the ${where}`,
+    };
+  }
+  if (choice.template === 'dashboard') {
+    const blocks = (choice.data.blocks as Array<{ template: string; data: Row }> | undefined) ?? [];
+    if (!blocks.length) return choice;
+    // Charts of one measure each → the latest value of each as a stat tile.
+    const charts = blocks.every((b) => (b.template === 'line_chart' || b.template === 'bar_chart') && Array.isArray(b.data.series) && (b.data.series as unknown[]).length === 1);
+    if (charts && blocks.length <= 12 && !exclude.includes('stats')) {
+      const items = blocks.map((b) => {
+        const s = (b.data.series as Array<{ name: string; values: Array<number | null> }>)[0]!;
+        const vals = s.values.filter((v): v is number => v != null && Number.isFinite(v));
+        const last = vals[vals.length - 1] ?? 0;
+        const prev = vals[vals.length - 2];
+        return {
+          label: String(b.data.title ?? s.name).slice(0, 80),
+          value: last,
+          format: b.data.format as FormatSpec | undefined,
+          ...(prev ? { delta: Math.round(((last - prev) / Math.abs(prev)) * 1000) / 10 } : {}),
+        };
+      });
+      return {
+        template: 'stats',
+        data: { ...(choice.data.title ? { title: choice.data.title } : {}), items },
+        reason: `${blocks.length} charts don't fit the ${where}, so the latest value of each measure as stat tiles`,
+      };
+    }
+    const first = blocks[0]!;
+    if (exclude.includes(first.template)) return choice;
+    return {
+      template: first.template,
+      data: { ...first.data },
+      reason: `a ${blocks.length}-block dashboard doesn't fit the ${where}, so only its first block (${first.template})`,
+    };
+  }
+  return choice;
+}
+
+interface ChooseContext {
+  /** Templates the choice must not land on (to find a runner-up). */
+  exclude: string[];
+}
+
+function parseData(data: unknown): unknown {
+  if (typeof data !== 'string') return data;
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch {
+    // plain text
+  }
+  return data;
+}
+
+export function chooseVisual(input: VisualizeInput, registry: Registry): Choice {
+  return choose(input, registry, { exclude: [] });
+}
+
+function choose(input: VisualizeInput, registry: Registry, ctx: ChooseContext): Choice {
+  let choice = shapeChoice(input, registry, ctx);
+  if (input.screen?.small) choice = fitScreen(choice, input.screen, ctx.exclude);
+  return finish(choice, input, registry);
+}
+
+/** Places the title and subtitle and cleans the data. */
+function finish(choice: Choice, input: VisualizeInput, registry: Registry): Choice {
+  // Titles go wherever the chosen template has a place for them, unless already used as a label.
+  const shape = (registry.get(choice.template)?.schema as { shape?: Record<string, unknown> } | undefined)?.shape ?? {};
+  const titleUsed = input.title != null && JSON.stringify(choice.data).includes(JSON.stringify(input.title));
+  if (input.title && 'title' in shape && choice.data.title == null && !titleUsed) choice.data.title = input.title;
+  if (input.subtitle && 'subtitle' in shape && choice.data.subtitle == null) choice.data.subtitle = input.subtitle;
+  // Drop undefined keys so the data is clean to read and reuse.
+  choice.data = JSON.parse(JSON.stringify(choice.data));
+  return choice;
+}
+
+function shapeChoice(input: VisualizeInput, registry: Registry, ctx: ChooseContext): Choice {
+  const data = parseData(input.data);
   let choice: Choice;
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     const keys = Object.keys(data);
-    const match = SIGNATURES.find(([id, sig]) => sig.every((k) => keys.includes(k)) && registry.get(id)?.schema.safeParse(data).success);
+    const match = SIGNATURES.find(([id, sig]) => !ctx.exclude.includes(id) && sig.every((k) => keys.includes(k)) && registry.get(id)?.schema.safeParse(data).success);
     choice = match
       ? { template: match[0], data: data as Row, reason: `the data already matches ${match[0]}` }
       : fromRecord(data as Row, input.intent, input.title);
@@ -516,13 +648,5 @@ export function chooseVisual(input: VisualizeInput, registry: Registry): Choice 
   } else {
     throw new Error('Nothing to visualize: send a number, text, a list, an object or rows.');
   }
-
-  // Titles go wherever the chosen template has a place for them, unless already used as a label.
-  const shape = (registry.get(choice.template)?.schema as { shape?: Record<string, unknown> } | undefined)?.shape ?? {};
-  const titleUsed = input.title != null && JSON.stringify(choice.data).includes(JSON.stringify(input.title));
-  if (input.title && 'title' in shape && choice.data.title == null && !titleUsed) choice.data.title = input.title;
-  if (input.subtitle && 'subtitle' in shape && choice.data.subtitle == null) choice.data.subtitle = input.subtitle;
-  // Drop undefined keys so the data is clean to read and reuse.
-  choice.data = JSON.parse(JSON.stringify(choice.data));
   return choice;
 }

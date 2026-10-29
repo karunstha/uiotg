@@ -7,7 +7,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { CATEGORIES, type Category, type Template } from './core/types.ts';
 import { renderOptionsSchema, TemplateDataError, type RenderOptions, type Renderer } from './render/renderer.ts';
-import { chooseVisual, intentSchema } from './auto.ts';
+import { chooseVisual, intentSchema, screenFrom, type Screen } from './auto.ts';
 import { QUERY_FIELD } from './core/backdrop.ts';
 import { buildTheme, checkTheme, PRESETS, themeNameSchema, themeSpecSchema, type ThemeSpec } from './core/themes.ts';
 
@@ -100,6 +100,16 @@ export function createServer(opts: ServerOptions): McpServer {
     example: t.example,
   });
 
+  /** The screen a render with these options lands on (call options, then the used theme's locks and defaults). */
+  function screenOf(options: RenderOptions | undefined): Screen | undefined {
+    try {
+      const o = renderer.effectiveOptions(options ?? {});
+      return screenFrom({ width: o.width, height: o.height, shape: o.shape });
+    } catch {
+      return undefined; // e.g. an unknown theme: render reports it
+    }
+  }
+
   /** `hint` (how to re-render with a template) is left out when the image was deliberately capped or scaled: re-rendering would defeat it. */
   async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string, hint?: string): Promise<CallToolResult> {
     try {
@@ -182,7 +192,7 @@ export function createServer(opts: ServerOptions): McpServer {
     async ({ data, title, subtitle, intent, options }) => {
       let choice;
       try {
-        choice = chooseVisual({ data, title, subtitle, intent }, registry);
+        choice = chooseVisual({ data, title, subtitle, intent, screen: screenOf(options) }, registry);
       } catch (err) {
         return errorResult((err as Error).message);
       }

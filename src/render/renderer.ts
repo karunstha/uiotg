@@ -177,9 +177,11 @@ export class Renderer {
 
   /**
    * Effective options, highest first: the call's, the used theme's `defaults`,
-   * then this.defaults. Idempotent, so entry points can each apply it.
+   * then this.defaults; values the theme locks win over the call's.
+   * Idempotent, so entry points can each apply it. Public so `visualize` can
+   * learn the screen (size, shape) a render would use before choosing.
    */
-  #options(options: RenderOptions): RenderOptions {
+  effectiveOptions(options: RenderOptions = {}): RenderOptions {
     const call = Object.fromEntries(Object.entries(renderOptionsSchema.parse(options)).filter(([, v]) => v !== undefined)) as RenderOptions;
     const theme = this.#usedTheme(call.theme ?? this.defaults.theme);
     const defaults = themeDefaults(theme, this.themes);
@@ -256,7 +258,7 @@ export class Renderer {
     options: RenderOptions,
     keep?: number,
   ): Promise<HtmlResult & { capped?: RenderResult['capped']; circle?: boolean }> {
-    const opts = this.#options(options);
+    const opts = this.effectiveOptions(options);
     const t = this.#template(templateId);
     const full = this.#validate(t, data, '');
     const round = opts.shape === 'circle';
@@ -321,7 +323,7 @@ export class Renderer {
       size: { width: number; height: number; adjusted?: RenderResult['adjusted']; capped?: RenderResult['capped']; scaled?: number },
     ) => Promise<T>,
   ): Promise<T> {
-    const opts = this.#options(options);
+    const opts = this.effectiveOptions(options);
     let doc = await this.#html(templateId, data, opts);
     return this.browser.withPage({ width: doc.width, height: doc.height ?? 600, scale: opts.scale ?? 2, colorScheme: doc.theme }, async (page) => {
       const show = async (html: string) => {
@@ -435,7 +437,7 @@ export class Renderer {
 
   /** Renders a template to an image. */
   async render(templateId: string, data: unknown, options: RenderOptions = {}): Promise<RenderResult> {
-    const opts = this.#options(options);
+    const opts = this.effectiveOptions(options);
     const format = opts.format ?? 'png';
     const scale = opts.scale ?? 2;
     return this.#load(templateId, data, opts, async (page, doc, size) => {
