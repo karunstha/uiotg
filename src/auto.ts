@@ -485,6 +485,539 @@ const SIGNATURES: Array<[string, string[]]> = [
   ['table', ['rows']],
 ];
 
+// --- hints -----------------------------------------------------------------------
+
+/** Words and units around the data: the title, subtitle, keys and value suffixes. */
+interface Hints {
+  /** Title and subtitle, lower case. */
+  text: string;
+  /** Record keys, or the keys of the rows. */
+  keys: string[];
+  percent: boolean;
+  fahrenheit: boolean;
+  celsius: boolean;
+}
+
+const isRow = (v: unknown): v is Row => !!v && typeof v === 'object' && !Array.isArray(v);
+
+function hintsOf(input: VisualizeInput, data: unknown): Hints {
+  const keys = new Set<string>();
+  const values: unknown[] = [];
+  const add = (r: Row) => {
+    for (const [k, v] of Object.entries(r)) {
+      keys.add(k);
+      values.push(v);
+    }
+  };
+  if (Array.isArray(data)) for (const v of data.slice(0, 100)) isRow(v) ? add(v) : values.push(v);
+  else if (isRow(data)) add(data);
+  else values.push(data);
+  const strings = values.filter((v): v is string => typeof v === 'string');
+  const text = `${input.title ?? ''} ${input.subtitle ?? ''}`.toLowerCase();
+  return {
+    text,
+    keys: [...keys],
+    percent: strings.some((s) => /\d\s*%\s*$/.test(s)),
+    fahrenheit: strings.some((s) => /\d\s*°\s*f\b/i.test(s)) || /°\s*f\b|fahrenheit/i.test(text) || [...keys].some((k) => /^temp(erature)?[ _-]?f$/i.test(k)),
+    celsius: strings.some((s) => /\d\s*°\s*c\b/i.test(s)) || /°\s*c\b|celsius/i.test(text) || [...keys].some((k) => /^temp(erature)?[ _-]?c$/i.test(k)),
+  };
+}
+
+const keyOf = (keys: string[], re: RegExp) => keys.find((k) => re.test(k));
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** "65°F", "18 °C", 65 → a number. */
+function degrees(v: unknown): number | null {
+  if (typeof v === 'string') return toNumber(v.replace(/\s*°\s*[fc]?\s*$|\s*deg(rees)?\s*[fc]?\s*$/i, ''));
+  return toNumber(v);
+}
+
+/** Rows from an array of objects, or from a header row followed by value rows. */
+function rowsOf(data: unknown): Row[] | null {
+  if (!Array.isArray(data) || !data.length) return null;
+  if (data.every(isRow)) return data as Row[];
+  if (data.every(Array.isArray)) {
+    const [head, ...rest] = data as unknown[][];
+    if (head!.every((h) => typeof h === 'string') && rest.length) return rest.map((r) => Object.fromEntries(head!.map((h, i) => [h as string, r[i]])));
+  }
+  return null;
+}
+
+/** One number: a number, numeric text, a one-entry record or a one-item list. */
+function singleNumber(data: unknown): { value: number; key?: string; raw: unknown } | null {
+  if (Array.isArray(data) && data.length === 1) return singleNumber(data[0]);
+  if (isRow(data)) {
+    const entries = Object.entries(data);
+    if (entries.length !== 1) return null;
+    const one = singleNumber(entries[0]![1]);
+    return one && { ...one, key: entries[0]![0] };
+  }
+  const value = toNumber(data);
+  return value == null ? null : { value, raw: data };
+}
+
+/** What a template builder returns: data for the template and the evidence in a few words. */
+interface Built {
+  data: Row;
+  reason: string;
+}
+
+/**
+ * Builds data for one template from raw data. `loose` is set when the caller
+ * forced the template: shape alone is enough. Otherwise a builder fires only on
+ * strong evidence (an unmistakable key set, or two independent hints).
+ */
+type Builder = (data: unknown, input: VisualizeInput, h: Hints, loose: boolean) => Built | null;
+
+// Weather -------------------------------------------------------------------------
+
+const TEMP_KEY = /^(temp|temperature)([ _-]?(f|c|deg|degrees))?$/i;
+const HOUR_KEY = /^(hour|time|hr)$/i;
+const DAY_KEY = /^(day|date|weekday|dow)$/i;
+const HIGH_KEY = /^(high|hi|max|(temp|temperature)[ _-]?(max|high)|(max|high)[ _-]?(temp|temperature))([ _-]?[fc])?$/i;
+const LOW_KEY = /^(low|lo|min|(temp|temperature)[ _-]?(min|low)|(min|low)[ _-]?(temp|temperature))([ _-]?[fc])?$/i;
+const CONDITION_KEY = /^(condition|conditions|weather|sky|summary|icon|description|desc|forecast)$/i;
+const RAIN_KEY = /^(rain|precip|precipitation|pop|chance|rain[ _-]?chance|precip(itation)?[ _-]?(chance|prob|probability))([ _-]?(pct|percent))?$/i;
+const HUMIDITY_KEY = /^(humidity|rh)$/i;
+const WIND_KEY = /^(wind|wind[ _-]?speed)$/i;
+const FEELS_KEY = /^feels[ _-]?like$/i;
+const WEATHER_WORDS = /forecast|weather|hourly|humid|wind|rain|precip|sunny|cloud|snow/;
+const NOT_WEATHER = /cpu|gpu|disk|core|chip|battery|engine|oven|fridge|freezer|server|device|sensor|machine/;
+/** "6am", "14:00", "Now": an hour label rather than a timestamp. */
+const HOUR_LABEL = /^(now|\d{1,2}(:\d{2})?\s*(am|pm|a|p)?)$/i;
+
+function weatherCondition(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.toLowerCase();
+  const rules: Array<[RegExp, string]> = [
+    [/thunder|storm|lightning/, 'thunderstorm'],
+    [/hail/, 'hail'],
+    [/sleet|freezing rain/, 'sleet'],
+    [/snow|flurr|blizzard/, 'snow'],
+    [/drizzle/, 'drizzle'],
+    [/shower/, 'showers'],
+    [/rain/, 'rain'],
+    [/fog|mist|haze/, 'fog'],
+    [/overcast/, 'overcast'],
+    [/partly|mostly sunny|some clouds|few clouds|scattered clouds/, 'partly_cloudy'],
+    [/cloud/, 'cloudy'],
+    [/wind|breez|gust/, 'windy'],
+    [/clear|sun|fair/, 'clear'],
+  ];
+  return rules.find(([re]) => re.test(s))?.[1];
+}
+
+const percentOf = (n: number | null, all: Array<number | null>) => (n == null ? undefined : Math.max(0, Math.min(100, Math.round(all.every((x) => x == null || x <= 1) ? n * 100 : n))));
+
+/** "2026-10-29T06:00" → "06:00", anything else as given (max 10 characters). */
+function hourLabel(v: unknown): string {
+  const s = String(v ?? '').trim();
+  const m = /^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/.exec(s);
+  return (m ? m[1]! : s).slice(0, 10);
+}
+
+/** "2026-10-29" → "Thu", anything else as given (max 20 characters). */
+function dayLabel(v: unknown): string {
+  const s = String(v ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T00:00:00Z`);
+    if (!Number.isNaN(d.getTime())) return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()]!;
+  }
+  return s.slice(0, 20);
+}
+
+function weatherUnits(h: Hints, temps: number[]): 'metric' | 'imperial' {
+  if (h.fahrenheit) return 'imperial';
+  if (h.celsius) return 'metric';
+  // Above 45° is a heat record in Celsius but an ordinary day in Fahrenheit.
+  return Math.max(...temps) > 45 ? 'imperial' : 'metric';
+}
+
+const weatherBase = (input: VisualizeInput) => ({
+  location: (input.title ?? 'Forecast').slice(0, 80),
+  ...(input.subtitle ? { date: input.subtitle.slice(0, 60) } : {}),
+});
+
+function currentFrom(r: Row, keys: string[], temperature: number): Row {
+  const num = (re: RegExp) => {
+    const k = keyOf(keys, re);
+    return k ? degrees(r[k]) ?? undefined : undefined;
+  };
+  const condK = keyOf(keys, CONDITION_KEY);
+  const humidity = num(HUMIDITY_KEY);
+  const wind = num(WIND_KEY);
+  return {
+    temperature: Math.round(temperature),
+    condition: (condK && weatherCondition(r[condK])) || 'partly_cloudy',
+    feels_like: num(FEELS_KEY),
+    humidity: humidity != null && humidity >= 0 && humidity <= 100 ? Math.round(humidity <= 1 ? humidity * 100 : humidity) : undefined,
+    wind_speed: wind != null && wind >= 0 ? wind : undefined,
+  };
+}
+
+const weatherBuilder: Builder = (data, input, h, loose) => {
+  const rows = rowsOf(data);
+  if (rows) {
+    const keys = h.keys;
+    if (keys.some((k) => /^(open|close)$/i.test(k))) return null; // price candles, not weather
+    const tempK = keyOf(keys, TEMP_KEY);
+    const hourK = keyOf(keys, HOUR_KEY);
+    const dayK = keyOf(keys, DAY_KEY);
+    const hiK = keyOf(keys, HIGH_KEY);
+    const loK = keyOf(keys, LOW_KEY);
+    const condK = keyOf(keys, CONDITION_KEY);
+    const rainK = keyOf(keys, RAIN_KEY);
+    const rain = rows.map((r) => (rainK ? toNumber(r[rainK]) : null));
+    const cond = (r: Row) => (condK ? weatherCondition(r[condK]) : undefined) ?? 'partly_cloudy';
+    // Daily: a day plus high and low temperatures.
+    if (dayK && hiK && loK && rows.length <= 14) {
+      const hi = rows.map((r) => degrees(r[hiK]));
+      const lo = rows.map((r) => degrees(r[loK]));
+      if (hi.some((n) => n == null) || lo.some((n) => n == null)) return null;
+      const daily = rows.map((r, i) => ({ day: dayLabel(r[dayK]), condition: cond(r), high: Math.round(hi[i]!), low: Math.round(lo[i]!), precipitation_chance: percentOf(rain[i]!, rain) }));
+      const first = rows[0]!;
+      return {
+        data: {
+          ...weatherBase(input),
+          units: weatherUnits(h, hi as number[]),
+          current: { ...currentFrom(first, keys, tempK ? degrees(first[tempK]) ?? hi[0]! : hi[0]!), high: daily[0]!.high, low: daily[0]!.low },
+          daily,
+        },
+        reason: `${rows.length} days with ${dayK}, ${hiK} and ${loK} read as a daily forecast`,
+      };
+    }
+    // Hourly: an hour plus a temperature, with an hour label or another weather hint.
+    if (tempK && hourK && rows.length <= 24) {
+      const temps = rows.map((r) => degrees(r[tempK]));
+      if (temps.some((n) => n == null)) return null;
+      const labels = rows.every((r) => HOUR_LABEL.test(String(r[hourK] ?? '').trim()));
+      const other = [condK, rainK, keyOf(keys, HUMIDITY_KEY), keyOf(keys, WIND_KEY)].find(Boolean);
+      const words = WEATHER_WORDS.test(h.text) || h.fahrenheit || h.celsius;
+      const evidence = labels ? `${hourK} labels` : other ? `a ${other} column` : words ? 'the title' : '';
+      if (!loose && (!evidence || NOT_WEATHER.test(h.text))) return null;
+      const hourly = rows.map((r, i) => ({ time: hourLabel(r[hourK]), temperature: Math.round(temps[i]!), condition: cond(r), precipitation_chance: percentOf(rain[i]!, rain) }));
+      return {
+        data: { ...weatherBase(input), units: weatherUnits(h, temps as number[]), current: currentFrom(rows[0]!, keys, temps[0]!), hourly },
+        reason: `${rows.length} rows of ${hourK} and ${tempK}${evidence ? ` with ${evidence}` : ''} read as an hourly forecast`,
+      };
+    }
+    return null;
+  }
+  if (isRow(data)) {
+    // Current conditions: a temperature plus another weather reading.
+    const keys = Object.keys(data);
+    const tempK = keyOf(keys, TEMP_KEY);
+    const t = tempK ? degrees(data[tempK]) : null;
+    const other = keyOf(keys, new RegExp(`${HUMIDITY_KEY.source}|${WIND_KEY.source}|${CONDITION_KEY.source}|${FEELS_KEY.source}|${RAIN_KEY.source}`, 'i'));
+    if (t == null || (!other && !loose)) return null;
+    const hiK = keyOf(keys, HIGH_KEY);
+    const loK = keyOf(keys, LOW_KEY);
+    return {
+      data: {
+        ...weatherBase(input),
+        units: weatherUnits(h, [t]),
+        current: { ...currentFrom(data, keys, t), high: hiK ? degrees(data[hiK]) ?? undefined : undefined, low: loK ? degrees(data[loK]) ?? undefined : undefined },
+      },
+      reason: `${tempK}${other ? ` and ${other}` : ''} read as current weather`,
+    };
+  }
+  // A lone temperature with a weather title.
+  const t = typeof data === 'number' || typeof data === 'string' ? degrees(data) : null;
+  if (t == null || (!loose && (!/\btemp|temperature|weather|outside|outdoors?\b/.test(h.text) || NOT_WEATHER.test(h.text)))) return null;
+  return {
+    data: { ...weatherBase(input), units: weatherUnits(h, [t]), current: { temperature: Math.round(t), condition: 'partly_cloudy' } },
+    reason: `a single temperature with a weather title`,
+  };
+};
+
+// Gauge ---------------------------------------------------------------------------
+
+const GAUGE_WORDS = /usage|utili[sz]ation|battery|load|progress|health|score|cpu|memory|\bram\b|disk|storage|capacity|charge|occupancy|completion|quota/;
+/** Readings where a high value is bad, so the gauge gets warning and critical zones. */
+const HIGHER_IS_WORSE = /usage|utili[sz]ation|load|cpu|memory|\bram\b|disk|storage|temp/;
+
+const gaugeBuilder: Builder = (data, input, h, loose) => {
+  const one = singleNumber(data);
+  if (!one) return null;
+  const word = (h.text.match(GAUGE_WORDS) ?? (one.key ? humanize(one.key).toLowerCase().match(GAUGE_WORDS) : null))?.[0];
+  const pct = typeof one.raw === 'string' && /%\s*$/.test(one.raw);
+  const fraction = !pct && one.value >= 0 && one.value <= 1 && !Number.isInteger(one.value);
+  const inRange = one.value >= 0 && one.value <= 100;
+  if (!loose && (!word || !(pct || inRange))) return null;
+  const value = fraction ? round1(one.value * 100) : one.value;
+  const max = value <= 100 ? 100 : 10 ** Math.ceil(Math.log10(value));
+  const percent = pct || fraction || (max === 100 && !!word && !/score|health/.test(word));
+  const worse = HIGHER_IS_WORSE.test(`${h.text} ${one.key ?? ''}`.toLowerCase());
+  return {
+    data: {
+      value,
+      min: 0,
+      max,
+      ...(one.key ? { label: humanize(one.key).slice(0, 60) } : {}),
+      ...(percent ? { format: { suffix: '%' } } : {}),
+      ...(worse && max === 100
+        ? { thresholds: [{ from: 0, status: 'good' }, { from: 70, status: 'warning' }, { from: 90, status: 'critical' }] }
+        : {}),
+    },
+    reason: word
+      ? `“${word}” with ${pct ? 'a % value' : fraction ? 'a fraction' : 'a value from 0 to 100'} reads as a gauge${worse ? ', higher is worse' : ''}`
+      : 'a single value on a 0 to 100 scale',
+  };
+};
+
+// Countdown -----------------------------------------------------------------------
+
+const COUNTDOWN_WORDS = /count ?down|until|\btill\b|remaining|time left|\bleft\b|\bends?\b|ending|due in|starts? in|launch|deadline/;
+const DEADLINE_KEY = /^(target|deadline|due|due[ _-]?(date|at)|ends?([ _-]?at)?|until|starts?[ _-]?at|launch([ _-]?(date|at))?)$/i;
+const WHEN_KEY = /^(date|when|at|time)$/i;
+const UNIT_KEYS = ['days', 'hours', 'minutes', 'seconds'];
+
+/** An ISO date or date-time in the future (relative to now). */
+function futureDate(v: unknown): string | null {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(v.trim()) || v.trim().length > 40) return null;
+  const t = Date.parse(v.trim());
+  return Number.isFinite(t) && t > Date.now() ? v.trim() : null;
+}
+
+const countdownBuilder: Builder = (data, input, h, loose) => {
+  const phrase = h.text.match(COUNTDOWN_WORDS)?.[0];
+  const label = input.title?.slice(0, 80);
+  const caption = input.subtitle?.slice(0, 160);
+  const target = futureDate(data);
+  if (target) {
+    if (!phrase && !loose) return null;
+    return { data: { label, target, caption }, reason: phrase ? `a future date with “${phrase}” in the title` : 'a future date' };
+  }
+  if (!isRow(data)) return null;
+  const keys = Object.keys(data);
+  const name = keyOf(keys, /^(name|label|event|title)$/i);
+  const strong = keyOf(keys, DEADLINE_KEY);
+  const when = strong ?? keyOf(keys, WHEN_KEY);
+  const date = when ? futureDate(data[when]) : null;
+  if (date && (strong || phrase || loose)) {
+    return {
+      data: { label: label ?? (name ? String(data[name]).slice(0, 80) : undefined), target: date, caption },
+      reason: strong ? `a future ${strong} date` : `a future ${when} with “${phrase ?? 'countdown'}”`,
+    };
+  }
+  const units = keys.filter((k) => UNIT_KEYS.includes(k.toLowerCase()));
+  if (units.length && units.length === keys.length && units.every((k) => Number.isInteger(toNumber(data[k])) && toNumber(data[k])! >= 0) && (phrase || loose)) {
+    return {
+      data: { label, caption, ...Object.fromEntries(units.map((k) => [k.toLowerCase(), toNumber(data[k])])), units: UNIT_KEYS.filter((u) => units.some((k) => k.toLowerCase() === u)) },
+      reason: `${units.join('/')} with “${phrase ?? 'countdown'}” in the title`,
+    };
+  }
+  return null;
+};
+
+// Progress ------------------------------------------------------------------------
+
+const PROGRESS_VALUE_KEY = /^(value|current|done|progress|completed?|count|actual|raised|saved|so[ _-]?far|achieved)$/i;
+const PROGRESS_MAX_KEY = /^(max|goal|target|total|of|limit|quota|out[ _-]?of)$/i;
+const PROGRESS_WORDS = /progress|goal|target|quota|complet/;
+
+const progressBuilder: Builder = (data, input, h, loose) => {
+  const rows = rowsOf(data);
+  const words = PROGRESS_WORDS.test(h.text);
+  if (rows) {
+    if (rows.length > 24) return null;
+    const cols = analyze(rows);
+    const label = cols.find((c) => c.kind === 'category');
+    const maxC = cols.find((c) => c.kind === 'number' && PROGRESS_MAX_KEY.test(c.key));
+    const valueC = cols.find((c) => c.kind === 'number' && c !== maxC && PROGRESS_VALUE_KEY.test(c.key)) ?? ((words || loose) ? cols.find((c) => c.kind === 'number' && c !== maxC) : undefined);
+    if (!label || !valueC || (!maxC && !loose)) return null;
+    const items = rows.map((r, i) => ({ label: String(r[label.key] ?? '').slice(0, 100) || '—', value: valueC.nums[i]!, max: maxC ? maxC.nums[i]! : 100 }));
+    if (items.some((it) => !Number.isFinite(it.value) || !(it.max > 0))) return null;
+    return { data: { items }, reason: `${valueC.key} out of ${maxC?.key ?? '100'} per ${label.key}` };
+  }
+  if (isRow(data)) {
+    const keys = Object.keys(data);
+    const maxK = keys.find((k) => PROGRESS_MAX_KEY.test(k) && toNumber(data[k]) != null);
+    const valueK = keys.find((k) => k !== maxK && PROGRESS_VALUE_KEY.test(k) && toNumber(data[k]) != null);
+    const labelK = keyOf(keys, /^(label|name|title)$/i);
+    if (!maxK || !valueK || keys.length > (labelK ? 3 : 2)) return null;
+    const max = toNumber(data[maxK])!;
+    if (!(max > 0)) return null;
+    const item = { label: (labelK ? String(data[labelK]) : input.title ?? 'Progress').slice(0, 100), value: toNumber(data[valueK])!, max };
+    return { data: { items: [item] }, reason: `${valueK} out of ${maxK}` };
+  }
+  const one = loose ? singleNumber(data) : null;
+  if (!one) return null;
+  const value = one.value >= 0 && one.value <= 1 && !Number.isInteger(one.value) ? round1(one.value * 100) : one.value;
+  return { data: { items: [{ label: (input.title ?? (one.key ? humanize(one.key) : 'Progress')).slice(0, 100), value, max: 100 }] }, reason: 'a single value as a percentage' };
+};
+
+// Checklists ----------------------------------------------------------------------
+
+const TASK_TEXT_KEY = /^(text|title|task|name|item|todo|label|description|summary)$/i;
+const TASK_STATUS_KEY = /^(done|completed?|checked|status|state|finished|is[ _-]?done|is[ _-]?completed)$/i;
+const TASK_META_KEY = /^(due|due[ _-]?date|date|when|owner|assignee|deadline)$/i;
+
+function taskStatus(v: unknown): string | undefined {
+  if (typeof v === 'boolean') return v ? 'done' : 'todo';
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim().toLowerCase().replace(/[_-]+/g, ' ');
+  if (/^(done|complete|completed|finished|closed|resolved|checked|yes|true)$/.test(s)) return 'done';
+  if (/^(in progress|doing|started|wip|active|ongoing)$/.test(s)) return 'in_progress';
+  if (/^(todo|to do|open|pending|not started|planned|new|no|false|unchecked)$/.test(s)) return 'todo';
+  if (/^(blocked|stuck|waiting)$/.test(s)) return 'blocked';
+  if (/^(skipped|cancell?ed|wont do|won't do)$/.test(s)) return 'skipped';
+  return undefined;
+}
+
+/** Strict: rows of task text plus a done flag or status. Loose: also plain strings and labelled rows. */
+const listBuilder: Builder = (data, input, h, loose) => {
+  const rows = rowsOf(data);
+  if (rows && rows.length <= 60) {
+    const keys = h.keys;
+    const textK = keys.find((k) => TASK_TEXT_KEY.test(k) && rows.every((r) => typeof r[k] === 'string' && (r[k] as string).trim()));
+    const statusK = keys.find((k) => TASK_STATUS_KEY.test(k) && rows.every((r) => taskStatus(r[k]) != null));
+    const metaK = keyOf(keys, TASK_META_KEY);
+    if (textK && statusK && (rows.length >= 2 || loose)) {
+      const items = rows.map((r) => ({ text: String(r[textK]).slice(0, 400), status: taskStatus(r[statusK]), meta: metaK && r[metaK] != null ? String(r[metaK]).slice(0, 60) : undefined }));
+      const done = items.filter((i) => i.status === 'done').length;
+      return { data: { style: 'check', items }, reason: `${rows.length} tasks with ${textK} and ${statusK} (${done} done)` };
+    }
+  }
+  return null;
+};
+
+// Clocks --------------------------------------------------------------------------
+
+const ZONE = /^(utc|gmt|[a-z]+\/[a-z_+-]+(\/[a-z_+-]+)?)$/i;
+const isZone = (v: unknown) => typeof v === 'string' && ZONE.test(v.trim());
+
+const worldClockBuilder: Builder = (data) => {
+  const rows = rowsOf(data);
+  if (rows) {
+    const keys = Object.keys(rows[0]!);
+    const nameK = keyOf(keys, /^(city|name|label|location|place|office)$/i);
+    const zoneK = keyOf(keys, /^(timezone|time[ _-]?zone|tz|zone)$/i);
+    if (!nameK || !zoneK || rows.length > 16 || !rows.every((r) => isZone(r[zoneK]) && r[nameK] != null)) return null;
+    return { data: { cities: rows.map((r) => ({ name: String(r[nameK]).slice(0, 60), timezone: String(r[zoneK]).trim() })) }, reason: `${rows.length} places with ${zoneK} names` };
+  }
+  if (isRow(data)) {
+    const entries = Object.entries(data);
+    if (entries.length < 2 || entries.length > 16 || !entries.every(([, v]) => isZone(v))) return null;
+    return { data: { cities: entries.map(([k, v]) => ({ name: k.slice(0, 60), timezone: String(v).trim() })) }, reason: `${entries.length} places mapped to time zones` };
+  }
+  return null;
+};
+
+const clockBuilder: Builder = (data, input, h, loose) => {
+  if (typeof data !== 'string') return null;
+  const s = data.trim();
+  const word = /\b(clock|time|now)\b/.test(h.text);
+  if (isZone(s) && (word || loose)) return { data: { label: input.title?.slice(0, 80), timezone: s }, reason: `a time zone name${word ? ' with a clock title' : ''}` };
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s) && (word || loose)) return { data: { label: input.title?.slice(0, 80), time: s }, reason: `a time of day${word ? ' with a clock title' : ''}` };
+  return null;
+};
+
+// Activity rings ------------------------------------------------------------------
+
+const RING_WORDS = /move|exercise|stand|steps|calories|kcal|active|workout|ring|sleep|water|distance/;
+
+const activityBuilder: Builder = (data, input, h, loose) => {
+  const rings: Array<{ label: string; value: number; goal: number }> = [];
+  const rows = rowsOf(data);
+  if (rows) {
+    const cols = analyze(rows);
+    const label = cols.find((c) => c.kind === 'category');
+    const goal = cols.find((c) => c.kind === 'number' && /^(goal|target)$/i.test(c.key));
+    const value = cols.find((c) => c.kind === 'number' && c !== goal);
+    if (!label || !goal || !value) return null;
+    rows.forEach((r, i) => rings.push({ label: String(r[label.key]).slice(0, 30), value: value.nums[i]!, goal: goal.nums[i]! }));
+  } else if (isRow(data)) {
+    for (const [k, v] of Object.entries(data)) {
+      if (isRow(v)) {
+        const value = toNumber(v.value ?? v.current ?? v.done);
+        const goal = toNumber(v.goal ?? v.target);
+        if (value != null && goal != null) rings.push({ label: humanize(k).slice(0, 30), value, goal });
+      } else if (!/goal|target$/i.test(k)) {
+        const goalK = Object.keys(data).find((g) => g !== k && new RegExp(`^${k}[ _-]?(goal|target)$`, 'i').test(g));
+        const value = toNumber(v);
+        const goal = goalK ? toNumber(data[goalK]) : null;
+        if (value != null && goal != null) rings.push({ label: humanize(k).slice(0, 30), value, goal });
+      }
+    }
+  } else return null;
+  const ringWords = RING_WORDS.test(h.text) || rings.some((r) => RING_WORDS.test(r.label.toLowerCase()));
+  if (rings.length < 1 || rings.length > 4 || (!loose && (rings.length < 2 || !ringWords))) return null;
+  if (rings.some((r) => !(r.value >= 0) || !(r.goal > 0))) return null;
+  return { data: { rings }, reason: `${rings.length} values with goals (${rings.map((r) => r.label.toLowerCase()).join(', ')}) as activity rings` };
+};
+
+// Markets -------------------------------------------------------------------------
+
+const candlestickBuilder: Builder = (data) => {
+  const rows = rowsOf(data);
+  if (!rows || rows.length < 2) return null;
+  const keys = Object.keys(rows[0]!);
+  const k = (re: RegExp) => keyOf(keys, re);
+  const [o, hi, lo, c] = [k(/^(open|o)$/i), k(/^(high|h)$/i), k(/^(low|l)$/i), k(/^(close|c)$/i)];
+  const date = k(TIME_NAME) ?? k(/^(date|time|day|period)$/i);
+  const vol = k(/^(volume|vol|v)$/i);
+  if (!o || !hi || !lo || !c || !date) return null;
+  const candles = rows.map((r) => ({ date: String(r[date]).slice(0, 30), open: toNumber(r[o]), high: toNumber(r[hi]), low: toNumber(r[lo]), close: toNumber(r[c]), volume: vol ? toNumber(r[vol]) ?? undefined : undefined }));
+  if (candles.some((x) => x.open == null || x.high == null || x.low == null || x.close == null)) return null;
+  return { data: { candles }, reason: `${rows.length} rows of open/high/low/close prices` };
+};
+
+const stockQuoteBuilder: Builder = (data) => {
+  if (!isRow(data)) return null;
+  const keys = Object.keys(data);
+  const sym = keyOf(keys, /^(symbol|ticker)$/i);
+  const price = keyOf(keys, /^(price|last|last[ _-]?price|close|current)$/i);
+  if (!sym || !price || typeof data[sym] !== 'string' || toNumber(data[price]) == null) return null;
+  const num = (re: RegExp) => {
+    const key = keyOf(keys, re);
+    return key ? toNumber(data[key]) ?? undefined : undefined;
+  };
+  const name = keyOf(keys, /^(name|company)$/i);
+  return {
+    data: {
+      symbol: String(data[sym]).toUpperCase().slice(0, 16),
+      price: toNumber(data[price]),
+      name: name ? String(data[name]).slice(0, 80) : undefined,
+      change: num(/^(change|chg)$/i),
+      change_percent: num(/^(change[ _-]?(percent|pct)|pct[ _-]?change|percent[ _-]?change)$/i),
+      previous_close: num(/^(previous[ _-]?close|prev[ _-]?close)$/i),
+    },
+    reason: `${sym} with ${price} reads as a stock quote`,
+  };
+};
+
+/** Builders tried before the shape rules, in order; each fires only on strong evidence. */
+const HINTED: Array<[string, Builder]> = [
+  ['activity', activityBuilder],
+  ['candlestick', candlestickBuilder],
+  ['stock_quote', stockQuoteBuilder],
+  ['weather', weatherBuilder],
+  ['gauge', gaugeBuilder],
+  ['countdown', countdownBuilder],
+  ['progress', progressBuilder],
+  ['list', listBuilder],
+  ['world_clock', worldClockBuilder],
+  ['clock', clockBuilder],
+];
+
+/** Cleans a builder's data and keeps it only when the template accepts it. */
+function accept(registry: Registry, template: string, built: Built | null): Choice | null {
+  if (!built) return null;
+  const data = JSON.parse(JSON.stringify(built.data)) as Row;
+  return registry.get(template)?.schema.safeParse(data).success ? { template, data, reason: built.reason } : null;
+}
+
+function hintChoice(data: unknown, input: VisualizeInput, registry: Registry, exclude: string[]): Choice | null {
+  const h = hintsOf(input, data);
+  for (const [template, build] of HINTED) {
+    if (exclude.includes(template)) continue;
+    const choice = accept(registry, template, build(data, input, h, false));
+    if (choice) return choice;
+  }
+  return null;
+}
+
 // --- screen ---------------------------------------------------------------------
 
 /** The screen a render will land on, from the effective render options (call, theme, server). */
@@ -626,10 +1159,13 @@ function finish(choice: Choice, input: VisualizeInput, registry: Registry): Choi
 
 function shapeChoice(input: VisualizeInput, registry: Registry, ctx: ChooseContext): Choice {
   const data = parseData(input.data);
+  const keys = isRow(data) ? Object.keys(data) : [];
+  const match = isRow(data) ? SIGNATURES.find(([id, sig]) => !ctx.exclude.includes(id) && sig.every((k) => keys.includes(k)) && registry.get(id)?.schema.safeParse(data).success) : undefined;
+  // Words and key names pick a richer template when the evidence is strong.
+  const hinted = match ? null : hintChoice(data, input, registry, ctx.exclude);
+  if (hinted) return hinted;
   let choice: Choice;
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    const keys = Object.keys(data);
-    const match = SIGNATURES.find(([id, sig]) => !ctx.exclude.includes(id) && sig.every((k) => keys.includes(k)) && registry.get(id)?.schema.safeParse(data).success);
+  if (isRow(data)) {
     choice = match
       ? { template: match[0], data: data as Row, reason: `the data already matches ${match[0]}` }
       : fromRecord(data as Row, input.intent, input.title);

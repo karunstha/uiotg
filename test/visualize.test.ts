@@ -67,3 +67,106 @@ describe('visualize: screen from the used theme', () => {
     for (const data of [wide, scales]) assert.deepEqual(choose({ data, screen: plain }), choose({ data }));
   });
 });
+
+describe('visualize: hints from words and keys', () => {
+  const hourly = [{ hour: '6am', tempF: 65 }, { hour: '9am', tempF: 70 }, { hour: '12pm', tempF: 76 }, { hour: '3pm', tempF: 78 }];
+  const daily = [
+    { day: '2026-11-02', high: 61, low: 44, condition: 'Light rain' },
+    { day: '2026-11-03', high: 58, low: 40, condition: 'Sunny' },
+    { day: '2026-11-04', high: 55, low: 39, condition: 'Cloudy' },
+  ];
+
+  test('hourly forecast rows become weather with hourly data', () => {
+    const choice = choose({ data: hourly, title: 'Forecast' });
+    assert.equal(choice.template, 'weather', choice.reason);
+    valid('weather', choice.data);
+    const data = choice.data as { units: string; current: { temperature: number; condition: string }; hourly: Array<{ time: string; temperature: number }> };
+    assert.equal(data.units, 'imperial');
+    assert.deepEqual(data.hourly.map((x) => x.time), ['6am', '9am', '12pm', '3pm']);
+    assert.equal(data.current.temperature, 65);
+    assert.equal(data.current.condition, 'partly_cloudy');
+  });
+
+  test('daily rows with high and low become a daily forecast', () => {
+    const choice = choose({ data: daily });
+    assert.equal(choice.template, 'weather', choice.reason);
+    valid('weather', choice.data);
+    const data = choice.data as { daily: Array<{ day: string; condition: string }> };
+    assert.deepEqual(data.daily.map((d) => d.day), ['Mon', 'Tue', 'Wed']);
+    assert.deepEqual(data.daily.map((d) => d.condition), ['rain', 'clear', 'cloudy']);
+  });
+
+  test('a lone temperature with a weather title is current weather', () => {
+    const choice = choose({ data: '18°C', title: 'Outside temperature' });
+    assert.equal(choice.template, 'weather');
+    valid('weather', choice.data);
+  });
+
+  test('weak weather evidence does not fire', () => {
+    // ISO timestamps and a temperature, no weather word: a sensor log stays a line chart.
+    const log = Array.from({ length: 6 }, (_, i) => ({ time: `2026-10-29T0${i}:00`, temperature: 40 + i }));
+    assert.equal(choose({ data: log }).template, 'line_chart');
+    assert.equal(choose({ data: log, title: 'CPU temperature' }).template, 'line_chart');
+    assert.equal(choose({ data: 21, title: 'Open tickets' }).template, 'stats');
+  });
+
+  test('a usage percentage becomes a gauge with thresholds', () => {
+    const choice = choose({ data: '72%', title: 'CPU usage' });
+    assert.equal(choice.template, 'gauge', choice.reason);
+    valid('gauge', choice.data);
+    assert.equal(choice.data.value, 72);
+    assert.equal((choice.data.thresholds as unknown[]).length, 3);
+    const battery = choose({ data: { battery: 0.64 } });
+    assert.equal(battery.template, 'gauge');
+    assert.equal(battery.data.value, 64);
+    assert.equal(battery.data.thresholds, undefined, 'a full battery is good');
+  });
+
+  test('weak gauge evidence does not fire', () => {
+    assert.equal(choose({ data: 72 }).template, 'stats');
+    assert.equal(choose({ data: 720, title: 'Credit score' }).template, 'stats');
+    assert.equal(choose({ data: '12%', title: 'Churn' }).template, 'stats');
+  });
+
+  test('tasks with done flags become a checklist', () => {
+    const choice = choose({ data: [{ task: 'Buy milk', done: true }, { task: 'Call mom', done: false }, { task: 'Pay rent', done: false }] });
+    assert.equal(choice.template, 'list', choice.reason);
+    assert.equal(choice.data.style, 'check');
+    assert.deepEqual((choice.data.items as Array<{ status: string }>).map((i) => i.status), ['done', 'todo', 'todo']);
+    // A status that isn't a task state is just a column.
+    assert.notEqual(choose({ data: [{ name: 'Ada', status: 'active', age: 3 }, { name: 'Bo', status: 'away', age: 4 }] }).template, 'list');
+  });
+
+  test('a future date with a countdown phrase becomes a countdown', () => {
+    const choice = choose({ data: '2099-12-31T23:59:00Z', title: 'Time until launch' });
+    assert.equal(choice.template, 'countdown', choice.reason);
+    valid('countdown', choice.data);
+    const record = choose({ data: { event: 'Launch', deadline: '2099-01-01' } });
+    assert.equal(record.template, 'countdown');
+    assert.equal(record.data.label, 'Launch');
+    // A date alone, or a past deadline, is not a countdown.
+    assert.notEqual(choose({ data: '2099-12-31' }).template, 'countdown');
+    assert.notEqual(choose({ data: { deadline: '2001-01-01', owner: 'x' } }).template, 'countdown');
+  });
+
+  test('value and max pairs become progress bars', () => {
+    const rows = [{ goal: 'Read', done: 7, target: 12 }, { goal: 'Run', done: 30, target: 50 }];
+    const choice = choose({ data: rows });
+    assert.equal(choice.template, 'progress', choice.reason);
+    valid('progress', choice.data);
+    assert.deepEqual(choice.data.items, [{ label: 'Read', value: 7, max: 12 }, { label: 'Run', value: 30, max: 50 }]);
+    // Two numbers without a value/max pair stay a bar chart.
+    const plain = [{ team: 'a', x: 1, y: 2 }, { team: 'b', x: 3, y: 4 }, { team: 'c', x: 5, y: 6 }, { team: 'd', x: 2, y: 2 }, { team: 'e', x: 1, y: 7 }];
+    assert.equal(choose({ data: plain }).template, 'bar_chart');
+  });
+
+  test('time zones, rings and prices', () => {
+    assert.equal(choose({ data: [{ city: 'Tokyo', timezone: 'Asia/Tokyo' }, { city: 'Lisbon', timezone: 'Europe/Lisbon' }] }).template, 'world_clock');
+    assert.equal(choose({ data: 'Asia/Tokyo', title: 'Time in Tokyo' }).template, 'clock');
+    assert.equal(choose({ data: 'Asia/Tokyo' }).template, 'text_card');
+    assert.equal(choose({ data: { move: { value: 420, goal: 600 }, exercise: { value: 25, goal: 30 } } }).template, 'activity');
+    const candles = [{ date: '2026-10-01', open: 1, high: 3, low: 0.5, close: 2 }, { date: '2026-10-02', open: 2, high: 4, low: 1, close: 3 }];
+    assert.equal(choose({ data: candles }).template, 'candlestick');
+    assert.equal(choose({ data: { ticker: 'aapl', price: 231.4, change: 1.2 } }).template, 'stock_quote');
+  });
+});
