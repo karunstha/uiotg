@@ -20,6 +20,7 @@ export const CIRCLE_CSS = `
 .circle-rows .hdr{flex-direction:column;align-items:stretch;gap:4px}
 .circle-rows .hdr-sub{margin-top:0}
 .circle-rows .hdr-aside{max-width:none;text-align:center}
+.circle-rows .ls-bullet{display:none}
 `;
 
 export interface CircleBox {
