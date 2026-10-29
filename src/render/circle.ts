@@ -16,6 +16,7 @@ export const CIRCLE_RIM = 8;
 export const CIRCLE_CSS = `
 #root.circle-rows{display:flex;flex-direction:column;justify-content:safe center;text-align:center}
 .circle-rows .circle-row{margin-inline:auto}
+:where(.circle-rows .circle-row){width:100%}
 .circle-rows .hdr{flex-direction:column;align-items:stretch;gap:4px}
 .circle-rows .hdr-sub{margin-top:0}
 .circle-rows .hdr-aside{max-width:none;text-align:center}
