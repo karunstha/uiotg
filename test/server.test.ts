@@ -117,9 +117,10 @@ describe('MCP server', () => {
 
   test('render says when overflow cap scaled the content down', async () => {
     const options = { width: 466, height: 466, scale: 1, overflow: 'cap', shape: 'circle' };
-    const progress = (await client.callTool({ name: 'get_template', arguments: { template: 'progress' } })) as CallToolResult;
-    const { example } = JSON.parse((progress.content[0] as { text: string }).text);
-    const res = (await client.callTool({ name: 'render', arguments: { template: 'progress', data: example, options } })) as CallToolResult;
+    // code has no round layout, so its example still shrinks into the square inside the circle.
+    const code = (await client.callTool({ name: 'get_template', arguments: { template: 'code' } })) as CallToolResult;
+    const { example } = JSON.parse((code.content[0] as { text: string }).text);
+    const res = (await client.callTool({ name: 'render', arguments: { template: 'code', data: example, options } })) as CallToolResult;
     assert.ok(!res.isError, JSON.stringify(res.content));
     const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
     assert.match(text, /466×466 CSS px/);
