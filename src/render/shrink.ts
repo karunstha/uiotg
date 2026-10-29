@@ -37,7 +37,7 @@ export function scaleContent(s: number): void {
 
 /**
  * In-page. How much room the content needs against the root's content box, in
- * image px, and whether it overflows the way growToFit would see it.
+ * image px, and whether it overflows that box (or the image, as growToFit sees it).
  */
 export function measureFit(): { boxW: number; boxH: number; needW: number; needH: number; over: boolean } {
   const root = document.getElementById('root')!;
@@ -45,11 +45,12 @@ export function measureFit(): { boxW: number; boxH: number; needW: number; needH
   const [l, r, t, b] = [cs.paddingLeft, cs.paddingRight, cs.paddingTop, cs.paddingBottom].map(parseFloat) as [number, number, number, number];
   const boxW = root.clientWidth - l - r;
   const boxH = root.clientHeight - t - b;
-  const wide = root.scrollWidth > root.clientWidth + 1;
-  const tall = root.scrollHeight > root.clientHeight + 1;
-  // Content that fits: the wrapper's height says how much room is left.
-  const wrap = root.querySelector(':scope > .fit-wrap');
-  const fitH = wrap ? wrap.getBoundingClientRect().height : boxH;
-  // Scrollable overflow counts the bottom padding but not the right one.
-  return { boxW, boxH, needW: wide ? root.scrollWidth - l : boxW, needH: tall ? root.scrollHeight - t - b : fitH, over: wide || tall };
+  const outside = root.scrollWidth > root.clientWidth + 1 || root.scrollHeight > root.clientHeight + 1;
+  const wrap = root.querySelector<HTMLElement>(':scope > .fit-wrap');
+  if (!wrap) return { boxW, boxH, needW: boxW, needH: boxH, over: outside };
+  // The wrapper's scroll size is in its own (zoomed) px and covers what overflows it.
+  const zoom = (wrap as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom ?? 1;
+  const needW = wrap.scrollWidth * zoom;
+  const needH = wrap.scrollHeight * zoom;
+  return { boxW, boxH, needW, needH, over: outside || needW > boxW + 1 || needH > boxH + 1 };
 }
