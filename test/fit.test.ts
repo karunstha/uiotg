@@ -7,18 +7,21 @@ import { z } from 'zod';
 import { buildTheme, createRenderer, defaultRegistry, html, PRESETS, ThemeStore, themeSpecSchema } from '../src/index.ts';
 import { defineTemplate, type RenderContext, type Template } from '../src/core/types.ts';
 import { renderOptionsSchema } from '../src/render/renderer.ts';
+import { measureFit, scaleContent, SCALE_FLOOR } from '../src/render/shrink.ts';
+import { inkBox } from './ink.ts';
 
-// Prints its content budget, and grows `tall` px when asked; it has no truncate.
+// Prints its content budget, and grows `tall` px high or `wide` px wide (outlined) when asked; it has no truncate.
 const probe = defineTemplate({
   id: 'probe',
   title: 'Probe',
   category: 'basic',
   summary: 'test probe',
   description: 'Reports the content size the renderer gives it; used by the fit tests only.',
-  schema: z.object({ tall: z.number().default(0) }),
+  schema: z.object({ tall: z.number().default(0), wide: z.number().default(0) }),
   example: {},
   width: 400,
-  render: (d, ctx) => html`<div style="${`height:${d.tall}px`}">${`budget:${ctx.width}x${ctx.height ?? 'auto'}`}</div>`,
+  render: (d, ctx) =>
+    html`<div style="${`height:${d.tall}px${d.wide ? `;min-width:${d.wide}px` : ''}${d.tall || d.wide ? ';box-shadow:inset 0 0 0 2px #888' : ''}`}">${`budget:${ctx.width}x${ctx.height ?? 'auto'}`}</div>`,
 });
 
 const store = new ThemeStore(mkdtempSync(join(tmpdir(), 'uiotg-themes-')));
@@ -94,6 +97,7 @@ describe('overflow', () => {
     assert.ok(res.capped, 'reports the cut');
     assert.equal(res.capped.total, 10);
     assert.ok(res.capped.shown >= 1 && res.capped.shown < res.capped.total);
+    assert.equal(res.scaled, undefined, 'a template with truncate shows fewer items rather than shrinking');
     const few = await renderer.render('list', { items: longItems(2) }, { ...BOARD, overflow: 'cap' });
     assert.equal(few.capped, undefined, 'content that fits is not cut');
   });
@@ -103,12 +107,54 @@ describe('overflow', () => {
     const res = await renderer.render('list', huge, { width: 200, height: 120, padding: 8, scale: 1, overflow: 'cap' });
     assert.deepEqual(res.capped, { shown: 1, total: 3 });
     assert.ok(res.adjusted?.height, 'one item is still taller than the image');
+    assert.equal(res.scaled, undefined, 'and too tall to shrink to the floor');
   });
 
-  test('a template without truncate grows', async () => {
-    const res = await renderer.render('probe', { tall: 900 }, { ...BOARD, overflow: 'cap' });
+  /** Renders with cap, checks the size, and that the content drawn stays inside the padded box. */
+  async function shrunk(data: { tall?: number; wide?: number }, shape: 'rect' | 'circle' = 'rect') {
+    const opts = { ...BOARD, overflow: 'cap', shape } as const;
+    const res = await renderer.render('probe', data, opts);
+    assert.deepEqual([res.width, res.height, res.adjusted, res.capped], [466, 466, undefined, undefined]);
+    assert.ok(res.scaled && res.scaled >= SCALE_FLOOR && res.scaled < 1, `scaled ${res.scaled}`);
+    // In the page: at that factor the content fits the box.
+    const doc = await renderer.toHtml('probe', data, opts);
+    const fit = await renderer.browser.withPage({ width: 466, height: 466, scale: 1, colorScheme: doc.theme }, async (page) => {
+      await page.setContent(doc.html);
+      await page.evaluate(scaleContent, res.scaled!);
+      return page.evaluate(measureFit);
+    });
+    assert.equal(fit.over, false, JSON.stringify(fit));
+    return { res, ink: (await inkBox(renderer, res.data, 466, 466))! };
+  }
+
+  test('a template without truncate shrinks to keep the size instead of growing', async () => {
+    const { res, ink } = await shrunk({ tall: 450 });
+    assert.ok(res.scaled! < 0.85, `scaled ${res.scaled}`);
+    // The outlined block spans the padded box's height: 56 top and bottom.
+    assert.ok(ink.top >= 56 && ink.bottom <= 410 && ink.left >= 50 && ink.right <= 416, JSON.stringify(ink));
+    assert.ok(ink.bottom >= 400, `uses the room: ${JSON.stringify(ink)}`);
+  });
+
+  test('content too wide shrinks too, and lays out wider', async () => {
+    const { res, ink } = await shrunk({ wide: 500, tall: 100 });
+    assert.ok(Math.abs(res.scaled! - 366 / 500) < 0.02, `scaled ${res.scaled}`);
+    assert.ok(ink.left >= 50 && ink.right <= 416 && ink.right >= 410, JSON.stringify(ink));
+  });
+
+  test('below the floor it grows as before, unscaled', async () => {
+    const res = await renderer.render('probe', { tall: 2000 }, { ...BOARD, overflow: 'cap' });
+    assert.equal(res.scaled, undefined);
     assert.equal(res.capped, undefined);
-    assert.ok(res.height > 466);
+    assert.ok(res.height > 2000);
+    assert.deepEqual(res.adjusted?.height, [466, res.height]);
+  });
+
+  test('grow, and cap without a fixed height, never shrink', async () => {
+    const grown = await renderer.render('probe', { tall: 450 }, { ...BOARD, overflow: 'grow' });
+    assert.deepEqual([grown.scaled, grown.adjusted?.height?.[0]], [undefined, 466]);
+    const free = await renderer.render('probe', { tall: 450 }, { width: 466, padding: 20, scale: 1, overflow: 'cap' });
+    assert.deepEqual([free.scaled, free.adjusted], [undefined, undefined]);
+    assert.ok(free.height > 466);
   });
 
   test('cap without a fixed height fits the content', async () => {
