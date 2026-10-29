@@ -1325,6 +1325,66 @@ function fitScreen(choice: Choice, screen: Screen, exclude: string[]): Choice {
   return choice;
 }
 
+/** Lists longer than this may be pre-cut on a small screen; shorter ones are left to overflow "cap". */
+const PRECUT_OVER = 12;
+const LIST_KEYS: Record<string, string> = { list: 'items', key_value: 'items', table: 'rows', timeline: 'events', progress: 'items' };
+
+/** Rows a small screen of fixed height shows, generously: overflow "cap" still trims what doesn't fit. */
+function rowsFor(screen: Screen, titled: boolean): number {
+  const height = screen.height ?? 466;
+  return Math.max(5, Math.round((height - (titled ? 110 : 60)) / (screen.shape === 'circle' ? 52 : 40)));
+}
+
+/**
+ * On a small screen, keeps the most relevant part of long data so nothing
+ * needs a crop: the first rows of long lists (given order), the top bars and
+ * slices by value with the rest folded into "Other", the last points of long
+ * lines. The total goes in the subtitle. Returns the note, if it cut anything.
+ */
+function trimForScreen(choice: Choice, screen: Screen): string | undefined {
+  const d = choice.data;
+  const listKey = LIST_KEYS[choice.template];
+  const list = listKey ? (d[listKey] as unknown[] | undefined) : undefined;
+  if (list && screen.height != null) {
+    const keep = rowsFor(screen, d.title != null);
+    if (list.length <= PRECUT_OVER || list.length <= keep) return undefined;
+    d[listKey!] = list.slice(0, keep);
+    return `First ${keep} of ${list.length}`;
+  }
+  if (choice.template === 'bar_chart' && Array.isArray(d.categories) && d.categories.length > 8) {
+    const cats = d.categories as string[];
+    const series = d.series as Array<{ name: string; values: Array<number | null> }>;
+    const pre = typeof d.subtitle === 'string' ? /^Top \d+ of (\d+)$/.exec(d.subtitle) : null;
+    const timeLike = d.sort === 'none' || cats.every(isTimeLike);
+    if (timeLike) {
+      d.categories = cats.slice(-8);
+      d.series = series.map((s) => ({ ...s, values: s.values.slice(-8) }));
+      return `Last 8 of ${cats.length}`;
+    }
+    const total = (i: number) => series.reduce((a, s) => a + (s.values[i] ?? 0), 0);
+    const order = cats.map((_, i) => i).sort((a, b) => total(b) - total(a));
+    // Already cut to a top N upstream: the rest is unknown, so no "Other".
+    const kept = order.slice(0, pre ? 8 : 7);
+    const rest = order.slice(kept.length);
+    d.categories = [...kept.map((i) => cats[i]!), ...(pre ? [] : ['Other'])];
+    d.series = series.map((s) => ({ ...s, values: [...kept.map((i) => s.values[i] ?? null), ...(pre ? [] : [rest.reduce((a, i) => a + (s.values[i] ?? 0), 0)])] }));
+    if (pre) delete d.subtitle;
+    return pre ? `Top 8 of ${pre[1]}` : `Top 7 of ${cats.length}, rest as Other`;
+  }
+  if (choice.template === 'pie_chart' && Array.isArray(d.slices) && d.slices.length > 6) {
+    const slices = [...(d.slices as Array<{ label: string; value: number }>)].sort((a, b) => b.value - a.value);
+    d.slices = [...slices.slice(0, 5), { label: 'Other', value: slices.slice(5).reduce((a, s) => a + s.value, 0) }];
+    return `Top 5 of ${slices.length}, rest as Other`;
+  }
+  if (choice.template === 'line_chart' && Array.isArray(d.x) && d.x.length > PRECUT_OVER) {
+    const n = (d.x as unknown[]).length;
+    d.x = (d.x as unknown[]).slice(-PRECUT_OVER);
+    d.series = (d.series as Array<{ values: unknown[] }>).map((s) => ({ ...s, values: s.values.slice(-PRECUT_OVER) }));
+    return `Last ${PRECUT_OVER} of ${n}`;
+  }
+  return undefined;
+}
+
 interface ChooseContext {
   /** Templates the choice must not land on (to find a runner-up). */
   exclude: string[];
@@ -1366,6 +1426,11 @@ function finish(choice: Choice, input: VisualizeInput, registry: Registry): Choi
   const titleUsed = input.title != null && JSON.stringify(choice.data).includes(JSON.stringify(input.title));
   if (input.title && 'title' in shape && choice.data.title == null && !titleUsed) choice.data.title = input.title;
   if (input.subtitle && 'subtitle' in shape && choice.data.subtitle == null) choice.data.subtitle = input.subtitle;
+  const cut = input.screen?.small ? trimForScreen(choice, input.screen) : undefined;
+  if (cut) {
+    if ('subtitle' in shape) choice.data.subtitle = choice.data.subtitle ? `${choice.data.subtitle} · ${cut}` : cut;
+    choice.reason += `; ${cut.toLowerCase()} for the ${screenName(input.screen!)}`;
+  }
   // Drop undefined keys so the data is clean to read and reuse.
   choice.data = JSON.parse(JSON.stringify(choice.data));
   return choice;

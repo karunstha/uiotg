@@ -214,3 +214,43 @@ describe('visualize: a forced template', () => {
     assert.throws(() => adapt('nope', { data: 1 }), /Unknown template "nope". Available: .*gauge/);
   });
 });
+
+describe('visualize: size on a small screen', () => {
+  const tasks = (n: number) => Array.from({ length: n }, (_, i) => `Task number ${i + 1} with a few words`);
+
+  test('a long list is pre-cut with the total in the subtitle', () => {
+    const choice = choose({ data: tasks(40), title: 'Today', screen: round });
+    assert.equal(choice.template, 'list');
+    const items = choice.data.items as unknown[];
+    assert.ok(items.length >= 6 && items.length <= 8, String(items.length));
+    assert.equal(choice.data.subtitle, `First ${items.length} of 40`);
+    assert.match(choice.reason, /first \d of 40 for the 466 px round screen/);
+    valid('list', choice.data);
+  });
+
+  test('a short list is untouched, and a long one off a small screen too', () => {
+    assert.deepEqual(choose({ data: tasks(8), title: 'Today', screen: round }), choose({ data: tasks(8), title: 'Today' }));
+    assert.equal((choose({ data: tasks(40), screen: plain }).data.items as unknown[]).length, 40);
+  });
+
+  test('many categories keep the top bars and fold the rest into Other', () => {
+    const rows = Array.from({ length: 15 }, (_, i) => ({ region: `Region ${i + 1}`, sales: (i + 1) * 10 }));
+    const choice = choose({ data: rows, screen: round });
+    assert.equal(choice.template, 'bar_chart');
+    assert.equal((choice.data.categories as string[]).length, 8);
+    assert.equal((choice.data.categories as string[])[7], 'Other');
+    const values = (choice.data.series as Array<{ values: number[] }>)[0]!.values;
+    assert.equal(values.reduce((a, b) => a + b, 0), rows.reduce((a, r) => a + r.sales, 0));
+    assert.equal(choice.data.subtitle, 'Top 7 of 15, rest as Other');
+    valid('bar_chart', choice.data);
+    assert.equal((choose({ data: rows, screen: plain }).data.categories as string[]).length, 15);
+  });
+
+  test('long series keep their last points', () => {
+    const rows = Array.from({ length: 30 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, '0')}`, visits: 100 + i }));
+    const choice = choose({ data: rows, screen: round });
+    assert.equal(choice.template, 'line_chart');
+    assert.equal((choice.data.x as string[]).length, 12);
+    assert.equal(choice.data.subtitle, 'Last 12 of 30');
+  });
+});
