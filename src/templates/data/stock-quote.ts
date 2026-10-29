@@ -4,7 +4,7 @@ import { html, raw, style, type Html } from '../../core/html.ts';
 import { fitFontSize } from '../../core/measure.ts';
 import type { Theme } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { fitColumns, header } from '../../core/ui.ts';
+import { circleRow, fitColumns, header } from '../../core/ui.ts';
 import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const currency = z.string().length(3).default('USD').describe('ISO 4217 code');
@@ -34,6 +34,26 @@ export function priceChart(values: number[], opts: { width: number; height: numb
   svg += `<path d="${line}" fill="none" stroke="${opts.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
   svg += '</svg>';
   return raw(svg);
+}
+
+const marketText = { open: 'Market open', closed: 'Market closed', pre: 'Pre-market', after: 'After hours' };
+
+/** Price format, change text and its colors, and the market dot's color. */
+function quoteState(
+  d: { currency: string; price: number; change?: number; change_percent?: number; previous_close?: number; prices?: number[]; market?: 'open' | 'closed' | 'pre' | 'after' },
+  theme: Theme,
+) {
+  const fmt = makeFormatter({ style: 'currency', currency: d.currency });
+  const base = d.previous_close ?? d.prices?.[0];
+  const change = d.change ?? (base != null ? d.price - base : null);
+  const pct = d.change_percent ?? (base ? ((d.price - base) / base) * 100 : null);
+  const up = (change ?? pct ?? 0) >= 0;
+  const color = up ? theme.status.good : theme.status.critical;
+  const ink = up ? theme.positive : theme.negative;
+  const sign = up ? '+' : '−';
+  const changeText = [change != null ? `${sign}${fmt(Math.abs(change))}` : null, pct != null ? `(${sign}${Math.abs(pct).toFixed(2)}%)` : null].filter(Boolean).join(' ');
+  const marketColor = d.market === 'open' ? theme.status.good : d.market === 'closed' ? theme.muted : theme.status.warning;
+  return { fmt, up, color, ink, changeText, marketColor };
 }
 
 export const stockQuote = defineTemplate({
@@ -102,19 +122,35 @@ export const stockQuote = defineTemplate({
 .sq-sl{font-size:12px;color:var(--muted)}
 .sq-sv{font-size:15px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
 `,
+  circleCss: /* css */ `
+.sq-r{display:flex;flex-direction:column;align-items:center}
+.sq-r .sq-sym{justify-content:center}
+.sq-r .sq-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sq-r .sq-p{margin-top:12px}
+.sq-badge{display:inline-block;font-size:15px;font-weight:650;border-radius:var(--pill);padding:3px 12px;margin-top:8px;white-space:nowrap}
+.sq-r .sq-chart{margin-top:14px;display:flex;justify-content:center}
+.sq-rmeta{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--muted);margin-top:8px}
+.sq-rmeta i{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
+.sq-rmeta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+`,
+  renderCircle(d, ctx) {
+    // Symbol, a big price and its change, the chart, then market state; the range line and stats are left out.
+    const { theme } = ctx;
+    const { fmt, ink, color, changeText, marketColor } = quoteState(d, theme);
+    const R = ctx.circle.safe / 2;
+    const meta = [d.market ? marketText[d.market] : null, d.as_of].filter(Boolean).join(' · ');
+    return html`<div class="sq-r">
+      <div class="${circleRow('sq-sym')}"><b>${d.symbol}</b>${d.exchange ? html`<span class="sq-ex">${d.exchange}</span>` : null}</div>
+      ${d.name ? html`<div class="${circleRow('sq-name')}">${d.name}</div>` : null}
+      <div class="${circleRow('sq-p')}" style="${`font-size:${fitFontSize(fmt(d.price), R * 1.3, 60, 28)}px`}">${fmt(d.price)}</div>
+      ${changeText ? html`<div class="circle-row"><span class="sq-badge" style="${style({ color: ink, background: `color-mix(in srgb, ${color} 16%, transparent)` })}">${changeText}</span></div>` : null}
+      ${d.prices ? html`<div class="${circleRow('sq-chart')}">${priceChart(d.prices, { width: Math.round(R * 1.24), height: Math.round(R * 0.4), color, theme, baseline: d.previous_close })}</div>` : null}
+      ${meta ? html`<div class="${circleRow('sq-rmeta')}">${d.market ? html`<i style="${`background:${marketColor}`}"></i>` : null}<span>${meta}</span></div>` : null}
+    </div>`;
+  },
   render(d, ctx) {
     const { theme } = ctx;
-    const fmt = makeFormatter({ style: 'currency', currency: d.currency });
-    const base = d.previous_close ?? d.prices?.[0];
-    const change = d.change ?? (base != null ? d.price - base : null);
-    const pct = d.change_percent ?? (base ? ((d.price - base) / base) * 100 : null);
-    const up = (change ?? pct ?? 0) >= 0;
-    const color = up ? theme.status.good : theme.status.critical;
-    const ink = up ? theme.positive : theme.negative;
-    const sign = up ? '+' : '−';
-    const changeText = [change != null ? `${sign}${fmt(Math.abs(change))}` : null, pct != null ? `(${sign}${Math.abs(pct).toFixed(2)}%)` : null].filter(Boolean).join(' ');
-    const marketColor = d.market === 'open' ? theme.status.good : d.market === 'closed' ? theme.muted : theme.status.warning;
-    const marketText = { open: 'Market open', closed: 'Market closed', pre: 'Pre-market', after: 'After hours' };
+    const { fmt, color, ink, changeText, marketColor } = quoteState(d, theme);
     const statCols = fitColumns(3, ctx.width, 140, 18);
     return html`<div class="sq-head">
         <div>
