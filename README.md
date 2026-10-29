@@ -150,7 +150,7 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 |---|---|---|
 | `width` | per template | Image width in CSS px (160–2400) |
 | `height` | fit content | Fixed height; charts resize their plot to fill it |
-| `theme` | saved default, else `light` | A preset, a saved theme's name, or an inline theme object (see [Themes](#themes)) |
+| `theme` | saved default, else `light` | A preset, a saved theme's name, or an inline theme object (see [Themes](#themes)). An inline theme without its own `defaults` only restyles: it inherits the default theme's `defaults` and `lock` (size, padding, shape) |
 | `scale` | `2` | Device pixel ratio (1–3) |
 | `format` | `png` | `png` or `jpeg` (`quality` 1–100) |
 | `transparent` | `false` | Transparent background (png) |

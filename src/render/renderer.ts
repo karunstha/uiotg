@@ -25,7 +25,10 @@ export const renderOptionsSchema = z.object({
   theme: z
     .union([z.string().min(1).max(40), themeSpecSchema])
     .optional()
-    .describe(`Theme: a preset (${Object.keys(PRESETS).join(', ')}), a saved custom theme's name, or an inline theme object (see list_themes). Defaults to the saved default theme, else light. The theme's own defaults (size, padding, ...) fill in options you leave out`),
+    .describe(
+      `Leave out to use the server's default theme, which also sets the size, padding and shape for the main screen. Otherwise: a saved theme's name or a preset (${Object.keys(PRESETS).join(', ')}) ` +
+        `to target another screen or look (see list_themes), or an inline theme object for colors only: without its own defaults it inherits the default theme's size, padding, shape and locks`,
+    ),
   scale: size.scale,
   format: size.format,
   quality: size.quality,
@@ -184,8 +187,12 @@ export class Renderer {
   effectiveOptions(options: RenderOptions = {}): RenderOptions {
     const call = Object.fromEntries(Object.entries(renderOptionsSchema.parse(options)).filter(([, v]) => v !== undefined)) as RenderOptions;
     const theme = this.#usedTheme(call.theme ?? this.defaults.theme);
-    const defaults = themeDefaults(theme, this.themes);
-    const locked = Object.fromEntries(themeLock(theme, this.themes).flatMap((k) => (defaults[k] !== undefined ? [[k, defaults[k]]] : [])));
+    // An inline theme with no `defaults` of its own only restyles: the screen (size, padding, shape, locks) comes from the default theme.
+    const inherit = typeof theme !== 'string' && !theme.defaults;
+    const screen = inherit ? this.#usedTheme(this.defaults.theme) : theme;
+    const defaults = themeDefaults(screen, this.themes);
+    const locks = themeLock(typeof theme !== 'string' && theme.lock ? theme : screen, this.themes);
+    const locked = Object.fromEntries(locks.flatMap((k) => (defaults[k] !== undefined ? [[k, defaults[k]]] : [])));
     return { ...this.defaults, ...defaults, ...call, ...locked };
   }
 

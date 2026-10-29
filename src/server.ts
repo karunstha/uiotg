@@ -59,9 +59,9 @@ Fastest path: call \`visualize\` with the raw data you have (a number, text, a l
 
 Full control: choose a template from the \`render\` tool description (or \`list_templates\`), call \`get_template\` for its schema and an example, then call \`render\` with { template, data }. Invalid data returns the problems plus an example so you can fix it and retry.
 
-Themes: \`list_themes\` shows presets, saved themes and what each color does. Pass options.theme (a name or an inline theme object) per call, or save a custom theme with \`save_theme\` and make it the default. A theme can also carry \`defaults\` (width, height, padding, scale…) for a particular screen; options you pass in the call override them.
+Themes: \`list_themes\` shows presets, saved themes and what each color does. Normally pass no theme: the server's default theme is set up for the main screen and supplies its look, size, padding and shape. Pass a saved theme by name only to target another screen or look (a theme's \`defaults\` carry that screen's size). An inline theme object changes colors only: unless it brings its own \`defaults\`, it inherits the default theme's size, padding, shape and locks. Save a custom theme with \`save_theme\`; it can carry \`defaults\` (width, height, padding, shape, scale…) for a particular screen and a \`lock\` that stops calls overriding some of them.
 
-Options: leave \`options\` out unless the user asks for a specific size or look. The server's default theme already sets the look and, through its \`defaults\`, the size and padding for the main screen, and every option you pass (width, height, padding, scale, detail, theme) replaces it. For a different screen, pass only its theme by name (see \`list_themes\`) instead of sizes. A result that says it "fits the screen by design" and shows "N of M items (+K more)" is the intended outcome on a small screen: do not re-render it larger or change its size; mention the rest in words if needed. Some themes lock their size, in which case size options in a call are ignored.
+Options: leave \`options\` out unless the user asks for a specific size or look. An option you pass replaces the theme's default for it, except options the theme locks, which are ignored. A result that says it "fits the screen by design" and shows "N of M items (+K more)" or "Scaled to…" is the intended outcome on a small screen: do not re-render it larger or change its size; mention the rest in words if needed.
 
 Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; \`visualize\` recognises forecasts, gauges, countdowns, checklists and similar from the data, title and units, and \`template\` forces one when it guesses wrong; use \`render\` only when you need exact control of a template's fields.`;
 
@@ -330,8 +330,8 @@ export function createServer(opts: ServerOptions): McpServer {
         'Example ("rose"): ' + JSON.stringify({ base: 'light', background: '#fff0f5', text: '#3b1d2a', accent: '#e0457b', series: ['#e0457b', '#9b5de5', '#f28482', '#4d908e', '#f9a03f'], font: 'rounded', corners: 'round' }),
         '',
         readOnlyThemes
-          ? 'Use a theme per render with options.theme (a name or an inline object). Saving themes is disabled on this server.'
-          : 'Try one inline with options.theme on any render, then save_theme to keep it (and set_default to use it everywhere).',
+          ? 'A render uses the default theme unless options.theme names another (or gives an inline object, which changes colors only). Saving themes is disabled on this server.'
+          : 'To try a new look, pass it inline as options.theme on one render (colors only: size, padding and shape come from the default theme), then save_theme to keep it (and set_default to use it everywhere).',
       ].join('\n');
       return { content: [{ type: 'text', text }] };
     },

@@ -52,7 +52,7 @@ export const themeSpecSchema = z.object({
     .describe(
       'Render options used whenever this theme is used and the call leaves them out: width, height, padding (a number, or {"x":…,"y":…} per axis), scale, format, quality, detail, ' +
         'overflow ("cap" keeps the fixed size and shows fewer items with "+N more" instead of growing), shape ("circle" for a round screen) (same limits as render options). ' +
-        'Options passed in the call always win; these beat the server defaults. Good for a theme tied to a device, e.g. a round 466 px screen: ' +
+        'Options passed in the call win unless listed in `lock`; these beat the server defaults. An inline theme without `defaults` inherits the server default theme\'s `defaults` and `lock`. Good for a theme tied to a device, e.g. a round 466 px screen: ' +
         '{"width":466,"height":466,"shape":"circle","padding":12,"scale":1,"overflow":"cap"}.',
     ),
   lock: z

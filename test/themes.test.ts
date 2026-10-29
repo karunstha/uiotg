@@ -48,6 +48,31 @@ describe('themes', () => {
     assert.match(doc.html, /--rk:1.6/);
   });
 
+  test('an inline theme without defaults only restyles: it inherits the default theme screen and locks', () => {
+    store.save('rounddev', { base: 'dark', defaults: { width: 466, height: 466, shape: 'circle', padding: 14, overflow: 'cap' }, lock: ['width', 'height', 'shape'] });
+    store.save('plain2', { base: 'dark' });
+    store.setDefault('rounddev');
+    try {
+      const inline = { base: 'dark', accent: '#7aa2ff', background: '#0b0f1a' } as const;
+      const eff = renderer.effectiveOptions({ theme: inline, width: 368, height: 448, padding: 20, overflow: 'grow' });
+      assert.equal(eff.width, 466, 'locked size wins');
+      assert.equal(eff.height, 466);
+      assert.equal(eff.shape, 'circle');
+      assert.equal(eff.padding, 20, 'unlocked: the call wins');
+      assert.equal(eff.overflow, 'grow');
+      assert.deepEqual((eff.theme as { accent?: string }).accent, '#7aa2ff', 'its colors are kept');
+      // An inline theme with its own defaults, or a named theme, is on its own.
+      const own = renderer.effectiveOptions({ theme: { ...inline, defaults: { width: 300 } }, width: 368 });
+      assert.equal(own.width, 368);
+      assert.equal(own.shape, undefined);
+      assert.equal(renderer.effectiveOptions({ theme: 'plain2', width: 368 }).width, 368);
+      // No call theme: the default theme itself.
+      assert.equal(renderer.effectiveOptions({ width: 368 }).width, 466);
+    } finally {
+      store.setDefault(undefined);
+    }
+  });
+
   test('resolves saved themes, falls back from a deleted default, and protects preset names', () => {
     store.save('blood', { base: 'dark', background: '#0b0000', text: '#f5e6e6', accent: '#c1121f' });
     assert.equal(resolveTheme('blood', store).surface, '#0b0000');
