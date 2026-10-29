@@ -7,8 +7,10 @@ import { z } from 'zod';
 import { buildTheme, createRenderer, defaultRegistry, html, PRESETS, ThemeStore, themeSpecSchema } from '../src/index.ts';
 import { defineTemplate, type RenderContext, type Template } from '../src/core/types.ts';
 import { auditOverflow } from '../src/render/audit.ts';
-import { circleLayout } from '../src/render/circle.ts';
+import { centreContent, circleLayout } from '../src/render/circle.ts';
 import { renderOptionsSchema, type RenderOptions } from '../src/render/renderer.ts';
+import { SCALE_FLOOR } from '../src/render/shrink.ts';
+import { inkBox } from './ink.ts';
 
 // Prints its content budget (see fit.test.ts).
 const probe = defineTemplate({
@@ -190,4 +192,43 @@ describe('circle square', () => {
       assert.deepEqual([res.width, res.height, res.adjusted], [466, 466, undefined]);
     });
   }
+});
+
+describe('circle centring', () => {
+  for (const [id, data] of [
+    ['probe', {}],
+    ['badge', { label: 'build', value: 'passing', tone: 'success' }],
+  ] as const) {
+    test(`${id}: compact content sits in the middle of the circle`, async () => {
+      const res = await renderer.render(id, data, ROUND);
+      assert.deepEqual([res.width, res.height, res.adjusted, res.scaled], [466, 466, undefined, undefined]);
+      const ink = (await inkBox(renderer, res.data, 466, 466))!;
+      assert.ok(Math.abs((ink.left + ink.right) / 2 - R) <= 2, `x: ${JSON.stringify(ink)}`);
+      assert.ok(Math.abs((ink.top + ink.bottom) / 2 - R) <= 2, `y: ${JSON.stringify(ink)}`);
+    });
+  }
+
+  test('row layouts and rect are left alone', async () => {
+    const doc = await renderer.toHtml('list', { items: longItems(2) }, ROUND);
+    const moved = await renderer.browser.withPage({ width: 466, height: 466, scale: 1, colorScheme: doc.theme }, async (page) => {
+      await page.setContent(doc.html);
+      await page.evaluate(circleLayout);
+      return page.evaluate(centreContent);
+    });
+    assert.deepEqual(moved, { dx: 0, dy: 0 });
+    const rect = await renderer.render('probe', {}, { ...ROUND, shape: 'rect' });
+    const ink = (await inkBox(renderer, rect.data, 466, 466))!;
+    assert.ok(ink.left <= 14 && ink.top <= 16, `top-left as before: ${JSON.stringify(ink)}`);
+  });
+
+  test('content too big for the square shrinks into it, centred', async () => {
+    const t = renderer.registry.get('progress')!;
+    const res = await renderer.render('progress', t.example, ROUND);
+    assert.deepEqual([res.width, res.height, res.adjusted], [466, 466, undefined]);
+    assert.ok(res.scaled && res.scaled >= SCALE_FLOOR && res.scaled < 1, `scaled ${res.scaled}`);
+    // Inscribed square 318 plus padding 12: the content box is [86, 380] on both axes.
+    const ink = (await inkBox(renderer, res.data, 466, 466))!;
+    assert.ok(ink.left >= 85 && ink.right <= 381 && ink.top >= 85 && ink.bottom <= 381, JSON.stringify(ink));
+    assert.ok(Math.abs((ink.top + ink.bottom) / 2 - R) <= 2, `centred: ${JSON.stringify(ink)}`);
+  });
 });
