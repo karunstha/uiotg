@@ -83,6 +83,14 @@ export interface Template<S extends z.ZodType = z.ZodType> {
    * label — for single-subject cards where the title names the subject.
    */
   photo?: 'keyword' | 'title';
+  /**
+   * For overflow "cap": the same data with only the first `keep` primary items
+   * (rows, entries, events…) and a short "+N more" marker in the template's own
+   * style. `total` counts the items before, `shown` after (shown = total when
+   * nothing was cut). The renderer looks for the largest `keep` that fits a
+   * fixed height; templates without it grow instead.
+   */
+  truncate?(data: z.output<S>, keep: number): { data: z.output<S>; total: number; shown: number };
   /** Stylesheet included once per document when the template is used. */
   css?: string;
   render(data: z.output<S>, ctx: RenderContext): Html | Promise<Html>;

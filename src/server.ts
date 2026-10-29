@@ -108,6 +108,12 @@ export function createServer(opts: ServerOptions): McpServer {
         ...(note ? [note] : []),
         `Rendered ${templateId} (${result.detail} detail): ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
       ];
+      if (result.capped) {
+        const { shown, total } = result.capped;
+        const w = result.adjusted?.width?.[0] ?? result.width;
+        const h = result.adjusted?.height?.[0] ?? result.height;
+        lines.push(`Content didn't fit ${w}×${h}, showed ${shown} of ${total} items (+${total - shown} more).`);
+      }
       if (result.adjusted) {
         const parts = Object.entries(result.adjusted).map(([k, [from, to]]) => `${k} ${from}→${to}px`);
         lines.push(`Content didn't fit, so the image grew to show all of it (${parts.join(', ')}).`);

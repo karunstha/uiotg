@@ -48,6 +48,8 @@ export interface RenderResult {
   detail: Detail;
   /** Set when content didn't fit and the image grew: [requested, actual] in CSS px. */
   adjusted?: { width?: [number, number]; height?: [number, number] };
+  /** Set when overflow "cap" cut items to keep a fixed height: items shown of total. */
+  capped?: { shown: number; total: number };
 }
 
 export interface HtmlResult {
@@ -115,6 +117,8 @@ const MAX_PIXELS = 7900;
 const MAX_AUTO_HEIGHT = 7900;
 /** How long to wait for remote images before capturing what has loaded. */
 const IMAGE_TIMEOUT_MS = 10_000;
+/** Most re-renders overflow "cap" tries while looking for how many items fit. */
+const MAX_CAP_TRIES = 10;
 
 export interface RendererOptions {
   registry: Registry;
@@ -227,15 +231,23 @@ export class Renderer {
 
   /** Validates `data` and builds the self-contained HTML document for a template. */
   async toHtml(templateId: string, data: unknown, options: RenderOptions = {}): Promise<HtmlResult> {
+    return this.#html(templateId, data, options);
+  }
+
+  /** toHtml, optionally keeping only the first `keep` items (Template.truncate). */
+  async #html(templateId: string, data: unknown, options: RenderOptions, keep?: number): Promise<HtmlResult & { capped?: RenderResult['capped'] }> {
     const opts = this.#options(options);
     const t = this.#template(templateId);
-    const parsed = this.#validate(t, data, '');
+    const full = this.#validate(t, data, '');
+    const cut = keep != null && t.truncate ? t.truncate(full as never, keep) : null;
+    const parsed: unknown = cut ? cut.data : full;
+    const capped = cut && cut.shown < cut.total ? { shown: cut.shown, total: cut.total } : undefined;
     const photo = t.photo ? await this.#photo(t, data) : null;
     const chosen = withAccent(this.#theme(opts.theme), opts.accent);
     // Text sits on a darkened photo: light-on-dark neutrals, see-through surfaces, the theme's colors kept.
     const theme = photo ? photoTheme(chosen) : chosen;
     const mode: Mode = theme.mode;
-    const width = opts.width ?? (typeof t.width === 'function' ? t.width(parsed as never) : t.width);
+    const width = opts.width ?? (typeof t.width === 'function' ? t.width(full as never) : t.width);
     const height = opts.height ?? t.height;
     const pad = paddingXY(opts.padding ?? t.padding ?? DEFAULT_PADDING);
     const padding = pad.x === pad.y ? pad.x : `${pad.y}px ${pad.x}px`;
@@ -261,7 +273,7 @@ export class Renderer {
 </head>
 <body><div id="root" class="${rootClass}" style="${rootStyle}">${photoLayer}${body}</div></body>
 </html>`;
-    return { html: doc.value, detail, width, height, theme: mode };
+    return { html: doc.value, detail, width, height, theme: mode, capped };
   }
 
   /** Loads the document in a fresh page, waits for fonts and images, and grows the root to fit its content. */
@@ -269,21 +281,59 @@ export class Renderer {
     templateId: string,
     data: unknown,
     options: RenderOptions,
-    fn: (page: Page, doc: HtmlResult, size: { width: number; height: number; adjusted?: RenderResult['adjusted'] }) => Promise<T>,
+    fn: (
+      page: Page,
+      doc: HtmlResult,
+      size: { width: number; height: number; adjusted?: RenderResult['adjusted']; capped?: RenderResult['capped'] },
+    ) => Promise<T>,
   ): Promise<T> {
     const opts = this.#options(options);
-    const doc = await this.toHtml(templateId, data, opts);
+    let doc = await this.#html(templateId, data, opts);
     return this.browser.withPage({ width: doc.width, height: doc.height ?? 600, scale: opts.scale ?? 2, colorScheme: doc.theme }, async (page) => {
-      try {
-        await page.setContent(doc.html, { waitUntil: 'load', timeout: IMAGE_TIMEOUT_MS });
-      } catch (err) {
-        // A slow remote image shouldn't fail the render; capture what loaded.
-        if ((err as Error).name !== 'TimeoutError') throw err;
-      }
-      await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
+      const show = async (html: string) => {
+        try {
+          await page.setContent(html, { waitUntil: 'load', timeout: IMAGE_TIMEOUT_MS });
+        } catch (err) {
+          // A slow remote image shouldn't fail the render; capture what loaded.
+          if ((err as Error).name !== 'TimeoutError') throw err;
+        }
+        await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
+      };
+      await show(doc.html);
       // Never clip: content wider than the image (or taller than a fixed height) grows it.
       if (doc.width < MAX_PIXELS) await page.setViewportSize({ width: MAX_PIXELS, height: doc.height ?? 600 });
-      const fit = await page.evaluate(growToFit);
+      let fit = await page.evaluate(growToFit);
+      const t = this.#template(templateId);
+      if (fit.grewHeight && opts.overflow === 'cap' && t.truncate) {
+        // Keep the fixed height: find the most items that fit (at least one).
+        const total = t.truncate(this.#validate(t, data, '') as never, Number.MAX_SAFE_INTEGER).total;
+        const attempt = async (keep: number) => {
+          const d = await this.#html(templateId, data, opts, keep);
+          await show(d.html);
+          return { doc: d, fit: await page.evaluate(growToFit), keep };
+        };
+        type Attempt = Awaited<ReturnType<typeof attempt>>;
+        let best: Attempt | null = null;
+        let last: Attempt | null = null;
+        let lo = 1;
+        let hi = total - 1;
+        for (let tries = 0; lo <= hi && tries < MAX_CAP_TRIES; tries++) {
+          last = await attempt(Math.floor((lo + hi + 1) / 2));
+          if (last.fit.grewHeight) hi = last.keep - 1;
+          else {
+            best = last;
+            lo = last.keep + 1;
+          }
+        }
+        // Nothing fit, not even one item: show one and grow as usual.
+        if (!best && total > 1) best = last?.keep === 1 ? last : (last = await attempt(1));
+        if (best) {
+          // The page shows the last attempt; go back to the best one.
+          if (best !== last) best = await attempt(best.keep);
+          doc = best.doc;
+          fit = best.fit;
+        }
+      }
       const width = Math.min(MAX_PIXELS, fit.width);
       const height = Math.min(MAX_AUTO_HEIGHT, Math.max(1, fit.height));
       const adjusted =
@@ -291,7 +341,7 @@ export class Renderer {
           ? { ...(fit.grewWidth ? { width: [doc.width, width] as [number, number] } : {}), ...(fit.grewHeight ? { height: [doc.height!, height] as [number, number] } : {}) }
           : undefined;
       await page.setViewportSize({ width, height });
-      return fn(page, doc, { width, height, adjusted });
+      return fn(page, doc, { width, height, adjusted, capped: doc.capped });
     });
   }
 
@@ -321,6 +371,7 @@ export class Renderer {
         scale: fits ? scale : 1,
         detail: doc.detail,
         adjusted: size.adjusted,
+        capped: size.capped,
       };
     });
   }
