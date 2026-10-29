@@ -61,3 +61,29 @@ export async function renderMarkdown(source: string, mode: Mode): Promise<Html> 
 export function renderInline(source: string): Html {
   return raw(marked.parseInline(source, { async: false }) as string);
 }
+
+/** A piece of a document on its own line: Markdown source, or a one-line placeholder for a table or code block. */
+export type MarkdownBlock = { markdown: string } | { placeholder: string; icon: string };
+
+/**
+ * Splits a document into top-level blocks for a narrow, line-by-line layout
+ * (a round screen): headings, paragraphs and quotes whole, lists one item
+ * each, tables and code blocks as a placeholder ("table · 4 rows").
+ */
+export function markdownBlocks(source: string): MarkdownBlock[] {
+  const blocks: MarkdownBlock[] = [];
+  for (const t of marked.lexer(source)) {
+    if (t.type === 'space' || t.type === 'hr' || t.type === 'def') continue;
+    if (t.type === 'list') {
+      // Each item keeps its own marker (and number, so an ordered list counts on).
+      for (const item of (t as Tokens.List).items) blocks.push({ markdown: item.raw.trimEnd() });
+    } else if (t.type === 'table') {
+      const n = (t as Tokens.Table).rows.length;
+      blocks.push({ placeholder: `table · ${n} row${n === 1 ? '' : 's'}`, icon: 'table' });
+    } else if (t.type === 'code') {
+      const n = (t as Tokens.Code).text.split('\n').length;
+      blocks.push({ placeholder: `code · ${n} line${n === 1 ? '' : 's'}`, icon: 'code' });
+    } else blocks.push({ markdown: t.raw.trim() });
+  }
+  return blocks;
+}
