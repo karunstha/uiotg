@@ -55,7 +55,7 @@ const PREVIEW = {
 
 const INSTRUCTIONS = `uiotg (User Interface On The Go) turns structured data into polished UI images: charts, tables, stat tiles, cards, album art, dashboards and more.
 
-Fastest path: call \`visualize\` with the raw data you have (a number, text, a list, an object or rows) plus an optional title and intent. uiotg picks the template and the level of detail and tells you what it chose.
+Fastest path: call \`visualize\` with the raw data you have (a number, text, a list, an object or rows) plus an optional title and intent. uiotg picks the template and the level of detail and tells you what it chose; pass \`template\` to force one or \`preview: true\` to check the choice without rendering.
 
 Full control: choose a template from the \`render\` tool description (or \`list_templates\`), call \`get_template\` for its schema and an example, then call \`render\` with { template, data }. Invalid data returns the problems plus an example so you can fix it and retry.
 

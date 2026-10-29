@@ -91,7 +91,7 @@ docker compose up -d --build
 
 | Tool | Purpose |
 |---|---|
-| `visualize` | `{ data, title?, intent? }` → image. Send raw data (a number, text, a list, an object, or rows); uiotg picks the template and says which one and why. |
+| `visualize` | `{ data, title?, intent?, template?, preview? }` → image. Send raw data (a number, text, a list, an object, or rows); uiotg picks the template, fits it to the theme's screen and says which one, why, and what else would fit. `template` forces a template (the data is still shaped for it); `preview` returns the choice as text without rendering. |
 | `render` | `{ template, data, options? }` → image. Its description carries the full template catalog. |
 | `list_templates` | The compact catalog (a few words per template, about 600 tokens for all of them). Filter by `category`; `detailed: true` adds full descriptions and default sizes. The `render` description carries the same catalog, so most agents never need this call. |
 | `get_template` | One template's JSON Schema, default size and a complete example. |
@@ -116,6 +116,15 @@ Invalid data never fails silently. The tool returns an error that lists each pro
   - anything else → table.
 
   Number formats ($, %, K/M) are inferred from column names and values. Data that already matches a template's shape is used as-is.
+- **Words and key names pick richer templates**, but only on strong evidence (an unmistakable key set or two independent hints); otherwise the shape rules above apply:
+  - rows of `hour`/`time` + `temp` (with hour labels like "6am" or a weather word) → `weather` hourly; `day` + `high` + `low` → `weather` daily; a lone temperature titled "temperature"/"weather" → current weather (condition `partly_cloudy` unless one is given; °F/°C from units, else values above 45 read as °F);
+  - one number with a % or 0–100 value and a word like usage, load, CPU, memory, disk, battery, progress or score → `gauge` (good/warning/critical zones only when higher is worse: usage, load, CPU, memory, disk, temperature);
+  - rows of text (`task`, `title`, `name`…) + a done flag or task status → `list` with `style: "check"`;
+  - a future ISO date with "until", "countdown", "ends", "due in"… in the title, or a `deadline`/`due`/`ends_at` key → `countdown`;
+  - rows or a record with a value (`done`, `current`, `value`…) and a max (`goal`, `target`, `total`, `max`) → `progress`;
+  - places with IANA time zones → `world_clock`; a zone or "14:32" titled clock/time → `clock`; values with goals named move/exercise/steps… → `activity`; open/high/low/close rows → `candlestick`; `symbol`/`ticker` + `price` → `stock_quote`.
+- **The screen comes from the theme in use.** `visualize` resolves options the way `render` does (call options, then the theme's locked values and `defaults`, then the server's) and treats a round shape or a fixed side of 600 px or less as a small screen. There it swaps tables wider than 3 columns for label/value rows (or keeps 3 columns), turns a multi-chart dashboard into stat tiles of the latest values (or its first block), keeps the top 7 bars plus "Other", the top 5 slices plus "Other" and the last 12 line points, and cuts lists over 12 items to about what fits (≈7 on a 466 px circle with a title) with "First 7 of 40" as the subtitle. `overflow: "cap"` stays the safety net. Larger screens are unaffected.
+- **`template` and `preview`.** `template` skips the choice but still shapes the data (forecast rows → weather, a number → gauge, strings or rows → list/table/bars…); data that can't be shaped returns an error with the template's example. `preview: true` returns the template it would use and why, the screen, the runner-up and the data, without rendering. Normal results add one line, "Also fits: <template> (<reason>)", except when the image was capped or scaled to fit by design.
 - **`detail` adapts each template** (`options.detail`, default `auto`):
   - **minimal** applies to small images (under ~420 px of content). It drops the subtitle, gridlines and extras, and labels values directly.
   - **rich** applies when there's room and enough data. It adds a summary strip computed from the data: latest value and change, high/low/average, totals and leader share, correlation. Single-series lines also get their high and low points labeled.
