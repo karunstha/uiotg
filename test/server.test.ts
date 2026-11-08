@@ -93,7 +93,83 @@ describe('MCP server', () => {
     assert.ok(!res.isError, JSON.stringify(res.content));
     const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
     assert.match(text, /Chose line_chart/);
+    assert.match(text, /Also fits: bar_chart \(.+\)\. Pass template to choose it\./);
     assert.ok(res.content.some((c) => c.type === 'image'));
+  });
+
+  test('visualize preview reports the choice, screen and runner-up without rendering', async () => {
+    themes.save('round_test', { base: 'dark', defaults: { width: 466, height: 466, shape: 'circle', overflow: 'cap' } });
+    try {
+      const res = (await client.callTool({
+        name: 'visualize',
+        arguments: { data: [{ hour: '6am', tempF: 65 }, { hour: '9am', tempF: 70 }], title: 'Forecast', preview: true, options: { theme: 'round_test' } },
+      })) as CallToolResult;
+      assert.ok(!res.isError, JSON.stringify(res.content));
+      assert.ok(res.content.every((c) => c.type === 'text'), 'no image');
+      const text = (res.content[0] as { text: string }).text;
+      assert.match(text, /^Preview only: nothing was rendered\./);
+      assert.match(text, /Would choose weather: /);
+      assert.match(text, /Screen: round 466×466, small\./);
+      assert.match(text, /Runner-up: line_chart \(/);
+      assert.match(text, /Data: \{"location":"Forecast"/);
+    } finally {
+      themes.delete('round_test');
+    }
+  });
+
+  test('visualize with a template shapes the data for it, or explains why it cannot', async () => {
+    const forced = (await client.callTool({
+      name: 'visualize',
+      arguments: { data: [{ hour: '6am', temp: 18 }, { hour: '9am', temp: 21 }], template: 'weather', title: 'Lisbon', options: { scale: 1 } },
+    })) as CallToolResult;
+    assert.ok(!forced.isError, JSON.stringify(forced.content));
+    const text = forced.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+    assert.match(text, /Used weather/);
+    const bad = (await client.callTool({ name: 'visualize', arguments: { data: ['a', 'b'], template: 'gauge' } })) as CallToolResult;
+    assert.ok(bad.isError);
+    assert.match((bad.content[0] as { text: string }).text, /Can't turn this data into gauge[\s\S]*"value"[\s\S]*get_template\("gauge"\)/);
+    let message = '';
+    try {
+      const res = (await client.callTool({ name: 'visualize', arguments: { data: 1, template: 'nope' } })) as CallToolResult;
+      message = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    assert.match(message, /gauge/);
+    assert.match(message, /weather/);
+  });
+
+  test('render and visualize say when overflow cap cut items', async () => {
+    const options = { width: 466, height: 466, padding: { x: 50, y: 56 }, scale: 1, overflow: 'cap' };
+    const items = Array.from({ length: 12 }, (_, i) => `Item ${i + 1}: a fairly long line of text that wraps onto a second line here`);
+    const calls = [
+      { name: 'render', arguments: { template: 'list', data: { items: items.map((text) => ({ text })) }, options } },
+      { name: 'visualize', arguments: { data: items, options } },
+    ];
+    for (const call of calls) {
+      const res = (await client.callTool(call)) as CallToolResult;
+      assert.ok(!res.isError, JSON.stringify(res.content));
+      const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+      assert.match(text, /466×466 CSS px/, call.name);
+      assert.match(text, /Fits the 466×466 screen by design: showing (\d+) of 12 items \(\+\d+ more\)/, call.name);
+      assert.match(text, /do not enlarge/, call.name);
+      assert.doesNotMatch(text, /To adjust|Also fits/, call.name);
+      assert.doesNotMatch(text, /image grew/, call.name);
+    }
+  });
+
+  test('render says when overflow cap scaled the content down', async () => {
+    const options = { width: 466, height: 466, scale: 1, overflow: 'cap', shape: 'circle' };
+    // code has no round layout, so its example still shrinks into the square inside the circle.
+    const code = (await client.callTool({ name: 'get_template', arguments: { template: 'code' } })) as CallToolResult;
+    const { example } = JSON.parse((code.content[0] as { text: string }).text);
+    const res = (await client.callTool({ name: 'render', arguments: { template: 'code', data: example, options } })) as CallToolResult;
+    assert.ok(!res.isError, JSON.stringify(res.content));
+    const text = res.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
+    assert.match(text, /466×466 CSS px/);
+    assert.match(text, /Scaled to 0\.\d\d to fit the 466×466 screen by design\./);
+    assert.match(text, /do not enlarge, resize or re-render it/);
+    assert.doesNotMatch(text, /Fits the|image grew/);
   });
 
   test('list_templates filters by category', async () => {

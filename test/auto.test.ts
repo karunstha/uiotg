@@ -96,6 +96,6 @@ describe('detail levels', () => {
   });
   test('rich adds a summary strip; minimal drops the subtitle', async () => {
     assert.match((await renderer.toHtml('line_chart', line, { detail: 'rich' })).html, /class="sum"/);
-    assert.doesNotMatch((await renderer.toHtml('line_chart', line, { detail: 'minimal' })).html, /class="hdr-sub"/);
+    assert.doesNotMatch((await renderer.toHtml('line_chart', line, { detail: 'minimal' })).html, /class="hdr-sub[ "]/);
   });
 });

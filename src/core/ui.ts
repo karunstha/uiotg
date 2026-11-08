@@ -20,14 +20,26 @@ export function toneColor(theme: Theme, tone: 'neutral' | 'accent' | 'info' | 's
   }
 }
 
+/**
+ * Class for one row of a template with `circle: "rows"`: with shape "circle"
+ * each marked element is centred and narrowed to the circle's chord at its
+ * outer edge. Mark header lines, repeated rows and the "+N more" row.
+ */
+export const CIRCLE_ROW = 'circle-row';
+
+/** `base` classes plus CIRCLE_ROW. */
+export function circleRow(base: string): string {
+  return `${base} ${CIRCLE_ROW}`;
+}
+
 export function header(d: { title?: string; subtitle?: string }, aside?: Html | null): Html | null {
   if (!d.title && !d.subtitle && !aside) return null;
   return html`<header class="hdr">
     <div class="hdr-text">
-      ${d.title ? html`<div class="hdr-title">${d.title}</div>` : null}
-      ${d.subtitle ? html`<div class="hdr-sub">${d.subtitle}</div>` : null}
+      ${d.title ? html`<div class="${circleRow('hdr-title')}">${d.title}</div>` : null}
+      ${d.subtitle ? html`<div class="${circleRow('hdr-sub')}">${d.subtitle}</div>` : null}
     </div>
-    ${aside ? html`<div class="hdr-aside">${aside}</div>` : null}
+    ${aside ? html`<div class="${circleRow('hdr-aside')}">${aside}</div>` : null}
   </header>`;
 }
 

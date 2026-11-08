@@ -91,7 +91,7 @@ docker compose up -d --build
 
 | Tool | Purpose |
 |---|---|
-| `visualize` | `{ data, title?, intent? }` → image. Send raw data (a number, text, a list, an object, or rows); uiotg picks the template and says which one and why. |
+| `visualize` | `{ data, title?, intent?, template?, preview? }` → image. Send raw data (a number, text, a list, an object, or rows); uiotg picks the template, fits it to the theme's screen and says which one, why, and what else would fit. `template` forces a template (the data is still shaped for it); `preview` returns the choice as text without rendering. |
 | `render` | `{ template, data, options? }` → image. Its description carries the full template catalog. |
 | `list_templates` | The compact catalog (a few words per template, about 600 tokens for all of them). Filter by `category`; `detailed: true` adds full descriptions and default sizes. The `render` description carries the same catalog, so most agents never need this call. |
 | `get_template` | One template's JSON Schema, default size and a complete example. |
@@ -116,6 +116,15 @@ Invalid data never fails silently. The tool returns an error that lists each pro
   - anything else → table.
 
   Number formats ($, %, K/M) are inferred from column names and values. Data that already matches a template's shape is used as-is.
+- **Words and key names pick richer templates**, but only on strong evidence (an unmistakable key set or two independent hints); otherwise the shape rules above apply:
+  - rows of `hour`/`time` + `temp` (with hour labels like "6am" or a weather word) → `weather` hourly; `day` + `high` + `low` → `weather` daily; a lone temperature titled "temperature"/"weather" → current weather (condition `partly_cloudy` unless one is given; °F/°C from units, else values above 45 read as °F);
+  - one number with a % or 0–100 value and a word like usage, load, CPU, memory, disk, battery, progress or score → `gauge` (good/warning/critical zones only when higher is worse: usage, load, CPU, memory, disk, temperature);
+  - rows of text (`task`, `title`, `name`…) + a done flag or task status → `list` with `style: "check"`;
+  - a future ISO date with "until", "countdown", "ends", "due in"… in the title, or a `deadline`/`due`/`ends_at` key → `countdown`;
+  - rows or a record with a value (`done`, `current`, `value`…) and a max (`goal`, `target`, `total`, `max`) → `progress`;
+  - places with IANA time zones → `world_clock`; a zone or "14:32" titled clock/time → `clock`; values with goals named move/exercise/steps… → `activity`; open/high/low/close rows → `candlestick`; `symbol`/`ticker` + `price` → `stock_quote`.
+- **The screen comes from the theme in use.** `visualize` resolves options the way `render` does (call options, then the theme's locked values and `defaults`, then the server's) and treats a round shape or a fixed side of 600 px or less as a small screen. There it swaps tables wider than 3 columns for label/value rows (or keeps 3 columns), turns a multi-chart dashboard into stat tiles of the latest values (or its first block), keeps the top 7 bars plus "Other", the top 5 slices plus "Other" and the last 12 line points, and cuts lists over 12 items to about what fits (≈7 on a 466 px circle with a title) with "First 7 of 40" as the subtitle. `overflow: "cap"` stays the safety net. Larger screens are unaffected.
+- **`template` and `preview`.** `template` skips the choice but still shapes the data (forecast rows → weather, a number → gauge, strings or rows → list/table/bars…); data that can't be shaped returns an error with the template's example. `preview: true` returns the template it would use and why, the screen, the runner-up and the data, without rendering. Normal results add one line, "Also fits: <template> (<reason>)", except when the image was capped or scaled to fit by design.
 - **`detail` adapts each template** (`options.detail`, default `auto`):
   - **minimal** applies to small images (under ~420 px of content). It drops the subtitle, gridlines and extras, and labels values directly.
   - **rich** applies when there's room and enough data. It adds a summary strip computed from the data: latest value and change, high/low/average, totals and leader share, correlation. Single-series lines also get their high and low points labeled.
@@ -131,7 +140,7 @@ Text in uiotg never overflows, gets truncated with an ellipsis, or is hidden. La
 - Tile grids (stats, covers, devices, task columns) reflow to fewer columns instead of squeezing.
 - Chart labels wrap. When they still don't fit around a chart, they become numbered markers with a key (radar axes, sankey nodes, heatmap columns).
 - Category labels are angled rather than skipped.
-- If content still doesn't fit, the image grows to show all of it, and the tool result says so.
+- If content still doesn't fit, the image grows to show all of it, and the tool result says so. With `overflow: "cap"` and a fixed height, list-like templates (list, table, key_value, agenda, timeline, watchlist, steps, tags, task_board) instead keep the exact size and show their first items plus a "+N more" line; the tool result says how many were shown. Other templates (and a single item that is still too big) are scaled down uniformly to fit the box instead, laid out on a proportionally wider canvas so text re-wraps, down to a factor of 0.6; the result reports it as `scaled` and the tool result says "Scaled to 0.72 …". Content that would need less than 0.6 grows the image as before. (Before this, `cap` let those templates grow.)
 
 This is enforced by `npm run audit` and the test suite. Each one renders every template with its example, with stress data (very long text and huge numbers), and at a narrow width, then checks in the browser for clipped, truncated, out-of-bounds, overlapping or broken text.
 
@@ -141,11 +150,13 @@ This is enforced by `npm run audit` and the test suite. Each one renders every t
 |---|---|---|
 | `width` | per template | Image width in CSS px (160–2400) |
 | `height` | fit content | Fixed height; charts resize their plot to fill it |
-| `theme` | saved default, else `light` | A preset, a saved theme's name, or an inline theme object (see [Themes](#themes)) |
+| `theme` | saved default, else `light` | A preset, a saved theme's name, or an inline theme object (see [Themes](#themes)). An inline theme without its own `defaults` only restyles: it inherits the default theme's `defaults` and `lock` (size, padding, shape) |
 | `scale` | `2` | Device pixel ratio (1–3) |
 | `format` | `png` | `png` or `jpeg` (`quality` 1–100) |
 | `transparent` | `false` | Transparent background (png) |
-| `padding` | per template | Outer padding in px |
+| `padding` | per template | Outer padding in px: a number for all sides, or `{ "x": 50, "y": 56 }` for left/right and top/bottom |
+| `overflow` | `grow` | With a fixed `height`: `grow` the image to fit everything, or `cap` it at the exact size and show fewer items with "+N more" (list-like templates; others shrink to fit, down to 0.6, then grow) |
+| `shape` | `rect` | `circle` for a round screen (diameter = the smaller of `width` and `height`; `height` defaults to `width`): see [Themes](#themes) |
 | `accent` | palette blue | UI accent color (progress, links, highlights) |
 | `detail` | `auto` | `minimal`, `standard` or `rich` |
 
@@ -163,6 +174,18 @@ Agents can also design their own: an all-pink theme, a blood-red-on-black one, a
 ```
 
 Saving checks readability. Text without enough contrast (4.5:1 for body text) is rejected with the exact ratios. Look-alike chart colors and faint accents come back as warnings next to a preview image. The same object works inline as `options.theme` to try a theme before saving it. Saved themes and the default live in `UIOTG_THEMES_DIR`. The default chain is: the call's theme, then the saved default, then `UIOTG_THEME`, then `light`. On a server several people share, set `UIOTG_THEMES_READONLY=1` to keep themes usable but not editable.
+
+A theme can also carry `defaults`: render options (`width`, `height`, `padding`, `scale`, `format`, `quality`, `detail`, `overflow`, `shape`, same limits as the [render options](#render-options)) that apply whenever the theme is used. That suits a theme made for one screen, such as a round 466 px display:
+
+```jsonc
+{ "name": "round", "theme": { "base": "dark", "background": "#000000", "defaults": { "width": 466, "height": 466, "shape": "circle", "padding": 12, "scale": 1, "overflow": "cap" } } }
+```
+
+`shape: "circle"` lays the image out for a round screen, where everything outside the circle is invisible. List-like templates (list, key_value, agenda, steps, text_card) become a centred column, and each row is narrowed to the circle's width at its height, so rows near the top and bottom are shorter and fewer rows fit than in a rectangle (with `overflow: "cap"` the "+N more" line lands where rows stop fitting). Every other template keeps to the square inside the circle, and content smaller than that square is centred in it (so in the middle of the circle). An 8 px rim is always kept; `padding` (default 0 with a circle) adds to it.
+
+`gauge`, `activity`, `weather` and `stats` have a dedicated round layout instead (`Template.renderCircle`): the gauge becomes a 270° ring around the whole circle with the value, label and status in the middle; activity rings are drawn large and centred with a short legend line per ring (and a metric or two when they fit); weather centres the temperature with up to 5 hours, 3 details and the next days as space allows; stats stack their values in centred rows, with "+N more" under `overflow: "cap"` when they don't all fit. The everyday templates have one too, as centred lines narrowed to the circle: `progress` (a bar per goal, captions left out), `status_page` (the banner and a line per service with its uptime; no day strips; the latest incident as one line), `world_clock` (a city per line), `alarm` (the next alarm on top, then an alarm per line), `task_board` (each column a small heading over its first 3 cards; no side-by-side columns), `table` (the first column as the label plus the next two; **further columns are dropped on a circle**), `markdown` (headings, paragraphs, quotes and list items line by line; tables and code blocks become a one-line placeholder such as "table · 4 rows"), `pie_chart` (a centred donut with every slice and a legend line for the largest ones) and `sports_score` (teams and score centred, up to 3 scorers under them), all with "+N more" when they are cut; `stock_quote` (symbol, a big price, its change and the chart; range and stats left out) and `profile_card` (avatar, name, handle, headline and two stats or tags; banner, bio and meta left out) show a fixed selection. They choose what to show; the data is the same, and a rectangle renders exactly as before.
+
+For each option, the value in the call wins, then the theme's `defaults`, then the server defaults (`UIOTG_SCALE`, `UIOTG_FORMAT`), then the template's own. Presets have no defaults. The `save_theme` preview ignores them and renders at the usual size.
 
 Run `npm run gallery:themes` to render every template in every preset.
 

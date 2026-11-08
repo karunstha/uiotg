@@ -5,7 +5,8 @@ import { backdrop, backgroundFields } from '../../core/backdrop.ts';
 import { html, raw, style, type Html } from '../../core/html.ts';
 import { formatClock, offsetMinutes, timeZoneSchema, zoneAbbreviation, zoned } from '../../core/time.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { fitColumns, header } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
+import { CIRCLE_ROW, circleRow, fitColumns, header } from '../../core/ui.ts';
 import { analogFace } from './clock.ts';
 
 /** A small square of the local sky: dawn, day, dusk or night, with the sun or moon on its arc. */
@@ -20,6 +21,26 @@ function relativeOffset(minutes: number): string {
   const h = Math.floor(Math.abs(minutes) / 60);
   const m = Math.abs(minutes) % 60;
   return `${sign}${h}h${m ? ` ${m}m` : ''}`;
+}
+
+/** Each city's local time, day and difference from home. */
+function cityRows(d: { cities: Array<{ name: string; timezone: string }>; home?: string; at?: string }) {
+  const now = d.at ? new Date(d.at) : new Date();
+  const home = d.home ?? d.cities[0]!.timezone;
+  const homeParts = zoned(now, home);
+  const homeDay = Date.UTC(homeParts.year, homeParts.month - 1, homeParts.day);
+  const homeOffset = offsetMinutes(now, home);
+  return d.cities.map((c) => {
+    const p = zoned(now, c.timezone);
+    const dayDiff = Math.round((Date.UTC(p.year, p.month - 1, p.day) - homeDay) / 86_400_000);
+    const day = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : dayDiff === -1 ? 'Yesterday' : p.weekday;
+    const diff = offsetMinutes(now, c.timezone) - homeOffset;
+    // The home city shows its date; the others show how far ahead or behind they are.
+    const isHome = c.timezone === home;
+    const meta = isHome ? `${p.weekday} · ${zoneAbbreviation(now, c.timezone)}` : `${day}, ${relativeOffset(diff)} · ${zoneAbbreviation(now, c.timezone)}`;
+    const short = isHome ? zoneAbbreviation(now, c.timezone) : `${dayDiff === 0 ? '' : `${day}, `}${relativeOffset(diff)}`;
+    return { ...c, p, night: p.hour < 6 || p.hour >= 19, meta, short };
+  });
 }
 
 function resolveStyle(d: { style: 'auto' | 'cards' | 'list' | 'analog'; cities: unknown[] }): 'cards' | 'list' | 'analog' {
@@ -85,22 +106,32 @@ export const worldClock = defineTemplate({
 .wc-cell{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;min-width:0}
 .wc-cell .wc-time{font-size:20px;text-align:center}
 `,
+  circleCss: /* css */ `
+.wc-rlist{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.wc-r{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 14px;border-radius:calc(14px * var(--rk));background:var(--subtle);text-align:left}
+.wc-r .wc-main{flex:1 1 auto}
+.wc-r .wc-name{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wc-r .wc-meta{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wc-r .wc-time{font-size:26px;flex:none}
+.wc-r .wc-time .wc-sfx{font-size:12px}
+.wc-rhead .hdr-title{font-size:15px}
+.wc-more{font-size:13px;color:var(--text-2);margin-top:6px}
+`,
+  truncateCircle: (d, keep) => keepFirst(d, 'cities', keep),
+  renderCircle(d) {
+    const rows = cityRows(d);
+    const hidden = hiddenCount(d);
+    // Keep the meta short on a chord: the zone or the day and difference.
+    return html`${d.title ? html`<div class="${circleRow('wc-rhead hdr-title')}">${d.title}</div>` : null}<div class="wc-rlist">${rows.map((r) => {
+      const { time, suffix } = formatClock(r.p.hour, r.p.minute, { hour12: d.hour12 });
+      return html`<div class="${circleRow('wc-r')}">
+        <div class="wc-main"><div class="wc-name">${r.name}</div><div class="wc-meta">${r.short}</div></div>
+        <div class="wc-time">${time}${suffix ? html`<span class="wc-sfx">${suffix}</span>` : null}</div>
+      </div>`;
+    })}</div>${hidden ? html`<div class="${`wc-more ${CIRCLE_ROW}`}">${moreLabel(hidden)}</div>` : null}`;
+  },
   async render(d, ctx) {
-    const now = d.at ? new Date(d.at) : new Date();
-    const home = d.home ?? d.cities[0]!.timezone;
-    const homeParts = zoned(now, home);
-    const homeDay = Date.UTC(homeParts.year, homeParts.month - 1, homeParts.day);
-    const homeOffset = offsetMinutes(now, home);
-    const rows = d.cities.map((c) => {
-      const p = zoned(now, c.timezone);
-      const dayDiff = Math.round((Date.UTC(p.year, p.month - 1, p.day) - homeDay) / 86_400_000);
-      const day = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : dayDiff === -1 ? 'Yesterday' : p.weekday;
-      const diff = offsetMinutes(now, c.timezone) - homeOffset;
-      // The home city shows its date; the others show how far ahead or behind they are.
-      const isHome = c.timezone === home;
-      const meta = isHome ? `${p.weekday} · ${zoneAbbreviation(now, c.timezone)}` : `${day}, ${relativeOffset(diff)} · ${zoneAbbreviation(now, c.timezone)}`;
-      return { ...c, p, night: p.hour < 6 || p.hour >= 19, meta };
-    });
+    const rows = cityRows(d);
 
     const style = resolveStyle(d);
     if (style === 'cards') {

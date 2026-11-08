@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 import { defineTemplate } from '../../core/types.ts';
+import { CIRCLE_ROW, circleRow } from '../../core/ui.ts';
 
 const STATES = ['operational', 'degraded', 'partial_outage', 'major_outage', 'maintenance'] as const;
 type State = (typeof STATES)[number];
@@ -26,6 +28,27 @@ function toState(v: State | number | null): State | null {
 
 /** 60 days of 100% uptime with the given exceptions (example data). */
 const days = (bad: Record<number, number>) => Array.from({ length: 60 }, (_, i) => bad[i] ?? 100);
+
+/** The worst state across services and the banner line for it. */
+function overall(services: Array<{ status: State }>) {
+  const worst = services.reduce<State>((w, s) => (META[s.status].rank > META[w].rank ? s.status : w), 'operational');
+  const affected = services.filter((s) => s.status !== 'operational').length;
+  const bannerText =
+    worst === 'operational'
+      ? 'All systems operational'
+      : worst === 'maintenance'
+        ? 'Scheduled maintenance in progress'
+        : worst === 'major_outage'
+          ? 'Major outage'
+          : `${affected} service${affected === 1 ? '' : 's'} experiencing issues`;
+  return { worst, bannerText };
+}
+
+/** Shorter state names for a round screen's narrow lines. */
+const SHORT: Record<State, string> = { operational: 'Operational', maintenance: 'Maintenance', degraded: 'Degraded', partial_outage: 'Partial outage', major_outage: 'Outage' };
+
+/** On a round screen the banner counts every service, also those cut for room. */
+const ALL = Symbol('all services');
 
 export const statusPage = defineTemplate({
   id: 'status_page',
@@ -106,17 +129,45 @@ export const statusPage = defineTemplate({
 .ss-key span{display:inline-flex;align-items:center;gap:5px}
 .ss-key i{width:9px;height:9px;border-radius:calc(2px * var(--rk));display:inline-block}
 `,
+  circleCss: /* css */ `
+.ss-rtitle{font-size:15px;font-weight:650;color:var(--text);margin-bottom:6px}
+.ss-rbanner{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;border-radius:calc(16px * var(--rk));font-size:14px;font-weight:650;color:var(--text);
+  background:color-mix(in srgb, var(--c) 12%, var(--surface));border:1px solid color-mix(in srgb, var(--c) 35%, transparent)}
+.ss-rbanner .icon{color:var(--c);flex:none}
+.ss-rupd{font-size:12px;color:var(--text-2);margin-top:4px}
+.ss-rlist{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.ss-r{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 14px;border-radius:calc(12px * var(--rk));background:var(--subtle);text-align:left}
+.ss-r .ss-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:6em}
+.ss-r .ss-state{flex:none}
+.ss-up{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-right:2px}
+.ss-rinc{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;color:var(--text-2);margin-top:8px}
+.ss-rinc .icon{color:var(--warning);flex:none}
+.ss-rinc span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-more{font-size:13px;color:var(--text-2);margin-top:6px}
+`,
+  truncateCircle(d, keep) {
+    const cut = keepFirst(d, 'services', keep);
+    return { ...cut, data: Object.assign(cut.data, { [ALL]: d.services }) };
+  },
+  renderCircle(d) {
+    // No day strips: each service is one line with its uptime and state; the latest incident as a line under them.
+    const { worst, bannerText } = overall((d as typeof d & { [ALL]?: typeof d.services })[ALL] ?? d.services);
+    const hidden = hiddenCount(d);
+    const inc = d.incidents?.find((i) => i.status !== 'resolved') ?? d.incidents?.[0];
+    return html`${d.title ? html`<div class="${circleRow('ss-rtitle')}">${d.title}</div>` : null}
+    <div class="${circleRow('ss-rbanner')}" style="${`--c:${META[worst].color}`}">${icon(META[worst].icon, { size: 17 })}<span>${bannerText}</span></div>
+    ${d.updated ? html`<div class="${circleRow('ss-rupd')}">${d.updated}</div>` : null}
+    <div class="ss-rlist">${d.services.map((s) => {
+      const m = META[s.status];
+      return html`<div class="${circleRow('ss-r')}">
+        <div class="ss-name">${s.name}</div>
+        <span class="ss-state" style="${`--c:${m.color}`}">${s.uptime != null ? html`<span class="ss-up">${s.uptime.toFixed(2)}%</span>` : null}${icon(m.icon, { size: 15 })}${SHORT[s.status]}</span>
+      </div>`;
+    })}</div>${hidden ? html`<div class="${`ss-more ${CIRCLE_ROW}`}">${moreLabel(hidden)}</div>` : null}
+    ${inc ? html`<div class="${circleRow('ss-rinc')}">${icon('triangle-alert', { size: 14 })}<span>${inc.title} · ${inc.status[0]!.toUpperCase() + inc.status.slice(1)}</span></div>` : null}`;
+  },
   render(d) {
-    const worst = d.services.reduce<State>((w, s) => (META[s.status].rank > META[w].rank ? s.status : w), 'operational');
-    const affected = d.services.filter((s) => s.status !== 'operational').length;
-    const bannerText =
-      worst === 'operational'
-        ? 'All systems operational'
-        : worst === 'maintenance'
-          ? 'Scheduled maintenance in progress'
-          : worst === 'major_outage'
-            ? 'Major outage'
-            : `${affected} service${affected === 1 ? '' : 's'} experiencing issues`;
+    const { worst, bannerText } = overall(d.services);
     const historyLen = Math.max(0, ...d.services.map((s) => s.history?.length ?? 0));
     const seen = new Set<State>();
     for (const s of d.services) for (const h of s.history ?? []) {

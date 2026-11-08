@@ -4,7 +4,8 @@ import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { seriesColor } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header, legend } from '../../core/ui.ts';
+import { CIRCLE_ROW, circleRow, header, legend } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 export const agenda = defineTemplate({
   id: 'agenda',
@@ -60,19 +61,23 @@ export const agenda = defineTemplate({
 .ag-meta{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--text-2)}
 .ag-meta span{display:inline-flex;align-items:center;gap:5px}
 .ag-meta .icon{color:var(--muted)}
+.ag-more{padding-left:90px;font-size:13px;color:var(--muted)}
 .ag-desc{margin-top:4px;font-size:13px;color:var(--text-2)}
 .ag-ev.tentative .ag-bar{opacity:.45}
 .ag-ev.cancelled .ag-name{text-decoration:line-through;color:var(--muted)}
 .ag-ev.cancelled .ag-bar{background:var(--axis)!important}
 .ag-ev.allday .ag-start{font-size:12px;color:var(--text-2)}
+.circle-rows .ag-more{padding-left:0}
 `,
+  truncate: (d, keep) => keepFirst(d, 'events', keep),
+  circle: 'rows',
   render(d, ctx) {
     const categories = [...new Set(d.events.map((e) => e.category).filter((c): c is string => !!c))];
     const colorOf = (c?: string) => (c ? seriesColor(ctx.theme, categories.indexOf(c)) : ctx.theme.accent);
     return html`${header(d)}
-    ${categories.length > 1 ? legend(categories.map((c) => ({ name: c, color: colorOf(c) }))) : null}
+    ${categories.length > 1 ? html`<div class="${CIRCLE_ROW}">${legend(categories.map((c) => ({ name: c, color: colorOf(c) })))}</div>` : null}
     <div class="ag">${d.events.map(
-      (e) => html`<div class="${`ag-ev ${e.status}${e.all_day ? ' allday' : ''}`}">
+      (e) => html`<div class="${circleRow(`ag-ev ${e.status}${e.all_day ? ' allday' : ''}`)}">
         <div class="ag-time"><div class="ag-start">${e.start}</div>${e.end ? html`<div class="ag-end">${e.end}</div>` : null}</div>
         <div class="ag-bar" style="${style({ background: colorOf(e.category) })}"></div>
         <div>
@@ -88,6 +93,6 @@ export const agenda = defineTemplate({
           ${e.description ? html`<div class="ag-desc">${e.description}</div>` : null}
         </div>
       </div>`,
-    )}</div>`;
+    )}${hiddenCount(d) ? html`<div class="${circleRow('ag-more')}">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
   },
 });

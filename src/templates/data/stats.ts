@@ -4,7 +4,8 @@ import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { fitFontSize } from '../../core/measure.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { delta, fitColumns, header, sparkline, statusBadge, textDelta } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
+import { CIRCLE_ROW, circleRow, delta, fitColumns, header, sparkline, statusBadge, textDelta } from '../../core/ui.ts';
 
 const itemSchema = z.object({
   label: z.string().min(1).max(80).describe('Sentence case, no trailing colon'),
@@ -22,6 +23,15 @@ const itemSchema = z.object({
   status: statusSchema.optional(),
   caption: z.string().max(120).optional().describe('Muted footnote'),
 });
+
+/** The signed change under a value, colored by whether up is good. */
+function change(it: z.output<typeof itemSchema>, withLabel: boolean) {
+  if (typeof it.delta === 'number') {
+    return delta(it.delta, makeFormatter(it.delta_format ?? { suffix: '%', decimals: Math.abs(it.delta) < 10 ? 1 : 0 }), it.good_when, withLabel ? it.delta_label : undefined);
+  }
+  if (typeof it.delta === 'string') return textDelta(it.delta, it.good_when, withLabel ? it.delta_label : undefined);
+  return null;
+}
 
 function columnsFor(n: number, requested?: number): number {
   if (requested) return Math.min(requested, n);
@@ -73,6 +83,47 @@ export const stats = defineTemplate({
 .st.st-hero .st-value{line-height:1.05;letter-spacing:-0.035em}
 .st.st-hero .delta{font-size:15px}
 `,
+  circleCss: /* css */ `
+.st-rhead{margin-bottom:10px}
+.st-rhead .hdr-title{font-size:15px}
+.st-r{display:flex;flex-direction:column;align-items:center;gap:2px}
+.st-r+.st-r{margin-top:12px}
+.st-r .st-label{justify-content:center;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.st-r .st-value{line-height:1.1;white-space:nowrap}
+.st-r .st-foot{justify-content:center;min-height:0;gap:10px;font-size:13px}
+.st-rline{display:flex;align-items:baseline;justify-content:center;gap:10px}
+.st-rh .st-label{font-size:16px}
+.st-rh .st-value{line-height:1.05;letter-spacing:-0.035em}
+.st-rh .st-foot .delta{font-size:15px}
+.st-rh .st-spark{margin-top:6px}
+.st-more{font-size:13px;color:var(--text-2);margin-top:12px}
+`,
+  truncateCircle: (d, keep) => keepFirst(d, 'items', keep),
+  renderCircle(d, ctx) {
+    const R = ctx.circle.safe / 2;
+    const minimal = ctx.detail === 'minimal';
+    const hidden = hiddenCount(d);
+    const hero = d.items.length === 1 && !hidden;
+    // Two or three tiles get a line each for label, value and change; more get the change beside the value.
+    const compact = d.items.length + (hidden ? 1 : 0) > 3;
+    const valueSize = (text: string) => fitFontSize(text, hero ? R * 1.5 : compact ? R * 0.9 : R * 1.2, hero ? Math.round(R * 0.4) : compact ? 34 : 44, 16);
+    const head = d.title || d.subtitle
+      ? html`<div class="st-rhead">${d.title ? html`<div class="${circleRow('hdr-title')}">${d.title}</div>` : null}${d.subtitle ? html`<div class="${circleRow('hdr-sub')}">${d.subtitle}</div>` : null}</div>`
+      : null;
+    return html`${head}${d.items.map((it) => {
+      const text = display(it.value, makeFormatter(it.format));
+      const diff = change(it, !minimal && !compact);
+      const foot = diff || it.status ? html`<div class="st-foot">${diff}${it.status ? statusBadge(it.status) : null}</div>` : null;
+      const value = html`<div class="st-value" style="${`font-size:${valueSize(text)}px`}">${text}</div>`;
+      return html`<div class="${circleRow(`st-r${hero ? ' st-rh' : ''}`)}">
+        <div class="st-label">${icon(it.icon, { size: 15 })}${it.label}</div>
+        ${compact ? html`<div class="st-rline">${value}${foot}</div>` : html`${value}${foot}`}
+        ${hero && it.trend && !minimal
+          ? html`<div class="st-spark" style="${style({ height: 44 })}">${sparkline(it.trend, { width: Math.round(R), height: 44, theme: ctx.theme })}</div>`
+          : null}
+      </div>`;
+    })}${hidden ? html`<div class="${`st-more ${CIRCLE_ROW}`}">${moreLabel(hidden)}</div>` : null}`;
+  },
   render(d, ctx) {
     const hero = d.items.length === 1;
     const minimal = ctx.detail === 'minimal';
@@ -83,16 +134,11 @@ export const stats = defineTemplate({
     const valueSize = (text: string) => fitFontSize(text, tileWidth, hero ? 64 : 32, 16);
     return html`${header(d)}<div class="st-grid" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.items.map((it) => {
       const fmt = makeFormatter(it.format);
-      let change = null;
-      if (typeof it.delta === 'number') {
-        change = delta(it.delta, makeFormatter(it.delta_format ?? { suffix: '%', decimals: Math.abs(it.delta) < 10 ? 1 : 0 }), it.good_when, minimal ? undefined : it.delta_label);
-      } else if (typeof it.delta === 'string') {
-        change = textDelta(it.delta, it.good_when, minimal ? undefined : it.delta_label);
-      }
+      const diff = change(it, !minimal);
       return html`<div class="${`st${hero ? ' st-hero' : ''}`}">
         <div class="st-label">${icon(it.icon, { size: 15 })}${it.label}</div>
         <div class="st-value" style="${`font-size:${valueSize(display(it.value, fmt))}px`}">${display(it.value, fmt)}</div>
-        ${change || it.status ? html`<div class="st-foot">${change}${it.status ? statusBadge(it.status) : null}</div>` : null}
+        ${diff || it.status ? html`<div class="st-foot">${diff}${it.status ? statusBadge(it.status) : null}</div>` : null}
         ${it.caption && !minimal ? html`<div class="st-caption">${it.caption}</div>` : null}
         ${it.trend && !minimal
           ? html`<div class="st-spark" style="${style({ height: hero ? 64 : 40 })}">${sparkline(it.trend, { width: Math.max(60, Math.floor(tileWidth)), height: hero ? 64 : 40, theme: ctx.theme })}</div>`

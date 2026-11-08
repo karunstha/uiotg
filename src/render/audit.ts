@@ -6,10 +6,11 @@
  *   - "outside":  extends past the image itself
  *   - "escapes-plot": a chart label drawn outside its SVG plot area
  *   - "overlap":  two chart labels drawn on top of each other
+ *   - "outside-circle": with shape "circle", text or a circle row reaching past the round screen
  * Covers HTML text and SVG <text> (chart labels).
  */
 export interface OverflowIssue {
-  problem: 'ellipsis' | 'clipped' | 'outside' | 'escapes-plot' | 'overlap' | 'broken-number';
+  problem: 'ellipsis' | 'clipped' | 'outside' | 'escapes-plot' | 'overlap' | 'broken-number' | 'outside-circle';
   element: string;
   text: string;
 }
@@ -76,6 +77,27 @@ export function auditOverflow(): OverflowIssue[] {
       if (w > 3 && h > 4 && w * h > 0.35 * Math.min(a.width * a.height, b.width * b.height))
         issues.push({ problem: 'overlap', element: 'svg text', text: `${labels[i]!.text.slice(0, 40)} ↔ ${labels[j]!.text.slice(0, 40)}` });
     }
+  // Shape "circle": every corner of each text run and circle row within the visible circle (see circle.ts).
+  const circle = getComputedStyle(root).getPropertyValue('--circle').trim();
+  if (circle) {
+    const [cx, cy, radius] = circle.split(/\s+/).map(Number) as [number, number, number];
+    const box = root.getBoundingClientRect();
+    const inside = (r: DOMRect) =>
+      [r.left, r.right].every((x) => [r.top, r.bottom].every((y) => Math.hypot(x - box.left - cx, y - box.top - cy) <= radius + 1));
+    const flag = (el: Element, r: DOMRect, text: string) => {
+      if ((r.width || r.height) && !inside(r)) issues.push({ problem: 'outside-circle', element: describe(el), text: text.slice(0, 80) });
+    };
+    for (const el of root.querySelectorAll('.circle-row')) flag(el, el.getBoundingClientRect(), (el.textContent ?? '').trim());
+    for (const el of root.querySelectorAll('*')) {
+      if (el instanceof SVGElement && el.tagName.toLowerCase() !== 'text') continue;
+      for (const node of el.childNodes) {
+        if (node.nodeType !== Node.TEXT_NODE || !node.textContent!.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const r of range.getClientRects()) flag(el, r, node.textContent!.trim());
+      }
+    }
+  }
   return issues;
 }
 

@@ -61,3 +61,47 @@ export async function renderMarkdown(source: string, mode: Mode): Promise<Html> 
 export function renderInline(source: string): Html {
   return raw(marked.parseInline(source, { async: false }) as string);
 }
+
+/** A piece of a document on its own line: Markdown source, or a one-line placeholder for a table or code block. */
+export type MarkdownBlock = { markdown: string } | { placeholder: string; icon: string };
+
+/**
+ * Splits a document into top-level blocks for a narrow, line-by-line layout
+ * (a round screen): headings, paragraphs and quotes whole, lists one item
+ * each, tables and code blocks as a placeholder ("table · 4 rows").
+ */
+export function markdownBlocks(source: string): MarkdownBlock[] {
+  const blocks: MarkdownBlock[] = [];
+  for (const t of marked.lexer(source)) {
+    if (t.type === 'space' || t.type === 'hr' || t.type === 'def') continue;
+    if (t.type === 'list') {
+      // Each item keeps its own marker (and number, so an ordered list counts on).
+      // A table or code block inside an item (also one run on without a blank line) follows it as a placeholder.
+      for (const item of (t as Tokens.List).items) {
+        let md = item.raw;
+        const nested: MarkdownBlock[] = [];
+        for (const sub of item.tokens) {
+          const ph = placeholder(sub);
+          if (!ph) continue;
+          nested.push(ph);
+          const at = md.indexOf(sub.raw.split('\n')[0]!.trim());
+          if (at > 0) md = md.slice(0, at);
+        }
+        blocks.push({ markdown: md.trimEnd() }, ...nested);
+      }
+    } else blocks.push(placeholder(t) ?? { markdown: t.raw.trim() });
+  }
+  return blocks;
+}
+
+function placeholder(t: Token): MarkdownBlock | null {
+  if (t.type === 'table') {
+    const n = (t as Tokens.Table).rows.length;
+    return { placeholder: `table · ${n} row${n === 1 ? '' : 's'}`, icon: 'table' };
+  }
+  if (t.type === 'code') {
+    const n = (t as Tokens.Code).text.split('\n').length;
+    return { placeholder: `code · ${n} line${n === 1 ? '' : 's'}`, icon: 'code' };
+  }
+  return null;
+}

@@ -5,6 +5,7 @@ import { icon } from '../../core/icons.ts';
 import { renderInline } from '../../core/markdown.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 export const timeline = defineTemplate({
   id: 'timeline',
@@ -53,6 +54,7 @@ export const timeline = defineTemplate({
 .tl-row:first-child .tl-rail::before{top:10px}
 .tl-row:last-child .tl-rail::before{bottom:auto;height:10px}
 .tl-row{display:contents}
+.tl-more{grid-column:3;font-size:13px;color:var(--muted)}
 .tl-dot{position:relative;margin-top:4px;width:14px;height:14px;border-radius:50%;background:var(--surface);
   border:2px solid var(--axis);box-shadow:0 0 0 3px var(--surface)}
 .tl-dot.done{background:var(--accent);border-color:var(--accent)}
@@ -70,6 +72,7 @@ export const timeline = defineTemplate({
 .tl-desc{margin-top:3px;font-size:13.5px;line-height:20px;color:var(--text-2)}
 .tl-desc code{font-family:var(--font-mono);font-size:.88em;background:var(--subtle);padding:.1em .35em;border-radius:calc(4px * var(--rk))}
 `,
+  truncate: (d, keep) => keepFirst(d, 'events', keep),
   render(d) {
     return html`${header(d)}<div class="tl">${d.events.map((e) => {
       const status = e.status ?? '';
@@ -83,6 +86,6 @@ export const timeline = defineTemplate({
           ${e.description ? html`<div class="tl-desc">${renderInline(e.description)}</div>` : null}
         </div>
       </div>`;
-    })}</div>`;
+    })}${hiddenCount(d) ? html`<div class="tl-more">${moreLabel(hiddenCount(d))}</div>` : null}</div>`;
   },
 });

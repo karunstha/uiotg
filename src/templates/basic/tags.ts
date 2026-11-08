@@ -5,6 +5,7 @@ import { icon } from '../../core/icons.ts';
 import { inkOn } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
 import { header, toneColor } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const tagSchema = z.union([
   z.string().min(1).max(40),
@@ -54,6 +55,7 @@ export const tags = defineTemplate({
 .tg{display:inline-flex;align-items:center;gap:6px;border-radius:var(--pill);font-weight:550;white-space:nowrap;line-height:1}
 .tg-n{font-weight:500;opacity:.65;font-variant-numeric:tabular-nums}
 `,
+  truncate: (d, keep) => keepFirst(d, 'tags', keep),
   render(d, ctx) {
     const items = d.tags.map((t) => (typeof t === 'string' ? { label: t } : t));
     const max = Math.max(1, ...items.map((t) => t.count ?? 0));
@@ -70,6 +72,6 @@ export const tags = defineTemplate({
       return html`<span class="tg" style="${style({ 'font-size': font, padding: `${Math.round(font * 0.5)}px ${Math.round(font * 0.85)}px`, ...look })}">${
         t.icon ? html`<span style="${style({ color: c && d.style !== 'solid' ? c : undefined, display: 'inline-flex' })}">${icon(t.icon, { size: font })}</span>` : null
       }${t.label}${t.count != null ? html`<span class="tg-n">${t.count.toLocaleString('en-US')}</span>` : null}</span>`;
-    })}</div>`;
+    })}${hiddenCount(d) ? html`<span class="tg" style="${style({ 'font-size': base, padding: `${Math.round(base * 0.5)}px 0`, color: ctx.theme.muted })}">${moreLabel(hiddenCount(d))}</span>` : null}</div>`;
   },
 });

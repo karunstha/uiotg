@@ -7,7 +7,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { CATEGORIES, type Category, type Template } from './core/types.ts';
 import { renderOptionsSchema, TemplateDataError, type RenderOptions, type Renderer } from './render/renderer.ts';
-import { chooseVisual, intentSchema } from './auto.ts';
+import { AdaptError, adaptTo, chooseVisual, describeScreen, intentSchema, runnerUp, screenFrom, type Screen } from './auto.ts';
 import { QUERY_FIELD } from './core/backdrop.ts';
 import { buildTheme, checkTheme, PRESETS, themeNameSchema, themeSpecSchema, type ThemeSpec } from './core/themes.ts';
 
@@ -55,13 +55,15 @@ const PREVIEW = {
 
 const INSTRUCTIONS = `uiotg (User Interface On The Go) turns structured data into polished UI images: charts, tables, stat tiles, cards, album art, dashboards and more.
 
-Fastest path: call \`visualize\` with the raw data you have (a number, text, a list, an object or rows) plus an optional title and intent. uiotg picks the template and the level of detail and tells you what it chose.
+Fastest path: call \`visualize\` with the raw data you have (a number, text, a list, an object or rows) plus an optional title and intent. uiotg picks the template and the level of detail and tells you what it chose; pass \`template\` to force one or \`preview: true\` to check the choice without rendering.
 
 Full control: choose a template from the \`render\` tool description (or \`list_templates\`), call \`get_template\` for its schema and an example, then call \`render\` with { template, data }. Invalid data returns the problems plus an example so you can fix it and retry.
 
-Themes: \`list_themes\` shows presets, saved themes and what each color does. Pass options.theme (a name or an inline theme object) per call, or save a custom theme with \`save_theme\` and make it the default.
+Themes: \`list_themes\` shows presets, saved themes and what each color does. Normally pass no theme: the server's default theme is set up for the main screen and supplies its look, size, padding and shape. Pass a saved theme by name only to target another screen or look (a theme's \`defaults\` carry that screen's size). An inline theme object changes colors only: unless it brings its own \`defaults\`, it inherits the default theme's size, padding, shape and locks. Save a custom theme with \`save_theme\`; it can carry \`defaults\` (width, height, padding, shape, scale…) for a particular screen and a \`lock\` that stops calls overriding some of them.
 
-Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; pass options.theme "dark" for dark mode.`;
+Options: leave \`options\` out unless the user asks for a specific size or look. An option you pass replaces the theme's default for it, except options the theme locks, which are ignored. A result that says it "fits the screen by design" and shows "N of M items (+K more)" or "Scaled to…" is the intended outcome on a small screen: do not re-render it larger or change its size; mention the rest in words if needed.
+
+Tips: prefer a stat tile over a one-bar chart; keep categorical series to 8 or fewer (fold the rest into "Other"); use \`dashboard\` to combine several templates in one image; \`visualize\` recognises forecasts, gauges, countdowns, checklists and similar from the data, title and units, and \`template\` forces one when it guesses wrong; use \`render\` only when you need exact control of a template's fields.`;
 
 function size(t: Template): string {
   const w = typeof t.width === 'number' ? `${t.width}px` : 'auto';
@@ -98,14 +100,44 @@ export function createServer(opts: ServerOptions): McpServer {
     example: t.example,
   });
 
-  async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string): Promise<CallToolResult> {
+  /** The screen a render with these options lands on (call options, then the used theme's locks and defaults). */
+  function screenOf(options: RenderOptions | undefined): Screen | undefined {
+    try {
+      const o = renderer.effectiveOptions(options ?? {});
+      return screenFrom({ width: o.width, height: o.height, shape: o.shape });
+    } catch {
+      return undefined; // e.g. an unknown theme: render reports it
+    }
+  }
+
+  /** `hint` (how to re-render with a template) is left out when the image was deliberately capped or scaled: re-rendering would defeat it. */
+  async function run(templateId: string, data: unknown, options: RenderOptions | undefined, note?: string, hint?: string): Promise<CallToolResult> {
     try {
       const result = await renderer.render(templateId, data, options ?? {});
       const kb = (result.data.length / 1024).toFixed(0);
       const lines = [
         ...(note ? [note] : []),
+        ...(hint && !result.capped && !result.scaled ? [hint] : []),
         `Rendered ${templateId} (${result.detail} detail): ${result.width}×${result.height} CSS px at ${result.scale}x (${result.mimeType}, ${kb} KB).`,
       ];
+      if (result.capped) {
+        const { shown, total } = result.capped;
+        const more = `showing ${shown} of ${total} items (+${total - shown} more)`;
+        if (result.adjusted) {
+          const w = result.adjusted.width?.[0] ?? result.width;
+          const h = result.adjusted.height?.[0] ?? result.height;
+          lines.push(`Content didn't fit ${w}×${h}, ${more}.`);
+        } else {
+          lines.push(
+            `Fits the ${result.width}×${result.height} screen by design: ${more}. This is the intended result, not an error: do not enlarge, resize or re-render it. If the rest matters, say it aloud.`,
+          );
+        }
+      }
+      if (result.scaled) {
+        lines.push(
+          `Scaled to ${result.scaled.toFixed(2)} to fit the ${result.width}×${result.height} screen by design. This is the intended result, not an error: do not enlarge, resize or re-render it.`,
+        );
+      }
       if (result.adjusted) {
         const parts = Object.entries(result.adjusted).map(([k, [from, to]]) => `${k} ${from}→${to}px`);
         lines.push(`Content didn't fit, so the image grew to show all of it (${parts.join(', ')}).`);
@@ -146,29 +178,62 @@ export function createServer(opts: ServerOptions): McpServer {
       description:
         'Turn raw data into the right UI image automatically. Send what you have: a number, text, a list, an object, or rows ' +
         '(array of objects, e.g. query results). uiotg infers the shape (time series → line chart, ranked categories → bars, ' +
-        'parts of a whole → donut, a few numbers → stat tiles, a record → key/value list, mixed rows → table, two measures → scatter) ' +
-        'and the level of detail, renders it, and reports which template it used. Use render instead to pick a template yourself.',
+        'parts of a whole → donut, a few numbers → stat tiles, a record → key/value list, mixed rows → table, two measures → scatter), ' +
+        'reads the title and key names (forecast rows → weather, "CPU usage" 72% → gauge, tasks with done flags → checklist, ' +
+        'a future date "until …" → countdown, value/goal pairs → progress) and fits the screen of the theme in use (a small or round ' +
+        'screen gets compact layouts and long lists cut to what fits). It renders the result and reports which template it used and ' +
+        'what else would fit. Pass template to force a template (the data is still shaped for it); pass preview to check the choice ' +
+        'without rendering.',
       inputSchema: {
         data: z.unknown().describe('Raw data: number, string, array, object or array of row objects'),
         title: z.string().max(200).optional(),
         subtitle: z.string().max(400).optional(),
         intent: intentSchema.optional(),
+        template: z
+          .enum(ids)
+          .optional()
+          .describe('Force this template instead of the automatic choice; the data is still shaped for it (e.g. forecast rows → weather, a number → gauge). Leave out to let uiotg choose.'),
+        preview: z
+          .boolean()
+          .optional()
+          .describe('Check without rendering: returns the template it would use and why, the screen, the runner-up and the data, but no image.'),
         options: renderOptionsSchema.optional(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ data, title, subtitle, intent, options }) => {
+    async ({ data, title, subtitle, intent, template, preview, options }) => {
       let choice;
+      const input = { data, title, subtitle, intent, screen: screenOf(options) };
       try {
-        choice = chooseVisual({ data, title, subtitle, intent }, registry);
+        choice = template ? adaptTo(template, input, registry) : chooseVisual(input, registry);
       } catch (err) {
+        if (err instanceof AdaptError) {
+          return errorResult(
+            `${err.message}.\n\nSend data like this example for "${err.template}", or leave template out to let uiotg choose:\n` +
+              JSON.stringify(registry.get(err.template)?.example ?? {}, null, 2) +
+              `\n\nCall get_template("${err.template}") for the full JSON schema.`,
+          );
+        }
         return errorResult((err as Error).message);
       }
       const json = JSON.stringify(choice.data);
-      const note =
-        `Chose ${choice.template}: ${choice.reason}.` +
-        (json.length <= 1500 ? `\nTo adjust, call render with template "${choice.template}" and this data: ${json}` : `\nTo adjust, call render with template "${choice.template}".`);
-      return run(choice.template, choice.data, options, note);
+      const note = `${template ? 'Used' : 'Chose'} ${choice.template}: ${choice.reason}.`;
+      const alt = template ? null : runnerUp(input, choice, registry);
+      if (preview) {
+        const lines = [
+          'Preview only: nothing was rendered.',
+          `Would ${template ? 'use' : 'choose'} ${choice.template}: ${choice.reason}.`,
+          `Screen: ${input.screen ? describeScreen(input.screen) : 'unknown'}.`,
+          template ? 'Runner-up: none (template was forced).' : alt ? `Runner-up: ${alt.template} (${alt.reason}).` : 'Runner-up: none.',
+          `Data: ${json.length <= 1500 ? json : `${json.slice(0, 1500)}… (${json.length} characters)`}`,
+        ];
+        return { content: [{ type: 'text', text: lines.join('\n') }] };
+      }
+      const hint = [
+        ...(alt ? [`Also fits: ${alt.template} (${alt.reason}). Pass template to choose it.`] : []),
+        json.length <= 1500 ? `To adjust, call render with template "${choice.template}" and this data: ${json}` : `To adjust, call render with template "${choice.template}".`,
+      ].join('\n');
+      return run(choice.template, choice.data, options, note, hint);
     },
   );
 
@@ -233,7 +298,10 @@ export function createServer(opts: ServerOptions): McpServer {
       .join('\n');
 
   async function preview(spec: ThemeSpec | string, lines: string[]): Promise<CallToolResult> {
-    const r = await renderer.render('dashboard', PREVIEW, { theme: spec as never });
+    // Preview at the usual size: drop the theme's own defaults (e.g. a small round screen).
+    const saved = typeof spec === 'string' ? (themeStore.get(spec) ?? spec) : spec;
+    const theme = typeof saved === 'string' ? saved : { ...saved, defaults: undefined };
+    const r = await renderer.render('dashboard', PREVIEW, { theme: theme as never });
     return { content: [{ type: 'image', data: r.data.toString('base64'), mimeType: r.mimeType }, { type: 'text', text: lines.join('\n') }] };
   }
 
@@ -262,8 +330,8 @@ export function createServer(opts: ServerOptions): McpServer {
         'Example ("rose"): ' + JSON.stringify({ base: 'light', background: '#fff0f5', text: '#3b1d2a', accent: '#e0457b', series: ['#e0457b', '#9b5de5', '#f28482', '#4d908e', '#f9a03f'], font: 'rounded', corners: 'round' }),
         '',
         readOnlyThemes
-          ? 'Use a theme per render with options.theme (a name or an inline object). Saving themes is disabled on this server.'
-          : 'Try one inline with options.theme on any render, then save_theme to keep it (and set_default to use it everywhere).',
+          ? 'A render uses the default theme unless options.theme names another (or gives an inline object, which changes colors only). Saving themes is disabled on this server.'
+          : 'To try a new look, pass it inline as options.theme on one render (colors only: size, padding and shape come from the default theme), then save_theme to keep it (and set_default to use it everywhere).',
       ].join('\n');
       return { content: [{ type: 'text', text }] };
     },

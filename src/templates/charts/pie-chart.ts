@@ -2,9 +2,55 @@ import { z } from 'zod';
 import { renderChart } from '../../core/echarts.ts';
 import { colorSchema, formatSchema, makeFormatter, titleFields } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
-import { seriesColor } from '../../core/theme.ts';
+import { seriesColor, type Theme } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header, headerHeight } from '../../core/ui.ts';
+import { hiddenCount, moreLabel, withHidden } from '../../core/truncate.ts';
+import { CIRCLE_ROW, circleRow, header, headerHeight } from '../../core/ui.ts';
+
+/** Legend lines a round screen shows (truncateCircle). */
+const LEGEND = Symbol('legend lines');
+
+type Slice = { label: string; value: number; color?: string };
+type Colored = { label: string; value: number; color: string };
+
+/** Slices in drawing order with their colors; past `max_slices` the smallest fold into "Other (n)". */
+function foldSlices(d: { slices: Slice[]; sort: boolean; max_slices: number }, theme: Theme): Colored[] {
+  let slices = d.slices.map((s, i) => ({ ...s, index: i }));
+  // Largest first, but a slice the data calls "Other" always goes last.
+  const isOther = (l: string) => /^other\b/i.test(l.trim());
+  if (d.sort) slices = [...slices].sort((a, b) => Number(isOther(a.label)) - Number(isOther(b.label)) || b.value - a.value);
+  let colored = slices.map((s, i) => ({ label: s.label, value: s.value, color: isOther(s.label) ? (s.color ?? theme.other) : seriesColor(theme, i, s.color) }));
+  if (colored.length > d.max_slices) {
+    const keep = colored.slice(0, d.max_slices - 1);
+    const rest = colored.slice(d.max_slices - 1);
+    colored = [...keep, { label: `Other (${rest.length})`, value: rest.reduce((s, r) => s + r.value, 0), color: theme.other }];
+  }
+  return colored;
+}
+
+/** The donut (or pie) itself, `size` px square. */
+function donut(d: { donut: boolean }, colored: Colored[], size: number, theme: Theme) {
+  return renderChart(
+    {
+      series: [
+        {
+          type: 'pie',
+          radius: d.donut ? ['64%', '96%'] : [0, '96%'],
+          center: ['50%', '50%'],
+          startAngle: 90,
+          clockwise: true,
+          label: { show: false },
+          labelLine: { show: false },
+          // 2px surface gap between segments.
+          itemStyle: { borderColor: theme.surface, borderWidth: 2, borderRadius: d.donut ? 3 : 0 },
+          data: colored.map((c) => ({ name: c.label, value: c.value, itemStyle: { color: c.color } })),
+        },
+      ],
+    },
+    { width: size, height: size },
+    theme,
+  );
+}
 
 export const pieChart = defineTemplate({
   id: 'pie_chart',
@@ -62,6 +108,54 @@ export const pieChart = defineTemplate({
 .pie-val{color:var(--text);font-weight:550;font-variant-numeric:tabular-nums;text-align:right}
 .pie-pct{color:var(--text-2);font-variant-numeric:tabular-nums;text-align:right}
 `,
+  circleCss: /* css */ `
+.pie-rt{font-size:15px;font-weight:650;color:var(--text);margin-bottom:8px}
+.pie-r .pie-chart{margin:0 auto}
+.pie-r .pie-cv{font-size:30px}
+.pie-rl{display:flex;flex-direction:column;margin-top:8px}
+.pie-rl .pie-row{grid-template-columns:10px minmax(4em,1fr) auto auto;padding:4px 6px;font-size:13.5px;text-align:left}
+.pie-rl.no-share .pie-row{grid-template-columns:10px minmax(4em,1fr) auto}
+.pie-rl .pie-row + .pie-row{border-top:0}
+.pie-rl .pie-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pie-more{font-size:12.5px;color:var(--text-2);margin-top:2px}
+`,
+  // The donut keeps every slice; only its legend loses lines (the smallest slices) to "+N more".
+  truncateCircle(d, keep) {
+    const total = Math.min(d.slices.length, d.max_slices);
+    const shown = Math.min(total, Math.max(1, Math.floor(keep)));
+    return { data: Object.assign(withHidden({ ...d }, total - shown), { [LEGEND]: shown }), total, shown };
+  },
+  async renderCircle(d, ctx) {
+    if (d.slices.length === 1) return this.render(d as never, ctx);
+    const { theme } = ctx;
+    const fmt = makeFormatter(d.format);
+    const colored = foldSlices(d, theme);
+    const total = colored.reduce((s, c) => s + c.value, 0);
+    const shown = colored.slice(0, (d as typeof d & { [LEGEND]?: number })[LEGEND] ?? colored.length);
+    const hidden = hiddenCount(d);
+    const size = Math.round(ctx.circle.diameter * 0.56);
+    const percentFormat =
+      d.format === 'percent' || (typeof d.format === 'object' && (d.format.style === 'percent' || d.format.suffix?.trim() === '%'));
+    const showShare = d.show_share ?? !percentFormat;
+    const showValue = !(ctx.detail === 'minimal' && showShare);
+    const pct = (v: number) => (total > 0 ? `${((v / total) * 100).toFixed(v / total < 0.1 ? 1 : 0)}%` : '–');
+    return html`${d.title ? html`<div class="${circleRow('pie-rt')}">${d.title}</div>` : null}<div class="pie-r">
+      <div class="pie-chart" style="${style({ width: size, height: size })}">
+        ${donut(d, colored, size, theme)}
+        ${d.donut
+          ? html`<div class="pie-center"><div class="pie-cv">${d.center_value ?? fmt(total)}</div><div class="pie-cl">${d.center_label ?? 'Total'}</div></div>`
+          : null}
+      </div>
+      <div class="${`pie-rl${showShare && showValue ? '' : ' no-share'}`}">${shown.map(
+        (c) => html`<div class="${circleRow('pie-row')}">
+          <span class="key" style="${style({ background: c.color })}"></span>
+          <span class="pie-name">${c.label}</span>
+          ${showValue ? html`<span class="pie-val">${fmt(c.value)}</span>` : null}
+          ${showShare ? html`<span class="pie-pct">${pct(c.value)}</span>` : null}
+        </div>`,
+      )}${hidden ? html`<div class="${`pie-more ${CIRCLE_ROW}`}">${moreLabel(hidden)}</div>` : null}</div>
+    </div>`;
+  },
   async render(d, ctx) {
     // A single slice is 100% of itself: show the number instead.
     if (d.slices.length === 1) {
@@ -70,42 +164,14 @@ export const pieChart = defineTemplate({
     }
     const { theme } = ctx;
     const fmt = makeFormatter(d.format);
-    let slices = d.slices.map((s, i) => ({ ...s, index: i }));
-    // Largest first, but a slice the data calls "Other" always goes last.
-    const isOther = (l: string) => /^other\b/i.test(l.trim());
-    if (d.sort) slices = [...slices].sort((a, b) => Number(isOther(a.label)) - Number(isOther(b.label)) || b.value - a.value);
-    let colored = slices.map((s, i) => ({ label: s.label, value: s.value, color: isOther(s.label) ? (s.color ?? theme.other) : seriesColor(theme, i, s.color) }));
-    if (colored.length > d.max_slices) {
-      const keep = colored.slice(0, d.max_slices - 1);
-      const rest = colored.slice(d.max_slices - 1);
-      colored = [...keep, { label: `Other (${rest.length})`, value: rest.reduce((s, r) => s + r.value, 0), color: theme.other }];
-    }
+    const colored = foldSlices(d, theme);
     const total = colored.reduce((s, c) => s + c.value, 0);
     // Side by side down to ~340px; below that the legend stacks under the donut.
     const narrow = ctx.width < 340;
     let size = narrow ? Math.min(ctx.width, 240) : Math.round(Math.min(300, Math.max(120, ctx.width * 0.4)));
     if (ctx.height) size = Math.max(90, Math.min(size, ctx.height - headerHeight(d) - (narrow ? colored.length * 40 + 20 : 0)));
 
-    const svg = renderChart(
-      {
-        series: [
-          {
-            type: 'pie',
-            radius: d.donut ? ['64%', '96%'] : [0, '96%'],
-            center: ['50%', '50%'],
-            startAngle: 90,
-            clockwise: true,
-            label: { show: false },
-            labelLine: { show: false },
-            // 2px surface gap between segments.
-            itemStyle: { borderColor: theme.surface, borderWidth: 2, borderRadius: d.donut ? 3 : 0 },
-            data: colored.map((c) => ({ name: c.label, value: c.value, itemStyle: { color: c.color } })),
-          },
-        ],
-      },
-      { width: size, height: size },
-      theme,
-    );
+    const svg = donut(d, colored, size, theme);
 
     const percentFormat =
       d.format === 'percent' || (typeof d.format === 'object' && (d.format.style === 'percent' || d.format.suffix?.trim() === '%'));

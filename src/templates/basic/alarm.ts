@@ -4,7 +4,8 @@ import { icon } from '../../core/icons.ts';
 import { fitFontSize } from '../../core/measure.ts';
 import { formatClock, timeZoneSchema, zoned } from '../../core/time.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
+import { CIRCLE_ROW, circleRow, header } from '../../core/ui.ts';
 
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 type Day = (typeof DAYS)[number];
@@ -65,6 +66,24 @@ function inText(minutes: number): string {
   return h ? `in ${h} h ${m} min` : `in ${m} min`;
 }
 
+/** The wall-clock "now" in the alarms' zone. */
+function nowIn(d: { now?: string; timezone?: string }) {
+  const ref = d.now ? new Date(d.now) : new Date();
+  const p = zoned(ref, d.timezone ?? 'UTC');
+  return { weekday: WEEKDAY_INDEX[p.weekday] ?? 0, minutes: p.hour * 60 + p.minute, day: Date.UTC(p.year, p.month - 1, p.day) / 86_400_000 };
+}
+
+/** The alarm that rings first, if any is on. */
+function nextAlarm(alarms: Alarm[], now: { weekday: number; minutes: number; day: number }) {
+  return alarms
+    .map((a) => ({ a, until: minutesUntil(a, now) }))
+    .filter((x): x is { a: Alarm; until: number } => x.until != null)
+    .sort((x, y) => x.until - y.until)[0];
+}
+
+/** On a round screen the "next alarm" line counts every alarm, also those cut for room. */
+const ALL = Symbol('all alarms');
+
 export const alarm = defineTemplate({
   id: 'alarm',
   title: 'Alarm',
@@ -123,10 +142,51 @@ export const alarm = defineTemplate({
 .am-in{font-size:14px;font-weight:600;color:var(--accent);margin-top:8px}
 .am-meta{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);margin-top:4px}
 `,
+  circleCss: /* css */ `
+.am-rnext{display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:var(--text-2);margin-bottom:8px}
+.am-rnext b{color:var(--text);font-weight:620}
+.am-rnext .icon{color:var(--accent);flex:none}
+.am-rlist{display:flex;flex-direction:column;gap:6px}
+.am-r{display:flex;align-items:center;gap:12px;padding:6px 14px;border-radius:calc(14px * var(--rk));background:var(--subtle);text-align:left}
+.am-r .am-time{font-size:28px}
+.am-r .am-sfx{font-size:12px}
+.am-r .am-label,.am-r .am-rep{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-r .am-rep{font-size:12px}
+.am-r.am-dis .am-time,.am-r.am-dis .am-label{color:var(--muted)}
+.am-rhead{font-size:15px;margin-bottom:6px}
+.am-more{font-size:13px;color:var(--text-2);margin-top:6px}
+`,
+  truncateCircle(d, keep) {
+    const cut = keepFirst(d, 'alarms', keep);
+    return { ...cut, data: Object.assign(cut.data, { [ALL]: d.alarms }) };
+  },
+  renderCircle(d, ctx) {
+    // One alarm: the usual centred card already suits a circle.
+    if (d.alarms.length === 1 && !hiddenCount(d)) return html`<div class="${circleRow('am-rone')}">${this.render(d as never, ctx)}</div>`;
+    const now = nowIn(d);
+    const all = (d as typeof d & { [ALL]?: Alarm[] })[ALL] ?? d.alarms;
+    const next = nextAlarm(all, now);
+    const hidden = hiddenCount(d);
+    const clock = (a: Alarm) => {
+      const [h, m] = a.time.split(':').map(Number) as [number, number];
+      return formatClock(h, m, { hour12: d.hour12 });
+    };
+    const nextClock = next ? clock(next.a) : null;
+    return html`${d.title ? html`<div class="${circleRow('am-rhead hdr-title')}">${d.title}</div>` : null}
+    ${next && nextClock
+      ? html`<div class="${circleRow('am-rnext')}">${icon('alarm-clock', { size: 14 })}<span>Next <b>${nextClock.time}${nextClock.suffix ? ` ${nextClock.suffix}` : ''}</b> ${inText(next.until)}</span></div>`
+      : html`<div class="${circleRow('am-rnext')}">${icon('alarm-clock-off', { size: 14 })}<span>No alarms on</span></div>`}
+    <div class="am-rlist">${d.alarms.map((a) => {
+      const { time, suffix } = clock(a);
+      return html`<div class="${circleRow(`am-r${a.enabled ? '' : ' am-dis'}`)}">
+        <div class="am-time">${time}${suffix ? html`<span class="am-sfx">${suffix}</span>` : null}</div>
+        <div class="am-main">${a.label ? html`<div class="am-label">${a.label}</div>` : null}<div class="am-rep">${repeatText(a)}</div></div>
+        <span class="${`am-state ${a.enabled ? 'am-on' : 'am-off'}`}">${a.enabled ? 'On' : 'Off'}</span>
+      </div>`;
+    })}</div>${hidden ? html`<div class="${`am-more ${CIRCLE_ROW}`}">${moreLabel(hidden)}</div>` : null}`;
+  },
   render(d, ctx) {
-    const ref = d.now ? new Date(d.now) : new Date();
-    const p = zoned(ref, d.timezone ?? 'UTC');
-    const now = { weekday: WEEKDAY_INDEX[p.weekday] ?? 0, minutes: p.hour * 60 + p.minute, day: Date.UTC(p.year, p.month - 1, p.day) / 86_400_000 };
+    const now = nowIn(d);
     const clock = (a: Alarm) => {
       const [h, m] = a.time.split(':').map(Number) as [number, number];
       return formatClock(h, m, { hour12: d.hour12 });
@@ -147,10 +207,7 @@ export const alarm = defineTemplate({
       </div>`;
     }
 
-    const next = d.alarms
-      .map((a) => ({ a, until: minutesUntil(a, now) }))
-      .filter((x): x is { a: Alarm; until: number } => x.until != null)
-      .sort((x, y) => x.until - y.until)[0];
+    const next = nextAlarm(d.alarms, now);
     const nextClock = next ? clock(next.a) : null;
     return html`${header(d)}
     ${next && nextClock

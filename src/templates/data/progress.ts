@@ -2,9 +2,37 @@ import { z } from 'zod';
 import { formatSchema, iconSchema, makeFormatter, statusSchema, titleFields } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
-import { mix } from '../../core/theme.ts';
+import { mix, type Theme } from '../../core/theme.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { header, statusBadge } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
+import { CIRCLE_ROW, circleRow, header, statusBadge, statusIcon } from '../../core/ui.ts';
+
+const itemSchema = z.object({
+  label: z.string().min(1).max(100),
+  value: z.number(),
+  max: z.number().positive().default(100),
+  target: z.number().optional().describe('Draws a marker at this value'),
+  format: formatSchema.optional().describe('When set, shows "value / max" in this format instead of a percentage'),
+  status: statusSchema.optional().describe('Colors the fill by severity and adds an icon + label'),
+  caption: z.string().max(160).optional(),
+  icon: iconSchema.optional(),
+});
+
+type Item = z.output<typeof itemSchema>;
+
+/** A goal's fill, track color, value text and target position. */
+function meter(it: Item, theme: Theme) {
+  const pct = Math.max(0, Math.min(1, it.value / it.max));
+  const color = it.status ? theme.status[it.status] : theme.accent;
+  // Track is a lighter step of the fill's own hue so state reads across the whole bar.
+  const track = it.status ? mix(color, theme.surface, theme.mode === 'dark' ? 0.75 : 0.8) : theme.accentTrack;
+  const fmt = it.format ? makeFormatter(it.format) : null;
+  const value = fmt
+    ? html`${fmt(it.value)} <span class="of">/ ${fmt(it.max)}</span>`
+    : html`${`${Math.round((it.value / it.max) * 100)}%`}`;
+  const targetPct = it.target != null ? Math.max(0, Math.min(1, it.target / it.max)) : null;
+  return { pct, color, track, value, targetPct };
+}
 
 export const progress = defineTemplate({
   id: 'progress',
@@ -18,16 +46,7 @@ export const progress = defineTemplate({
     ...titleFields,
     items: z
       .array(
-        z.object({
-          label: z.string().min(1).max(100),
-          value: z.number(),
-          max: z.number().positive().default(100),
-          target: z.number().optional().describe('Draws a marker at this value'),
-          format: formatSchema.optional().describe('When set, shows "value / max" in this format instead of a percentage'),
-          status: statusSchema.optional().describe('Colors the fill by severity and adds an icon + label'),
-          caption: z.string().max(160).optional(),
-          icon: iconSchema.optional(),
-        }),
+        itemSchema,
       )
       .min(1)
       .max(24),
@@ -56,17 +75,34 @@ export const progress = defineTemplate({
 .pg-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
 .pg-caption{font-size:12px;color:var(--text-2)}
 `,
+  circleCss: /* css */ `
+.pg-r{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.pg-r .pg-top{margin-bottom:6px;align-items:center}
+.pg-r .pg-label .icon{flex:none}
+.pg-r .pg-track{height:8px}
+.pg-more{font-size:13px;color:var(--text-2);margin-top:10px}
+`,
+  truncateCircle: (d, keep) => keepFirst(d, 'items', keep),
+  renderCircle(d, ctx) {
+    const hidden = hiddenCount(d);
+    // Each goal is one row: label and value over its bar, narrowed to the chord; captions are left out.
+    return html`${header(d)}<div class="pg pg-r">${d.items.map((it) => {
+      const { pct, color, track, value, targetPct } = meter(it, ctx.theme);
+      return html`<div class="${circleRow('pg-item')}">
+        <div class="pg-top">
+          <div class="pg-label">${it.status ? statusIcon(it.status, 15) : icon(it.icon, { size: 15 })}<span class="shrink">${it.label}</span></div>
+          <div class="pg-value">${value}</div>
+        </div>
+        <div class="pg-track" style="${style({ background: track })}">
+          <div class="pg-fill" style="${style({ width: `${(pct * 100).toFixed(2)}%`, background: color })}"></div>
+          ${targetPct != null ? html`<div class="pg-target" style="${`left:${(targetPct * 100).toFixed(2)}%`}"></div>` : null}
+        </div>
+      </div>`;
+    })}</div>${hidden ? html`<div class="${`pg-more ${CIRCLE_ROW}`}">${moreLabel(hidden)}</div>` : null}`;
+  },
   render(d, ctx) {
     return html`${header(d)}<div class="pg">${d.items.map((it) => {
-      const pct = Math.max(0, Math.min(1, it.value / it.max));
-      const color = it.status ? ctx.theme.status[it.status] : ctx.theme.accent;
-      // Track is a lighter step of the fill's own hue so state reads across the whole bar.
-      const track = it.status ? mix(color, ctx.theme.surface, ctx.theme.mode === 'dark' ? 0.75 : 0.8) : ctx.theme.accentTrack;
-      const fmt = it.format ? makeFormatter(it.format) : null;
-      const value = fmt
-        ? html`${fmt(it.value)} <span class="of">/ ${fmt(it.max)}</span>`
-        : html`${`${Math.round((it.value / it.max) * 100)}%`}`;
-      const targetPct = it.target != null ? Math.max(0, Math.min(1, it.target / it.max)) : null;
+      const { pct, color, track, value, targetPct } = meter(it, ctx.theme);
       return html`<div class="pg-item">
         <div class="pg-top">
           <div class="pg-label">${icon(it.icon, { size: 15 })}<span class="shrink">${it.label}</span></div>

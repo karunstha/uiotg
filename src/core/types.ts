@@ -23,8 +23,18 @@ export interface Size {
 /** How much a template shows: just the essentials, the default, or extra context derived from the data. */
 export type Detail = 'minimal' | 'standard' | 'rich';
 
+/** A round screen (shape "circle"): see render/circle.ts. */
+export interface CircleGeometry {
+  /** Full diameter of the screen in CSS px. */
+  diameter: number;
+  /** Diameter of the usable circle: inside the rim and any padding, centred in the content box. */
+  safe: number;
+}
+
 export interface RenderContext extends Size {
   theme: Theme;
+  /** Set when the output is round (shape "circle"); width and height are then the circle's bounding box. */
+  circle?: CircleGeometry;
   /** Resolved level of detail (see Template.richWhen). Templates may ignore it. */
   detail: Detail;
   /**
@@ -83,8 +93,35 @@ export interface Template<S extends z.ZodType = z.ZodType> {
    * label — for single-subject cards where the title names the subject.
    */
   photo?: 'keyword' | 'title';
+  /**
+   * For overflow "cap": the same data with only the first `keep` primary items
+   * (rows, entries, events…) and a short "+N more" marker in the template's own
+   * style. `total` counts the items before, `shown` after (shown = total when
+   * nothing was cut). The renderer looks for the largest `keep` that fits a
+   * fixed height; templates without it grow instead.
+   */
+  truncate?(data: z.output<S>, keep: number): { data: z.output<S>; total: number; shown: number };
+  /**
+   * "rows": the template marks its header lines and repeated rows with
+   * CIRCLE_ROW (ui.ts), so with shape "circle" the renderer centres them and
+   * narrows each to the circle's width at its height. Without it, shape
+   * "circle" lays the template out in the square inside the circle.
+   */
+  circle?: 'rows';
+  /**
+   * A separate layout for shape "circle", used instead of `render`. It gets the
+   * box around the usable circle (ctx.circle is set) on a centred column like
+   * `circle: "rows"`, so CIRCLE_ROW elements are narrowed to their chord; it
+   * must keep everything else inside the circle itself. Overflow "cap" and the
+   * shrink fallback still apply afterwards.
+   */
+  renderCircle?(data: z.output<S>, ctx: RenderContext & { circle: CircleGeometry }): Html | Promise<Html>;
+  /** Like `truncate`, for `renderCircle` only (defaults to `truncate`), when the rectangular layout should keep growing or shrinking. */
+  truncateCircle?(data: z.output<S>, keep: number): { data: z.output<S>; total: number; shown: number };
   /** Stylesheet included once per document when the template is used. */
   css?: string;
+  /** Extra stylesheet for `renderCircle`, included only with shape "circle". */
+  circleCss?: string;
   render(data: z.output<S>, ctx: RenderContext): Html | Promise<Html>;
 }
 

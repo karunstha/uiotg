@@ -10,6 +10,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { sizeOptionsSchema, type SizeOptions } from './options.ts';
 import { contrast, DARK, FONT_MONO, FONT_SANS, inkOn, LIGHT, mix, parseHex, type Theme } from './theme.ts';
 
 const hex = z.string().regex(/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/, 'Expected a hex color like #ff79c6');
@@ -45,6 +46,22 @@ export const themeSpecSchema = z.object({
     .describe('Status dots, alerts, badges, uptime bars. Change with care: people read these as green/amber/red.'),
   font: z.enum(['sans', 'serif', 'mono', 'rounded']).default('sans').describe('sans (Inter), serif (Source Serif), mono (JetBrains Mono, terminal look), rounded (Nunito, friendly).'),
   corners: z.enum(['sharp', 'small', 'default', 'round']).default('default').describe('Corner rounding of cards, tiles and bars; "sharp" squares off pills too.'),
+  defaults: sizeOptionsSchema
+    .strict()
+    .optional()
+    .describe(
+      'Render options used whenever this theme is used and the call leaves them out: width, height, padding (a number, or {"x":…,"y":…} per axis), scale, format, quality, detail, ' +
+        'overflow ("cap" keeps the fixed size and shows fewer items with "+N more" instead of growing), shape ("circle" for a round screen) (same limits as render options). ' +
+        'Options passed in the call win unless listed in `lock`; these beat the server defaults. An inline theme without `defaults` inherits the server default theme\'s `defaults` and `lock`. Good for a theme tied to a device, e.g. a round 466 px screen: ' +
+        '{"width":466,"height":466,"shape":"circle","padding":12,"scale":1,"overflow":"cap"}.',
+    ),
+  lock: z
+    .array(z.enum(Object.keys(sizeOptionsSchema.shape) as [keyof typeof sizeOptionsSchema.shape, ...(keyof typeof sizeOptionsSchema.shape)[]]))
+    .optional()
+    .describe(
+      "Names of `defaults` options that calls cannot change: for these the theme's value always wins over what a call passes (no effect when the theme has no default for it). " +
+        'Use it for a fixed screen so an agent cannot enlarge the image, e.g. ["width","height","padding","overflow"]. For a different size, use another theme.',
+    ),
 });
 
 export type ThemeSpec = z.input<typeof themeSpecSchema>;
@@ -275,6 +292,18 @@ export function resolveTheme(input: string | ThemeSpec, store?: ThemeStore): The
   const saved = store?.get(input);
   if (saved) return buildTheme(saved, input);
   throw new UnknownThemeError(input, [...Object.keys(PRESETS), ...(store?.names() ?? [])]);
+}
+
+/** A theme's own render defaults (saved or inline themes; presets have none). */
+export function themeDefaults(input: string | ThemeSpec, store?: ThemeStore): SizeOptions {
+  const spec = typeof input === 'string' ? (input in PRESETS ? undefined : store?.get(input)) : input;
+  return spec?.defaults ? sizeOptionsSchema.strict().parse(spec.defaults) : {};
+}
+
+/** The option names a theme locks to its `defaults` (see themeSpecSchema.lock). */
+export function themeLock(input: string | ThemeSpec, store?: ThemeStore): (keyof SizeOptions)[] {
+  const spec = typeof input === 'string' ? (input in PRESETS ? undefined : store?.get(input)) : input;
+  return spec?.lock ?? [];
 }
 
 /** Text-heavy cards on a darkened photo: neutrals switch to light-on-dark, the theme's colors stay. */

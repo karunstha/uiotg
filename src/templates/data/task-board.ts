@@ -3,7 +3,8 @@ import { titleFields, toneSchema } from '../../core/format.ts';
 import { html, style } from '../../core/html.ts';
 import { icon } from '../../core/icons.ts';
 import { defineTemplate } from '../../core/types.ts';
-import { fitColumns, header, imageBackground, initials, toneColor } from '../../core/ui.ts';
+import { circleRow, fitColumns, header, imageBackground, initials, toneColor } from '../../core/ui.ts';
+import { hiddenCount, keepFirst, moreLabel } from '../../core/truncate.ts';
 
 const PRIORITY = {
   urgent: { icon: 'flame', color: 'var(--critical)', label: 'Urgent' },
@@ -19,6 +20,16 @@ function columnTone(name: string): 'success' | 'accent' | 'critical' | 'neutral'
   if (/block|stuck|risk/i.test(name)) return 'critical';
   return 'neutral';
 }
+
+/** Keeps the first `keep` cards of every column; each column notes how many it hides. */
+function capCards<D extends { columns: Array<{ cards: unknown[] }> }>(d: D, keep: number) {
+  const columns = d.columns.map((col) => keepFirst(col, 'cards', keep));
+  const sum = (k: 'total' | 'shown') => columns.reduce((n, c) => n + c[k], 0);
+  return { data: { ...d, columns: columns.map((c) => c.data) }, total: sum('total'), shown: sum('shown') };
+}
+
+/** Cards a column shows at most on a round screen. */
+const CIRCLE_CARDS = 3;
 
 export const taskBoard = defineTemplate({
   id: 'task_board',
@@ -105,14 +116,52 @@ export const taskBoard = defineTemplate({
   font-size:10px;font-weight:700}
 .kb-empty{font-size:12.5px;color:var(--muted);text-align:center;padding:12px 0}
 `,
+  // Caps the cards per column; each column says how many it hides.
+  truncate: (d, keep) => capCards(d, keep),
+  circleCss: /* css */ `
+.kb-r{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.kb-rhead{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:650;color:var(--text-2);letter-spacing:.03em;text-transform:uppercase;margin-top:6px}
+.kb-rhead .kb-count{margin-left:2px;background:var(--subtle)}
+.kb-rc{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:calc(10px * var(--rk));background:var(--subtle);text-align:left;font-size:14px;font-weight:600;color:var(--text)}
+.kb-rc .kb-rt{flex:1 1 auto;min-width:6em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kb-rc .icon{flex:none}
+.kb-rc .kb-who{margin-left:0;flex:none;width:20px;height:20px;font-size:9px}
+.kb-rc.kb-done .kb-rt{color:var(--text-2)}
+.kb-rmore{font-size:12px;color:var(--muted)}
+`,
+  // Truncates the same way as a rectangle, at most CIRCLE_CARDS per column.
+  truncateCircle: (d, keep) => capCards(d, Math.min(keep, CIRCLE_CARDS)),
+  renderCircle(d, ctx) {
+    // No side-by-side columns: each column is a small heading over its first cards, one line each.
+    return html`${header(d)}<div class="kb-r">${d.columns.map((col) => {
+      const cards = col.cards.slice(0, CIRCLE_CARDS);
+      const hidden = hiddenCount(col) + col.cards.length - cards.length;
+      const count = col.cards.length + hiddenCount(col);
+      const over = col.limit != null && count > col.limit;
+      const tone = col.tone ?? columnTone(col.name);
+      const done = tone === 'success';
+      return html`<div class="${circleRow('kb-rhead')}"><span class="kb-dot" style="${style({ background: toneColor(ctx.theme, tone) })}"></span>${col.name}<span class="${`kb-count${over ? ' kb-over' : ''}`}">${count}${col.limit ? ` / ${col.limit}` : ''}</span></div>
+      ${cards.length ? null : html`<div class="${circleRow('kb-rmore')}">No cards</div>`}
+      ${cards.map((c) => {
+        const p = c.priority && !done ? PRIORITY[c.priority] : null;
+        return html`<div class="${circleRow(`kb-rc${done ? ' kb-done' : ''}`)}">
+          ${done ? html`<span style="color:var(--good);display:inline-flex">${icon('circle-check', { size: 14 })}</span>` : p ? html`<span style="${`color:${p.color};display:inline-flex`}">${icon(p.icon, { size: 14, strokeWidth: 2.5 })}</span>` : null}
+          <span class="kb-rt">${c.title}</span>
+          ${c.assignee ? html`<span class="kb-who" style="${style({ background: imageBackground(undefined, c.assignee) })}">${initials(c.assignee)}</span>` : null}
+        </div>`;
+      })}
+      ${hidden ? html`<div class="${circleRow('kb-rmore')}">${moreLabel(hidden)}</div>` : null}`;
+    })}</div>`;
+  },
   render(d, ctx) {
     const cols = fitColumns(d.columns.length, ctx.width, 210, 14);
     return html`${header(d)}<div class="kb-board" style="${`grid-template-columns:repeat(${cols}, minmax(0, 1fr))`}">${d.columns.map((col) => {
-      const over = col.limit != null && col.cards.length > col.limit;
+      const count = col.cards.length + hiddenCount(col);
+      const over = col.limit != null && count > col.limit;
       const tone = col.tone ?? columnTone(col.name);
       const done = tone === 'success';
       return html`<div class="kb-col">
-        <div class="kb-colhead"><span class="kb-dot" style="${style({ background: toneColor(ctx.theme, tone) })}"></span>${col.name}<span class="${`kb-count${over ? ' kb-over' : ''}`}">${col.cards.length}${col.limit ? ` / ${col.limit}` : ''}</span></div>
+        <div class="kb-colhead"><span class="kb-dot" style="${style({ background: toneColor(ctx.theme, tone) })}"></span>${col.name}<span class="${`kb-count${over ? ' kb-over' : ''}`}">${count}${col.limit ? ` / ${col.limit}` : ''}</span></div>
         <div class="kb-cards">${col.cards.length
           ? col.cards.map((c) => {
               const p = c.priority && !done ? PRIORITY[c.priority] : null;
@@ -131,7 +180,7 @@ export const taskBoard = defineTemplate({
                   : null}
               </div>`;
             })
-          : html`<div class="kb-empty">No cards</div>`}</div>
+          : html`<div class="kb-empty">No cards</div>`}${hiddenCount(col) ? html`<div class="kb-empty">${moreLabel(hiddenCount(col))}</div>` : null}</div>
       </div>`;
     })}</div>`;
   },
